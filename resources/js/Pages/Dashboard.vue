@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { inventoryApi } from '@/api/inventory.api';
 import { employeeApi } from '@/api/employee.api';
@@ -33,11 +33,24 @@ const formatRupiah = (val: number) =>
 
 const menuItems = [
   { id: 'overview', name: 'Dashboard', icon: 'pi pi-chart-bar' },
-  { id: 'inventory', name: 'Inventory Stok', icon: 'pi pi-search' },
+  {
+    id: 'inventory',
+    name: 'Inventory Dashboard',
+    icon: 'pi pi-box',
+    children: [
+      { id: 'inventory-ruko', name: 'Stok Barang di Ruko', icon: 'pi pi-building' },
+      { id: 'inventory-margomulyo', name: 'Stok Barang di Margomulyo', icon: 'pi pi-warehouse' },
+      { id: 'inventory-history', name: 'Mutasi Stok', icon: 'pi pi-history' },
+    ],
+  },
   { id: 'employees', name: 'Data Karyawan', icon: 'pi pi-users' },
   { id: 'attendance', name: 'Absensi Harian', icon: 'pi pi-calendar' },
   { id: 'payroll', name: 'Penggajian', icon: 'pi pi-wallet' },
 ];
+
+const inventoryExpanded = computed(() =>
+  activeTab.value === 'inventory' || activeTab.value.startsWith('inventory-')
+);
 
 onMounted(async () => {
   try {
@@ -63,18 +76,46 @@ onMounted(async () => {
     <template #sidebar>
       <div class="flex flex-col gap-1">
         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-4 py-4">Main Menu</p>
-        <button 
-          v-for="item in menuItems" 
-          :key="item.id"
-          @click="() => { console.log('Switching to:', item.id); activeTab = item.id; }"
-          class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group relative z-10"
-          :class="activeTab === item.id 
-            ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-            : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
-        >
-          <i :class="item.icon" class="text-lg group-hover:scale-110 transition-transform"></i>
-          <span class="tracking-wide">{{ item.name }}</span>
-        </button>
+        <template v-for="item in menuItems" :key="item.id">
+          <!-- Menu item dengan children (tree) -->
+          <template v-if="item.children">
+            <button
+              @click="activeTab = item.id"
+              class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group"
+              :class="inventoryExpanded ? 'text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
+            >
+              <i :class="item.icon" class="text-lg transition-transform"></i>
+              <span class="tracking-wide flex-1 text-left">{{ item.name }}</span>
+              <i :class="inventoryExpanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" class="text-[10px] opacity-50"></i>
+            </button>
+            <div v-if="inventoryExpanded" class="ml-4 flex flex-col gap-0.5 border-l-2 border-slate-100 pl-3">
+              <button
+                v-for="child in item.children"
+                :key="child.id"
+                @click="activeTab = child.id"
+                class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12px] font-bold transition-all duration-200 group"
+                :class="activeTab === child.id
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
+              >
+                <i :class="child.icon" class="text-sm"></i>
+                <span>{{ child.name }}</span>
+              </button>
+            </div>
+          </template>
+          <!-- Menu item biasa -->
+          <button
+            v-else
+            @click="activeTab = item.id"
+            class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group"
+            :class="activeTab === item.id
+              ? 'bg-primary text-white shadow-lg shadow-primary/20'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
+          >
+            <i :class="item.icon" class="text-lg group-hover:scale-110 transition-transform"></i>
+            <span class="tracking-wide">{{ item.name }}</span>
+          </button>
+        </template>
       </div>
 
       <div class="mt-8 flex flex-col gap-1">
@@ -184,8 +225,14 @@ onMounted(async () => {
       </div>
 
       <!-- Module: Inventory -->
-      <div v-else-if="activeTab === 'inventory'">
-        <InventoryModule />
+      <div v-else-if="activeTab === 'inventory-ruko'">
+        <InventoryModule view="ruko" />
+      </div>
+      <div v-else-if="activeTab === 'inventory-margomulyo'">
+        <InventoryModule view="margomulyo" />
+      </div>
+      <div v-else-if="activeTab === 'inventory-history'">
+        <InventoryModule view="history" />
       </div>
 
       <!-- Module: Employees -->
@@ -206,9 +253,9 @@ onMounted(async () => {
       <!-- Module Placeholder -->
       <div v-else class="flex flex-col items-center justify-center py-32 premium-card bg-white/40 border-dashed">
         <div class="w-24 h-24 bg-primary text-white rounded-3xl flex items-center justify-center text-4xl mb-8 shadow-2xl shadow-primary/20 animate-bounce">
-          <i :class="menuItems.find(i => i.id === activeTab)?.icon"></i>
+          <i class="pi pi-box"></i>
         </div>
-        <h3 class="font-display font-bold text-3xl text-primary capitalize">Modul {{ activeTab }}</h3>
+        <h3 class="font-display font-bold text-3xl text-primary capitalize">Pilih sub-menu Inventory</h3>
         <p class="text-slate-500 mt-3 text-sm max-w-xs text-center leading-relaxed">
           Sistem sedang mempersiapkan antarmuka untuk modul ini sesuai dengan alur kerja di <span class="text-accent font-bold">plan.md</span>.
         </p>

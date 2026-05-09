@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { inventoryApi } from '@/api/inventory.api';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import LoadingState from '@/components/shared/LoadingState.vue';
 
-const activeSubTab = ref<'items' | 'history'>('items');
+const props = defineProps<{
+  view: 'ruko' | 'margomulyo' | 'history';
+}>();
+
 const items = ref<any[]>([]);
 const categories = ref<any[]>([]);
 const transactions = ref<any[]>([]);
@@ -117,6 +124,55 @@ const resetBulkModal = () => {
   bulkFileError.value = '';
 };
 
+const exportExcel = () => {
+  const rows = transactions.value.map(t => ({
+    'Tanggal': t.date,
+    'Nama Barang': t.item?.name ?? '-',
+    'Kategori': t.item?.category?.name ?? '-',
+    'Tipe': t.type === 'IN' ? 'Masuk' : 'Keluar',
+    'Jumlah': t.type === 'IN' ? t.quantity : -t.quantity,
+    'Stok Sebelum': t.stock_before,
+    'Stok Sesudah': t.stock_after,
+    'Satuan': t.item?.unit ?? '-',
+    'Catatan': t.notes ?? '-',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Riwayat Transaksi');
+  XLSX.writeFile(wb, `riwayat-transaksi-${new Date().toISOString().slice(0, 10)}.xlsx`);
+};
+
+const exportPdf = () => {
+  const doc = new jsPDF({ orientation: 'landscape' });
+
+  doc.setFontSize(14);
+  doc.text('Riwayat Transaksi Inventori', 14, 16);
+  doc.setFontSize(9);
+  doc.text(`Diekspor: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}`, 14, 22);
+
+  autoTable(doc, {
+    startY: 28,
+    head: [['Tanggal', 'Nama Barang', 'Kategori', 'Tipe', 'Jumlah', 'Stok Sebelum', 'Stok Sesudah', 'Satuan', 'Catatan']],
+    body: transactions.value.map(t => [
+      t.date,
+      t.item?.name ?? '-',
+      t.item?.category?.name ?? '-',
+      t.type === 'IN' ? 'Masuk' : 'Keluar',
+      (t.type === 'IN' ? '+' : '-') + t.quantity,
+      t.stock_before,
+      t.stock_after,
+      t.item?.unit ?? '-',
+      t.notes ?? '-',
+    ]),
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [30, 41, 59] },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  doc.save(`riwayat-transaksi-${new Date().toISOString().slice(0, 10)}.pdf`);
+};
+
 const itemForm = ref({
   id: null as number | null,
   name: '',
@@ -186,6 +242,34 @@ onMounted(() => {
 
 onUnmounted(() => clearInterval(pollInterval));
 
+const historyFilter = ref<'all' | 'IN' | 'OUT'>('all');
+const historySearch = ref('');
+
+const today = new Date().toISOString().slice(0, 10);
+const thisMonth = today.slice(0, 7);
+
+const cashflowToday = computed(() =>
+  transactions.value
+    .filter(t => t.type === 'OUT' && t.date === today)
+    .reduce((sum, t) => sum + t.quantity * (t.item?.harga_jual ?? 0), 0)
+);
+
+const cashflowMonth = computed(() =>
+  transactions.value
+    .filter(t => t.type === 'OUT' && t.date?.startsWith(thisMonth))
+    .reduce((sum, t) => sum + t.quantity * (t.item?.harga_jual ?? 0), 0)
+);
+
+const filteredTransactions = computed(() => {
+  const type = historyFilter.value;
+  const q = historySearch.value.toLowerCase();
+  return transactions.value.filter(t => {
+    const matchType = type === 'all' || t.type === type;
+    const matchSearch = !q || (t.item?.name ?? '').toLowerCase().includes(q);
+    return matchType && matchSearch;
+  });
+});
+
 const currentPage = ref(1);
 const perPage = 10;
 const sortKey = ref<'name' | 'category' | 'quantity' | 'unit' | 'harga_jual'>('quantity');
@@ -201,13 +285,24 @@ const toggleSort = (key: typeof sortKey.value) => {
   currentPage.value = 1;
 };
 
+const LOCATION_MAP: Record<string, string> = {
+  ruko: 'Ruko',
+  margomulyo: 'Margomulyo',
+};
+
 const filteredItems = computed(() => {
   const q = searchQuery.value.toLowerCase();
+  const locationLabel = LOCATION_MAP[props.view];
   return items.value
-    .filter(item =>
-      item.name.toLowerCase().includes(q) ||
-      item.category?.name.toLowerCase().includes(q)
-    )
+    .filter(item => {
+      const matchLocation = locationLabel
+        ? (item.location ?? '').toLowerCase() === locationLabel.toLowerCase()
+        : true;
+      const matchSearch =
+        item.name.toLowerCase().includes(q) ||
+        item.category?.name.toLowerCase().includes(q);
+      return matchLocation && matchSearch;
+    })
     .sort((a, b) => {
       let valA: any, valB: any;
       if (sortKey.value === 'category') {
@@ -302,10 +397,14 @@ const handleSaveCategory = async () => {
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div>
-        <h2 class="text-3xl font-display font-bold text-primary">Inventory Stok</h2>
-        <p class="text-slate-500 text-sm mt-1">Manajemen bahan baku, aset, dan perlengkapan MBG.</p>
+        <h2 class="text-3xl font-display font-bold text-primary">
+          {{ view === 'history' ? 'Mutasi Stok' : 'Stok Barang — ' + (view === 'ruko' ? 'Ruko' : 'Margomulyo') }}
+        </h2>
+        <p class="text-slate-500 text-sm mt-1">
+          {{ view === 'history' ? 'Riwayat seluruh transaksi keluar masuk barang.' : 'Manajemen stok barang di lokasi ' + (view === 'ruko' ? 'Ruko' : 'Margomulyo') + '.' }}
+        </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div v-if="view !== 'history'" class="flex items-center gap-2">
         <div class="relative">
           <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
           <input
@@ -330,26 +429,8 @@ const handleSaveCategory = async () => {
       </div>
     </div>
 
-    <!-- Sub Navigation Tabs -->
-    <div class="flex gap-1 p-1 bg-slate-100 rounded-2xl w-fit">
-      <button 
-        @click="activeSubTab = 'items'"
-        :class="activeSubTab === 'items' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-primary'"
-        class="px-6 py-2 rounded-xl text-xs font-bold transition-all"
-      >
-        Stok Barang
-      </button>
-      <button 
-        @click="activeSubTab = 'history'"
-        :class="activeSubTab === 'history' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-primary'"
-        class="px-6 py-2 rounded-xl text-xs font-bold transition-all"
-      >
-        Riwayat Transaksi
-      </button>
-    </div>
-
     <!-- Main Content -->
-    <div v-if="activeSubTab === 'items'" class="premium-card bg-white p-0 overflow-hidden shadow-2xl shadow-primary/5">
+    <div v-if="view !== 'history'" class="premium-card bg-white p-0 overflow-hidden shadow-2xl shadow-primary/5">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -373,8 +454,10 @@ const handleSaveCategory = async () => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">
-            <tr v-if="isLoading" v-for="i in 5" :key="i" class="animate-pulse">
-              <td colspan="5" class="px-6 py-8 h-16 bg-slate-50/10"></td>
+            <tr v-if="isLoading">
+              <td colspan="6">
+                <LoadingState label="Memuat stok barang..." />
+              </td>
             </tr>
 
             <tr v-else v-for="item in paginatedItems" :key="item.id" class="hover:bg-slate-50/30 transition-colors group">
@@ -444,29 +527,151 @@ const handleSaveCategory = async () => {
     </div>
 
     <!-- History View -->
-    <div v-else class="space-y-6">
-      <div v-for="t in transactions" :key="t.id" class="premium-card bg-white flex items-center justify-between hover:border-accent/30 transition-all group">
-        <div class="flex items-center gap-6">
-          <div :class="t.type === 'IN' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'" class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform">
-            <i :class="t.type === 'IN' ? 'pi pi-arrow-down-left' : 'pi pi-arrow-up-right'"></i>
-          </div>
-          <div>
-            <div class="flex items-center gap-3">
-              <p class="text-sm font-bold text-slate-900">{{ t.item?.name }}</p>
-              <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{{ t.item?.category?.name }}</span>
+    <div v-else-if="view === 'history'" class="space-y-6">
+      <LoadingState v-if="isLoading" label="Memuat mutasi stok..." />
+      <template v-else>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-3 gap-4">
+          <div class="premium-card bg-white relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-accent/10 rounded-full blur-2xl"></div>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cashflow Hari Ini</p>
+              <span class="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full uppercase">{{ today }}</span>
             </div>
-            <p class="text-[10px] text-slate-400 mt-1">
-              <span class="font-bold text-slate-500">{{ t.date }}</span> • {{ t.notes || 'Tanpa catatan' }}
+            <p class="text-2xl font-display font-bold text-primary">
+              {{ cashflowToday > 0 ? 'Rp ' + cashflowToday.toLocaleString('id-ID') : '—' }}
+            </p>
+            <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">
+              {{ transactions.filter(t => t.type === 'OUT' && t.date === today).length }} transaksi keluar
+            </p>
+          </div>
+          <div class="premium-card bg-gradient-to-br from-primary to-primary-light text-white relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Cashflow Bulan Ini</p>
+              <span class="text-[9px] font-bold text-white/50 bg-white/10 px-2 py-0.5 rounded-full uppercase">{{ thisMonth }}</span>
+            </div>
+            <p class="text-2xl font-display font-bold text-white">
+              {{ cashflowMonth > 0 ? 'Rp ' + cashflowMonth.toLocaleString('id-ID') : '—' }}
+            </p>
+            <p class="text-[10px] text-white/60 font-bold uppercase mt-1">
+              {{ transactions.filter(t => t.type === 'OUT' && t.date?.startsWith(thisMonth)).length }} transaksi keluar
+            </p>
+          </div>
+          <div class="premium-card bg-white relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-20 h-20 bg-slate-100 rounded-full blur-2xl"></div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Total Transaksi</p>
+            <p class="text-2xl font-display font-bold text-primary">{{ transactions.length }}</p>
+            <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">
+              {{ transactions.filter(t => t.type === 'IN').length }} masuk &middot; {{ transactions.filter(t => t.type === 'OUT').length }} keluar
             </p>
           </div>
         </div>
-        <div class="text-right">
-          <p :class="t.type === 'IN' ? 'text-emerald-600' : 'text-red-600'" class="text-xl font-display font-bold">
-            {{ t.type === 'IN' ? '+' : '-' }}{{ t.quantity }}
-          </p>
-          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ t.item?.unit }}</p>
+
+        <!-- Toolbar -->
+        <div class="flex items-center justify-between gap-4">
+          <div class="relative">
+            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+            <input
+              v-model="historySearch"
+              type="text"
+              placeholder="Cari nama barang..."
+              class="bg-white border border-slate-200 rounded-xl pl-8 pr-8 py-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all w-60 shadow-sm"
+            >
+            <button
+              v-if="historySearch"
+              @click="historySearch = ''"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+            ><i class="pi pi-times text-[10px]"></i></button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              v-for="opt in [{ val: 'all', label: 'Semua' }, { val: 'IN', label: 'Masuk' }, { val: 'OUT', label: 'Keluar' }]"
+              :key="opt.val"
+              @click="historyFilter = opt.val"
+              :class="historyFilter === opt.val
+                ? opt.val === 'IN' ? 'bg-emerald-600 text-white' : opt.val === 'OUT' ? 'bg-red-500 text-white' : 'bg-primary text-white'
+                : 'bg-white border border-slate-200 text-slate-500 hover:border-primary/30 hover:text-primary'"
+              class="px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all shadow-sm"
+            >{{ opt.label }}</button>
+
+            <div class="w-px h-5 bg-slate-200 mx-1"></div>
+
+            <button @click="exportExcel" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-all">
+              <i class="pi pi-file-excel text-xs"></i> Excel
+            </button>
+            <button @click="exportPdf" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-all">
+              <i class="pi pi-file-pdf text-xs"></i> PDF
+            </button>
+          </div>
         </div>
-      </div>
+
+        <!-- Table -->
+        <div class="premium-card bg-white p-0 overflow-hidden shadow-2xl shadow-primary/5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/50 border-b border-slate-100">
+                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal</th>
+                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Barang</th>
+                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tipe</th>
+                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Jumlah</th>
+                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Stok</th>
+                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catatan</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-50">
+                <tr
+                  v-for="t in filteredTransactions"
+                  :key="t.id"
+                  class="hover:bg-slate-50/40 transition-colors group"
+                >
+                  <td class="px-6 py-4 text-xs font-bold text-slate-500 whitespace-nowrap">{{ t.date }}</td>
+                  <td class="px-6 py-4">
+                    <p class="text-sm font-bold text-slate-900">{{ t.item?.name }}</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ t.item?.category?.name }}</p>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span
+                      :class="t.type === 'IN'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                        : 'bg-red-50 text-red-600 border border-red-100'"
+                      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      <i :class="t.type === 'IN' ? 'pi pi-arrow-down-left' : 'pi pi-arrow-up-right'" class="text-[10px]"></i>
+                      {{ t.type === 'IN' ? 'Masuk' : 'Keluar' }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <span :class="t.type === 'IN' ? 'text-emerald-600' : 'text-red-500'" class="text-lg font-display font-bold">
+                      {{ t.type === 'IN' ? '+' : '-' }}{{ t.quantity }}
+                    </span>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase">{{ t.item?.unit }}</p>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <div class="inline-flex items-center gap-2 text-xs text-slate-500">
+                      <span class="font-bold text-slate-400">{{ t.stock_before }}</span>
+                      <i class="pi pi-arrow-right text-[10px] text-slate-300"></i>
+                      <span class="font-bold text-primary">{{ t.stock_after }}</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-xs text-slate-400 max-w-[180px] truncate">
+                    {{ t.notes || '—' }}
+                  </td>
+                </tr>
+                <tr v-if="filteredTransactions.length === 0">
+                  <td colspan="6" class="px-6 py-16 text-center text-sm text-slate-400 font-bold">
+                    Tidak ada transaksi ditemukan.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </template>
     </div>
 
     <!-- Item Modal -->
