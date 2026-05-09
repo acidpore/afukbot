@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-Content \"C:\\\\laragon\\\\www\\\\absensi\\\\storage\\\\logs\\\\laravel.log\")",
+      "Bash(Select-Object -Last 50)"
+    ]
+  }
+}

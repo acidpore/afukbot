@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
+  
+  --color-primary: #064e3b;
+  --color-primary-light: #065f46;
+  --color-accent: #c9a84c;
+  --color-gold: #c9a84c;
+}
+
+@utility glass {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+@utility premium-card {
+  @apply glass;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: all 0.3s;
+  &:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  }
+}
+
+@utility btn-primary {
+  @apply bg-primary text-white;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 10px 15px -3px rgba(6, 78, 59, 0.2);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  &:hover {
+    background-color: var(--color-primary-light);
+  }
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+@utility btn-secondary {
+  @apply bg-white text-primary border border-primary/20;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  &:hover {
+    background-color: var(--color-primary);
+    color: white;
+  }
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+@layer base {
+  body, input, select, textarea, button {
+    @apply bg-[#faf9f6] text-slate-900 font-sans antialiased;
+    background-image: radial-gradient(at 0% 0%, rgba(201, 168, 76, 0.05) 0, transparent 50%),
+                      radial-gradient(at 50% 0%, rgba(6, 78, 59, 0.03) 0, transparent 50%);
+  }
+  
+  /* Reset background for form elements */
+  input, select, textarea {
+    background-image: none !important;
+  }
+}
+
+@layer utilities {
+  .islamic-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23c9a84c' fill-opacity='0.05'%3E%3Cpath d='M40 0l6.18 17.82L64.14 15.86 50 30l17.82 6.18-2 18.28L48.28 52 40 70l-8.28-18L14.14 54.46l-1.96-18.28L30 30 15.86 15.86l17.96 1.96z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  
+  .section-divider {
+    @apply flex items-center justify-center gap-4 py-8;
+  }
+  
+  .section-divider::before, .section-divider::after {
+    content: '';
+    @apply h-[1px] w-24 bg-gradient-to-r from-transparent via-accent to-transparent;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(201, 168, 76, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 168, 76, 0.5);
+}

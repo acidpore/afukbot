@@ -1,0 +1,223 @@
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue';
+import MainLayout from '@/Layouts/MainLayout.vue';
+import { inventoryApi } from '@/api/inventory.api';
+import { employeeApi } from '@/api/employee.api';
+import EmployeeList from './Modules/Employee/EmployeeList.vue';
+import AttendanceModule from './Modules/Attendance/AttendanceModule.vue';
+import PayrollModule from './Modules/Payroll/PayrollModule.vue';
+import InventoryModule from './Modules/Inventory/InventoryModule.vue';
+
+const urlParams = new URLSearchParams(window.location.search);
+const activeTab = ref(urlParams.get('tab') || 'overview');
+
+watch(activeTab, (newTab) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('tab', newTab);
+  window.history.pushState({}, '', url);
+});
+const stats = ref({
+  totalItems: 0,
+  totalEmployees: 0,
+  attendanceRate: '0%'
+});
+
+const valuasi = ref({
+  total_valuasi: 0,
+  total_item_jenis: 0,
+  total_stok: 0,
+});
+
+const formatRupiah = (val: number) =>
+  'Rp ' + val.toLocaleString('id-ID');
+
+const menuItems = [
+  { id: 'overview', name: 'Dashboard', icon: 'pi pi-chart-bar' },
+  { id: 'inventory', name: 'Inventory Stok', icon: 'pi pi-search' },
+  { id: 'employees', name: 'Data Karyawan', icon: 'pi pi-users' },
+  { id: 'attendance', name: 'Absensi Harian', icon: 'pi pi-calendar' },
+  { id: 'payroll', name: 'Penggajian', icon: 'pi pi-wallet' },
+];
+
+onMounted(async () => {
+  try {
+    const [itemsRes, empRes, valuasiRes] = await Promise.all([
+      inventoryApi.getItems(),
+      employeeApi.getEmployees(),
+      inventoryApi.getValuasi(),
+    ]);
+
+    stats.value.totalItems = itemsRes.data.data.length;
+    stats.value.totalEmployees = empRes.data.data.length;
+    stats.value.attendanceRate = '95%';
+    valuasi.value = valuasiRes.data.data;
+  } catch (error) {
+    console.error('Gagal mengambil data dashboard:', error);
+  }
+});
+</script>
+
+<template>
+  <MainLayout>
+    <!-- Sidebar Links Slot -->
+    <template #sidebar>
+      <div class="flex flex-col gap-1">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-4 py-4">Main Menu</p>
+        <button 
+          v-for="item in menuItems" 
+          :key="item.id"
+          @click="() => { console.log('Switching to:', item.id); activeTab = item.id; }"
+          class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group relative z-10"
+          :class="activeTab === item.id 
+            ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+            : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
+        >
+          <i :class="item.icon" class="text-lg group-hover:scale-110 transition-transform"></i>
+          <span class="tracking-wide">{{ item.name }}</span>
+        </button>
+      </div>
+
+      <div class="mt-8 flex flex-col gap-1">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-4 py-4">Settings</p>
+        <button class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-primary transition-all">
+          <i class="pi pi-cog"></i>
+          <span class="tracking-wide">Pengaturan</span>
+        </button>
+      </div>
+    </template>
+
+    <!-- Main Workspace Content -->
+    <div class="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+      <!-- Welcome Header -->
+      <header v-if="activeTab === 'overview'" class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div>
+          <div class="flex items-center gap-2 text-accent font-semibold text-[10px] uppercase tracking-[0.3em] mb-3">
+            <span class="w-10 h-[1px] bg-accent/30"></span>
+            Administrator Portal
+          </div>
+          <h2 class="text-4xl font-display font-bold text-primary">Overview Dashboard</h2>
+          <p class="text-slate-500 mt-2 text-sm max-w-lg leading-relaxed">
+            Pantau seluruh operasional internal MBG mulai dari inventaris hingga payroll dalam satu kendali.
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <button class="btn-primary text-xs py-3 px-6">
+            Generate Report
+          </button>
+        </div>
+      </header>
+
+      <!-- Content for Overview -->
+      <div v-if="activeTab === 'overview'" class="space-y-10">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div class="premium-card group relative overflow-hidden bg-white">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors duration-500"></div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Total Inventaris</p>
+            <div class="flex items-end justify-between">
+              <div>
+                <h3 class="text-4xl font-display font-bold text-primary">{{ stats.totalItems }}</h3>
+                <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Items</p>
+              </div>
+              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Optimal</span>
+            </div>
+          </div>
+
+          <div class="premium-card group relative overflow-hidden bg-white">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors duration-500"></div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Karyawan Aktif</p>
+            <div class="flex items-end justify-between">
+              <div>
+                <h3 class="text-4xl font-display font-bold text-primary">{{ stats.totalEmployees }}</h3>
+                <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Staff</p>
+              </div>
+              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">+2</span>
+            </div>
+          </div>
+
+          <div class="premium-card group relative overflow-hidden bg-gradient-to-br from-primary to-primary-light text-white">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+            <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">Valuasi Stok</p>
+            <div class="flex items-end justify-between">
+              <div>
+                <h3 class="text-2xl font-display font-bold text-white leading-tight">{{ formatRupiah(valuasi.total_valuasi) }}</h3>
+                <p class="text-[10px] text-white/60 font-bold uppercase mt-1">{{ valuasi.total_item_jenis }} jenis &middot; {{ valuasi.total_stok.toLocaleString('id-ID') }} unit</p>
+              </div>
+              <i class="pi pi-box text-3xl text-white/20"></i>
+            </div>
+          </div>
+
+          <div class="premium-card group relative overflow-hidden bg-white">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors duration-500"></div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Absensi Hari Ini</p>
+            <div class="flex items-end justify-between">
+              <div>
+                <h3 class="text-4xl font-display font-bold text-primary">{{ stats.attendanceRate }}</h3>
+                <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Presence</p>
+              </div>
+              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Good</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider">
+          <div class="w-1.5 h-1.5 rounded-full bg-accent/30"></div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="premium-card bg-white">
+          <h4 class="font-display text-xl font-bold text-primary mb-8">Modul Utama (Plan.md)</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <button v-for="mod in [
+              { name: 'Stok Barang', icon: 'pi pi-box' },
+              { name: 'Data Staff', icon: 'pi pi-user' },
+              { name: 'Absensi', icon: 'pi pi-pencil' },
+              { name: 'Payroll', icon: 'pi pi-credit-card' }
+            ]" :key="mod.name" class="flex flex-col items-center gap-4 p-8 rounded-3xl bg-slate-50/50 border border-slate-100 hover:border-accent/30 hover:bg-white hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
+              <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                <i :class="mod.icon" class="text-primary"></i>
+              </div>
+              <span class="text-[11px] font-bold uppercase tracking-widest text-slate-600 group-hover:text-primary transition-colors text-center">{{ mod.name }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module: Inventory -->
+      <div v-else-if="activeTab === 'inventory'">
+        <InventoryModule />
+      </div>
+
+      <!-- Module: Employees -->
+      <div v-else-if="activeTab === 'employees'">
+        <EmployeeList />
+      </div>
+
+      <!-- Module: Attendance -->
+      <div v-else-if="activeTab === 'attendance'">
+        <AttendanceModule />
+      </div>
+
+      <!-- Module: Payroll -->
+      <div v-else-if="activeTab === 'payroll'">
+        <PayrollModule />
+      </div>
+
+      <!-- Module Placeholder -->
+      <div v-else class="flex flex-col items-center justify-center py-32 premium-card bg-white/40 border-dashed">
+        <div class="w-24 h-24 bg-primary text-white rounded-3xl flex items-center justify-center text-4xl mb-8 shadow-2xl shadow-primary/20 animate-bounce">
+          <i :class="menuItems.find(i => i.id === activeTab)?.icon"></i>
+        </div>
+        <h3 class="font-display font-bold text-3xl text-primary capitalize">Modul {{ activeTab }}</h3>
+        <p class="text-slate-500 mt-3 text-sm max-w-xs text-center leading-relaxed">
+          Sistem sedang mempersiapkan antarmuka untuk modul ini sesuai dengan alur kerja di <span class="text-accent font-bold">plan.md</span>.
+        </p>
+        <div class="mt-10 flex gap-4">
+          <div class="w-2 h-2 rounded-full bg-accent animate-ping"></div>
+          <div class="w-2 h-2 rounded-full bg-accent animate-ping delay-75"></div>
+          <div class="w-2 h-2 rounded-full bg-accent animate-ping delay-150"></div>
+        </div>
+      </div>
+    </div>
+  </MainLayout>
+</template>
