@@ -5,7 +5,9 @@
       "Bash(Select-Object -Last 50)",
       "PowerShell(Get-ChildItem C:\\\\laragon\\\\www\\\\absensi\\\\app -Recurse | Where-Object { $_.Name -match \"transaksi|riwayat|history|travel|perjalanan\" } | Select-Object FullName)",
       "PowerShell(head *)",
-      "PowerShell(Get-ChildItem C:\\\\laragon\\\\www\\\\absensi\\\\public -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)"
+      "PowerShell(Get-ChildItem C:\\\\laragon\\\\www\\\\absensi\\\\public -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\absensi\" -Directory)",
+      "Bash(Select-Object Name)"
     ]
   }
 }

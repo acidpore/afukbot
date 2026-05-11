@@ -2,11 +2,12 @@
 import { ref, onMounted, watch, computed } from 'vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { inventoryApi } from '@/api/inventory.api';
-import { employeeApi } from '@/api/employee.api';
+import { salesApi } from '@/api/sales.api';
 import EmployeeList from './Modules/Employee/EmployeeList.vue';
 import AttendanceModule from './Modules/Attendance/AttendanceModule.vue';
 import PayrollModule from './Modules/Payroll/PayrollModule.vue';
 import InventoryModule from './Modules/Inventory/InventoryModule.vue';
+import SalesModule from './Modules/Sales/SalesModule.vue';
 
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = ref(urlParams.get('tab') || 'overview');
@@ -17,9 +18,10 @@ watch(activeTab, (newTab) => {
   window.history.pushState({}, '', url);
 });
 const stats = ref({
-  totalItems: 0,
-  totalEmployees: 0,
-  attendanceRate: '0%'
+  totalItems:       0,
+  totalInvoice:     0,
+  invoicePending:   0,
+  totalOmzet:       0,
 });
 
 const valuasi = ref({
@@ -43,9 +45,7 @@ const menuItems = [
       { id: 'inventory-history', name: 'Mutasi Stok', icon: 'pi pi-history' },
     ],
   },
-  { id: 'employees', name: 'Data Karyawan', icon: 'pi pi-users' },
-  { id: 'attendance', name: 'Absensi Harian', icon: 'pi pi-calendar' },
-  { id: 'payroll', name: 'Penggajian', icon: 'pi pi-wallet' },
+  { id: 'sales', name: 'Penjualan', icon: 'pi pi-receipt' },
 ];
 
 const inventoryExpanded = computed(() =>
@@ -54,15 +54,21 @@ const inventoryExpanded = computed(() =>
 
 onMounted(async () => {
   try {
-    const [itemsRes, empRes, valuasiRes] = await Promise.all([
+    const [itemsRes, valuasiRes, salesRes] = await Promise.all([
       inventoryApi.getItems(),
-      employeeApi.getEmployees(),
       inventoryApi.getValuasi(),
+      salesApi.getAll(),
     ]);
 
-    stats.value.totalItems = itemsRes.data.data.length;
-    stats.value.totalEmployees = empRes.data.data.length;
-    stats.value.attendanceRate = '95%';
+    const sales = salesRes.data.data;
+
+    stats.value.totalItems     = itemsRes.data.data.length;
+    stats.value.totalInvoice   = sales.length;
+    stats.value.invoicePending = sales.filter((s: any) => s.status === 'belum_dikirim').length;
+    stats.value.totalOmzet     = sales
+      .filter((s: any) => s.status === 'sudah_dikirim')
+      .reduce((sum: number, s: any) => sum + s.grand_total, 0);
+
     valuasi.value = valuasiRes.data.data;
   } catch (error) {
     console.error('Gagal mengambil data dashboard:', error);
@@ -166,13 +172,14 @@ onMounted(async () => {
 
           <div class="premium-card group relative overflow-hidden bg-white">
             <div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors duration-500"></div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Karyawan Aktif</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Total Invoice</p>
             <div class="flex items-end justify-between">
               <div>
-                <h3 class="text-4xl font-display font-bold text-primary">{{ stats.totalEmployees }}</h3>
-                <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Staff</p>
+                <h3 class="text-4xl font-display font-bold text-primary">{{ stats.totalInvoice }}</h3>
+                <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Invoice</p>
               </div>
-              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">+2</span>
+              <span v-if="stats.invoicePending" class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">{{ stats.invoicePending }} pending</span>
+              <span v-else class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Semua terkirim</span>
             </div>
           </div>
 
@@ -190,13 +197,13 @@ onMounted(async () => {
 
           <div class="premium-card group relative overflow-hidden bg-white">
             <div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors duration-500"></div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Absensi Hari Ini</p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Omzet Terkirim</p>
             <div class="flex items-end justify-between">
               <div>
-                <h3 class="text-4xl font-display font-bold text-primary">{{ stats.attendanceRate }}</h3>
-                <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Presence</p>
+                <h3 class="text-2xl font-display font-bold text-primary leading-tight">{{ formatRupiah(stats.totalOmzet) }}</h3>
+                <p class="text-[10px] text-slate-500 font-bold uppercase mt-1">Sudah dikirim</p>
               </div>
-              <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">Good</span>
+              <i class="pi pi-send text-2xl text-slate-200"></i>
             </div>
           </div>
         </div>
@@ -248,6 +255,11 @@ onMounted(async () => {
       <!-- Module: Payroll -->
       <div v-else-if="activeTab === 'payroll'">
         <PayrollModule />
+      </div>
+
+      <!-- Module: Sales -->
+      <div v-else-if="activeTab === 'sales'">
+        <SalesModule />
       </div>
 
       <!-- Module Placeholder -->

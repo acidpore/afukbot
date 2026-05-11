@@ -5,6 +5,7 @@ namespace App\Modules\Telegram;
 use App\Models\Item;
 use App\Models\StockTransaction;
 use App\Modules\Inventory\InventoryService;
+use App\Modules\Sales\SalesService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -46,7 +47,16 @@ class TelegramService
             return;
         }
 
-        if (str_starts_with($text, '/stok')) {
+        // Cek apakah sedang dalam sesi pembuatan invoice
+        $invoiceSession = Cache::get("tg_invoice_{$chatId}");
+        if ($invoiceSession && !str_starts_with($text, '/')) {
+            $this->handleInvoiceStep($chatId, $text, $invoiceSession);
+            return;
+        }
+
+        if (str_starts_with($text, '/invoice')) {
+            $this->startInvoiceFlow($chatId);
+        } elseif (str_starts_with($text, '/stok')) {
             $keyword = trim(substr($text, 5));
             $this->handleStok($chatId, $keyword);
         } elseif (str_starts_with($text, '/valuasi')) {
@@ -156,6 +166,11 @@ class TelegramService
         $data       = $callback['data'];
 
         $this->answerCallback($callback['id']);
+
+        if (str_starts_with($data, 'invoice_')) {
+            $this->handleInvoiceCallback($chatId, $messageId, $data, $callback['id']);
+            return;
+        }
 
         if (!str_starts_with($data, 'adjust_')) return;
 
@@ -638,19 +653,351 @@ class TelegramService
         return ['type' => $type, 'keyword' => $keyword, 'quantity' => $quantity];
     }
 
+    // ── Invoice Flow ───────────────────────────────────────────
+
+    private function startInvoiceFlow(int|string $chatId): void
+    {
+        Cache::put("tg_invoice_{$chatId}", [
+            'step'             => 'recipient_name',
+            'recipient_name'   => '',
+            'recipient_address'=> '',
+            'invoice_date'     => now()->toDateString(),
+            'notes'            => '',
+            'items'            => [],
+        ], now()->addMinutes(30));
+
+        $this->sendMessage($chatId,
+            "🧾 <b>Buat Invoice Baru</b>\n\n"
+            . "Ketik /batal untuk membatalkan kapan saja.\n\n"
+            . "Langkah 1/4 — Nama penerima:"
+        );
+    }
+
+    private function handleInvoiceStep(int|string $chatId, string $text, array $session): void
+    {
+        if ($text === '/batal') {
+            Cache::forget("tg_invoice_{$chatId}");
+            $this->sendMessage($chatId, "❌ Pembuatan invoice dibatalkan.");
+            return;
+        }
+
+        $step = $session['step'];
+
+        switch ($step) {
+            case 'recipient_name':
+                $session['recipient_name'] = $text;
+                $session['step']           = 'recipient_address';
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                $this->sendMessage($chatId, "Langkah 2/4 — Alamat pengiriman:\n<i>(ketik - untuk kosongkan)</i>");
+                break;
+
+            case 'recipient_address':
+                $session['recipient_address'] = ($text === '-') ? '' : $text;
+                $session['step']              = 'invoice_date';
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                $this->sendMessage($chatId, "Langkah 3/4 — Tanggal invoice:\n<i>(format: YYYY-MM-DD, atau ketik <b>hari ini</b>)</i>\nDefault: " . now()->format('Y-m-d'));
+                break;
+
+            case 'invoice_date':
+                if (in_array(mb_strtolower($text), ['hari ini', 'today', '-'])) {
+                    $session['invoice_date'] = now()->toDateString();
+                } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $text)) {
+                    $session['invoice_date'] = $text;
+                } else {
+                    $this->sendMessage($chatId, "Format tanggal tidak valid. Gunakan YYYY-MM-DD atau ketik <b>hari ini</b>.");
+                    return;
+                }
+                $session['step'] = 'item_name';
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                $itemNo = count($session['items']) + 1;
+                $this->sendMessage($chatId, "Langkah 4/4 — Daftar item\n\nItem #{$itemNo} — Nama barang:");
+                break;
+
+            case 'item_name':
+                $matches = $this->fuzzySearchItems($text);
+
+                if ($matches->isEmpty()) {
+                    $this->sendMessage($chatId,
+                        "⚠️ Barang <b>\"{$text}\"</b> tidak ditemukan di inventaris Ruko.\n\n"
+                        . "Coba kata kunci lain, atau ketik nama persis sesuai data stok.\n"
+                        . "Gunakan /stok untuk melihat daftar barang."
+                    );
+                    return;
+                }
+
+                if ($matches->count() === 1) {
+                    $item = $matches->first();
+                    $harga = $item->harga_jual ? number_format($item->harga_jual, 0, ',', '.') : '0';
+                    $session['_current_item'] = [
+                        'item_name'          => $item->name,
+                        'description'        => '',
+                        'qty'                => 0,
+                        'unit_price'         => (int) $item->harga_jual,
+                        'inventory_item_ids' => [$item->id],
+                    ];
+                    $session['step'] = 'item_qty';
+                    Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                    $this->sendMessage($chatId,
+                        "✅ Barang: <b>{$item->name}</b>\n"
+                        . "Stok : {$item->quantity} {$item->unit}\n"
+                        . "Harga jual : Rp {$harga}\n\n"
+                        . "Qty (jumlah):"
+                    );
+                    return;
+                }
+
+                // Lebih dari 1 hasil — cek apakah ada pasangan Badan+Tutup
+                $pair = $this->detectFoodtrayPair($matches);
+
+                if ($pair) {
+                    // Langsung pakai sebagai satu set tanpa tanya
+                    $harga = number_format($pair['unit_price'], 0, ',', '.');
+                    $ids   = implode(',', $pair['inventory_item_ids']);
+                    $session['_current_item'] = $pair;
+                    $session['step']          = 'item_qty';
+                    Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                    $this->sendMessage($chatId,
+                        "✅ Barang: <b>{$pair['item_name']}</b> <i>(Badan + Tutup)</i>\n"
+                        . "Harga jual : Rp {$harga} / set\n\n"
+                        . "Qty (jumlah set):"
+                    );
+                    return;
+                }
+
+                // Tidak ada pasangan — tampilkan pilihan biasa
+                $session['step'] = 'item_choice_inventory';
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+
+                $buttons = $matches->take(5)->map(fn($item) => [[
+                    'text'          => $item->name . ' (stok: ' . $item->quantity . ' ' . $item->unit . ')',
+                    'callback_data' => "invoice_pick_{$chatId}_{$item->id}",
+                ]])->values()->toArray();
+
+                $this->sendInlineKeyboard($chatId,
+                    "Ditemukan <b>{$matches->count()} barang</b> untuk <b>\"{$text}\"</b>.\nPilih salah satu:",
+                    $buttons
+                );
+                break;
+
+            case 'item_qty':
+                $qty = (int) preg_replace('/[^0-9]/', '', $text);
+                if ($qty <= 0) {
+                    $this->sendMessage($chatId, "Qty harus angka lebih dari 0.");
+                    return;
+                }
+                $session['_current_item']['qty'] = $qty;
+                $session['step']                 = 'item_price';
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                $this->sendMessage($chatId, "Harga satuan (Rp):\n<i>(angka saja, contoh: 38000)</i>");
+                break;
+
+            case 'item_price':
+                $price = (int) preg_replace('/[^0-9]/', '', $text);
+                if ($price < 0) {
+                    $this->sendMessage($chatId, "Harga tidak valid.");
+                    return;
+                }
+                $item                         = $session['_current_item'];
+                $item['unit_price']           = $price;
+                $item['total_price']          = $item['qty'] * $price;
+                $session['items'][]           = $item;
+                unset($session['_current_item']);
+
+                $total    = 'Rp ' . number_format($item['total_price'], 0, ',', '.');
+                $summary  = "<b>{$item['item_name']}</b> × {$item['qty']} = {$total}";
+
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+
+                $this->sendInlineKeyboard($chatId,
+                    "✅ Item ditambahkan: {$summary}\n\nTambah item lagi?",
+                    [[
+                        ['text' => '➕ Tambah Item', 'callback_data' => "invoice_add_{$chatId}"],
+                        ['text' => '✅ Selesai',     'callback_data' => "invoice_done_{$chatId}"],
+                    ]]
+                );
+                $session['step'] = 'item_choice';
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                break;
+
+            case 'notes':
+                $session['notes'] = ($text === '-') ? '' : $text;
+                $session['step']  = 'confirm';
+                Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+                $this->sendInvoiceConfirmation($chatId, $session);
+                break;
+        }
+    }
+
+    private function handleInvoiceCallback(int|string $chatId, int $messageId, string $data, string $callbackId): void
+    {
+        $this->answerCallback($callbackId);
+        $session = Cache::get("tg_invoice_{$chatId}");
+
+        if (!$session) {
+            $this->editMessageText($chatId, $messageId, "Sesi invoice tidak ditemukan. Mulai ulang dengan /invoice.");
+            return;
+        }
+
+        if (str_starts_with($data, "invoice_pick_{$chatId}_")) {
+            $itemId = (int) substr($data, strlen("invoice_pick_{$chatId}_"));
+            $item   = Item::find($itemId);
+            if (!$item) {
+                $this->sendMessage($chatId, "Barang tidak ditemukan.");
+                return;
+            }
+            $harga = $item->harga_jual ? number_format($item->harga_jual, 0, ',', '.') : '0';
+            $session['_current_item'] = [
+                'item_name'          => $item->name,
+                'description'        => '',
+                'qty'                => 0,
+                'unit_price'         => (int) $item->harga_jual,
+                'inventory_item_ids' => [$item->id],
+            ];
+            $session['step'] = 'item_qty';
+            Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+            $this->editMessageText($chatId, $messageId,
+                "✅ Barang: <b>{$item->name}</b>\n"
+                . "Stok : {$item->quantity} {$item->unit}\n"
+                . "Harga jual : Rp {$harga}\n\n"
+                . "Qty (jumlah):"
+            );
+            return;
+        }
+
+        if ($data === "invoice_add_{$chatId}") {
+            $session['step'] = 'item_name';
+            Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+            $itemNo = count($session['items']) + 1;
+            $this->editMessageText($chatId, $messageId, "Item #{$itemNo} — Nama barang:");
+            return;
+        }
+
+        if ($data === "invoice_done_{$chatId}") {
+            $session['step'] = 'notes';
+            Cache::put("tg_invoice_{$chatId}", $session, now()->addMinutes(30));
+            $this->editMessageText($chatId, $messageId, "Catatan invoice:\n<i>(ketik - untuk kosongkan, atau tulis catatan seperti \"DP 50% PELUNASAN\")</i>");
+            return;
+        }
+
+        if ($data === "invoice_confirm_{$chatId}") {
+            Cache::forget("tg_invoice_{$chatId}");
+            $this->editMessageText($chatId, $messageId, "⏳ Membuat invoice...");
+            try {
+                $sale = app(SalesService::class)->create([
+                    'recipient_name'    => $session['recipient_name'],
+                    'recipient_address' => $session['recipient_address'],
+                    'invoice_date'      => $session['invoice_date'],
+                    'notes'             => $session['notes'],
+                    'items'             => $session['items'],
+                ]);
+
+                $grandTotal = 'Rp ' . number_format($sale->grand_total, 0, ',', '.');
+                $this->editMessageText($chatId, $messageId,
+                    "✅ <b>Invoice berhasil dibuat!</b>\n\n"
+                    . "Nomor     : <b>{$sale->invoice_number}</b>\n"
+                    . "Penerima  : {$sale->recipient_name}\n"
+                    . "Tanggal   : {$sale->invoice_date}\n"
+                    . "Grand Total: <b>{$grandTotal}</b>\n\n"
+                    . "Buka aplikasi untuk mencetak PDF."
+                );
+            } catch (\Exception $e) {
+                $this->editMessageText($chatId, $messageId, "❌ Gagal membuat invoice: {$e->getMessage()}");
+            }
+            return;
+        }
+
+        if ($data === "invoice_cancel_{$chatId}") {
+            Cache::forget("tg_invoice_{$chatId}");
+            $this->editMessageText($chatId, $messageId, "❌ Invoice dibatalkan.");
+            return;
+        }
+    }
+
+    private function sendInvoiceConfirmation(int|string $chatId, array $session): void
+    {
+        $lines   = [];
+        $lines[] = "📋 <b>Konfirmasi Invoice</b>";
+        $lines[] = "";
+        $lines[] = "Penerima : <b>{$session['recipient_name']}</b>";
+        if ($session['recipient_address']) {
+            $lines[] = "Alamat   : {$session['recipient_address']}";
+        }
+        $lines[] = "Tanggal  : {$session['invoice_date']}";
+        if ($session['notes']) {
+            $lines[] = "Catatan  : {$session['notes']}";
+        }
+        $lines[] = "";
+        $lines[] = "<b>Daftar Item:</b>";
+
+        $grandTotal = 0;
+        foreach ($session['items'] as $i => $item) {
+            $total       = $item['qty'] * $item['unit_price'];
+            $grandTotal += $total;
+            $totalF      = 'Rp ' . number_format($total, 0, ',', '.');
+            $priceF      = 'Rp ' . number_format($item['unit_price'], 0, ',', '.');
+            $lines[]     = ($i + 1) . ". <b>{$item['item_name']}</b> × {$item['qty']} @ {$priceF} = {$totalF}";
+        }
+
+        $lines[] = "";
+        $lines[] = str_repeat("─", 28);
+        $lines[] = "Grand Total: <b>Rp " . number_format($grandTotal, 0, ',', '.') . "</b>";
+
+        $this->sendInlineKeyboard($chatId, implode("\n", $lines), [[
+            ['text' => '✅ Buat Invoice', 'callback_data' => "invoice_confirm_{$chatId}"],
+            ['text' => '❌ Batal',        'callback_data' => "invoice_cancel_{$chatId}"],
+        ]]);
+    }
+
+    private function detectFoodtrayPair(\Illuminate\Support\Collection $items): ?array
+    {
+        $normalize = fn(string $name): string =>
+            trim(preg_replace('/\s+/', ' ', preg_replace('/\b(badan|tutup)\b/i', '', mb_strtolower($name))));
+
+        $badan = $items->first(fn($i) => preg_match('/\bbadan\b/i', $i->name));
+        $tutup = $items->first(fn($i) => preg_match('/\btutup\b/i', $i->name));
+
+        if (!$badan || !$tutup) return null;
+
+        // Pastikan base name sama (misal "Foodtray SUS 304" = "Foodtray SUS 304")
+        if ($normalize($badan->name) !== $normalize($tutup->name)) return null;
+
+        $baseName  = trim(preg_replace('/\b(badan|tutup)\b/i', '', $badan->name));
+        $baseName  = trim(preg_replace('/\s+/', ' ', $baseName));
+
+        return [
+            'item_name'          => $baseName,
+            'description'        => '',
+            'qty'                => 0,
+            'unit_price'         => (int) $badan->harga_jual + (int) $tutup->harga_jual,
+            'inventory_item_ids' => [$badan->id, $tutup->id],
+        ];
+    }
+
     private function handleHelp(int|string $chatId): void
     {
         $text = "<b>MBG Inventory Bot</b>\n"
             . "Bot untuk memantau stok dan transaksi inventaris.\n\n"
             . "<b>Perintah tersedia:</b>\n\n"
+            . "/invoice — Buat invoice penjualan baru step-by-step.\n\n"
             . "/stok — Tampilkan seluruh daftar barang beserta stok dan harga jual.\n\n"
             . "/stok [nama] — Cari barang. Contoh: <code>/stok foodtray</code>\n\n"
             . "/valuasi — Total nilai stok saat ini (qty x harga jual).\n\n"
             . "/transaksi — 10 transaksi stok terakhir.\n\n"
-            . "<b>Voice Note</b>\n"
-            . "Kirim voice note untuk update stok langsung.\n"
-            . "Format: <i>\"Keluar [nama barang] [jumlah]\"</i>\n"
-            . "Contoh: <i>\"Keluar foodtray 2000\"</i> atau <i>\"Masuk loyang 50\"</i>";
+            . "<b>🎙 Voice Note</b>\n"
+            . "Kirim voice note untuk update stok langsung tanpa mengetik.\n\n"
+            . "<b>Yang bisa dilakukan:</b>\n"
+            . "• <b>Stok keluar</b> — barang yang dikirim/dipakai\n"
+            . "  <i>\"Keluar foodtray 2000\"</i>\n\n"
+            . "• <b>Stok masuk</b> — barang yang baru datang/dibeli\n"
+            . "  <i>\"Masuk loyang stainless 50\"</i>\n\n"
+            . "• <b>Beberapa sekaligus</b> — sebut semua dalam satu voice note\n"
+            . "  <i>\"Kompor keluar 4, wajan masuk 2\"</i>\n\n"
+            . "• <b>Cek stok</b> — tanya jumlah barang tertentu\n"
+            . "  <i>\"Berapa stok foodtray?\"</i>\n\n"
+            . "• <b>Total valuasi</b> — nilai seluruh stok\n"
+            . "  <i>\"Total nilai stok\"</i>\n\n"
+            . "💡 Nama barang tidak harus persis — bot akan mencocokkan otomatis.\n"
+            . "Jika ditemukan lebih dari 1 barang, bot akan meminta konfirmasi pilihan.";
 
         $this->sendMessage($chatId, $text);
     }

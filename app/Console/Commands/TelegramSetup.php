@@ -18,6 +18,7 @@ class TelegramSetup extends Command
         $commands = [
             ['command' => 'start',     'description' => 'Mulai & lihat semua perintah bot'],
             ['command' => 'help',      'description' => 'Tampilkan daftar perintah'],
+            ['command' => 'invoice',   'description' => 'Buat invoice penjualan baru'],
             ['command' => 'stok',      'description' => 'Lihat semua stok barang'],
             ['command' => 'valuasi',   'description' => 'Total nilai stok saat ini'],
             ['command' => 'transaksi', 'description' => 'Lihat 10 transaksi terakhir'],

@@ -1,0 +1,18 @@
+import axios from 'axios';
+import type { ApiResponse, Sale } from '../types';
+
+const api = axios.create({
+    baseURL: '/',
+    headers: { 'Accept': 'application/json' },
+});
+
+export const salesApi = {
+    getAll:  ()              => api.get<ApiResponse<Sale[]>>('/sales'),
+    getById: (id: number)   => api.get<ApiResponse<Sale>>(`/sales/${id}`),
+    create:  (data: object) => api.post<ApiResponse<Sale>>('/sales', data),
+    update:  (id: number, data: object)   => api.put<ApiResponse<Sale>>(`/sales/${id}`, data),
+    pay:        (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/pay`, { amount }),
+    setPayment: (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/set-payment`, { amount }),
+    ship:    (id: number)   => api.patch<ApiResponse<Sale>>(`/sales/${id}/ship`, {}),
+    remove:  (id: number)   => api.delete<ApiResponse<null>>(`/sales/${id}`),
+};

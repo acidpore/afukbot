@@ -21,4 +21,5 @@ require __DIR__.'/../app/Modules/Employee/routes.php';
 require __DIR__.'/../app/Modules/Attendance/routes.php';
 require __DIR__.'/../app/Modules/Payroll/routes.php';
 require __DIR__.'/../app/Modules/Telegram/routes.php';
+require __DIR__.'/../app/Modules/Sales/routes.php';
 
