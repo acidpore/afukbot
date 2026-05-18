@@ -402,13 +402,26 @@ async function shipSale(id: number) {
     }
 }
 
-async function deleteSale(id: number) {
-    if (!confirm('Hapus invoice ini?')) return;
+async function deleteSale(id: number, isShipped = false) {
+    const msg = isShipped
+        ? 'Hapus invoice ini? Stok barang yang sudah dipotong akan dikembalikan ke inventaris.'
+        : 'Hapus invoice ini?';
+    if (!confirm(msg)) return;
     try {
         await salesApi.remove(id);
         await loadSales();
     } catch (e: any) {
         alert(e?.response?.data?.message || 'Gagal menghapus invoice.');
+    }
+}
+
+async function revertStock(id: number) {
+    if (!confirm('Kembalikan stok untuk invoice ini? Status invoice akan kembali ke "Belum Dikirim" dan stok barang akan dipulihkan.')) return;
+    try {
+        await salesApi.revertStock(id);
+        await loadSales();
+    } catch (e: any) {
+        alert(e?.response?.data?.message || 'Gagal mengembalikan stok.');
     }
 }
 
@@ -1098,6 +1111,12 @@ onMounted(async () => {
                                             </button>
                                             <button @click="printInvoice(sale)" class="text-[#1D3557] hover:text-[#162840] transition-colors" title="Cetak">
                                                 <i class="pi pi-file-pdf"></i>
+                                            </button>
+                                            <button @click="revertStock(sale.id)" class="text-amber-500 hover:text-amber-700 transition-colors" title="Revert Stok (kembalikan ke Belum Dikirim)">
+                                                <i class="pi pi-history"></i>
+                                            </button>
+                                            <button @click="deleteSale(sale.id, true)" class="text-red-400 hover:text-red-600 transition-colors" title="Hapus (stok akan dikembalikan)">
+                                                <i class="pi pi-trash"></i>
                                             </button>
                                         </div>
                                     </td>

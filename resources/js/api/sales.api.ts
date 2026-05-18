@@ -13,6 +13,7 @@ export const salesApi = {
     update:  (id: number, data: object)   => api.put<ApiResponse<Sale>>(`/sales/${id}`, data),
     pay:        (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/pay`, { amount }),
     setPayment: (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/set-payment`, { amount }),
-    ship:    (id: number)   => api.patch<ApiResponse<Sale>>(`/sales/${id}/ship`, {}),
-    remove:  (id: number)   => api.delete<ApiResponse<null>>(`/sales/${id}`),
+    ship:        (id: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/ship`, {}),
+    revertStock: (id: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/revert-stock`, {}),
+    remove:      (id: number) => api.delete<ApiResponse<null>>(`/sales/${id}`),
 };

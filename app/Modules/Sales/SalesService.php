@@ -148,15 +148,55 @@ class SalesService
         return $sale->fresh('items');
     }
 
+    public function revertStock(int $id): Sale
+    {
+        return DB::transaction(function () use ($id) {
+            $sale = Sale::with('items')->findOrFail($id);
+
+            if ($sale->status !== 'sudah_dikirim') {
+                throw new \Exception('Invoice ini belum berstatus terkirim.');
+            }
+
+            foreach ($sale->items as $saleItem) {
+                $itemIds = $saleItem->inventory_item_ids ?? [];
+                foreach ($itemIds as $itemId) {
+                    $invItem = Item::find($itemId);
+                    if (!$invItem) continue;
+
+                    $before = $invItem->quantity;
+                    $invItem->increment('quantity', $saleItem->qty);
+
+                    StockTransaction::create([
+                        'item_id'        => $invItem->id,
+                        'type'           => 'IN',
+                        'quantity'       => $saleItem->qty,
+                        'stock_before'   => $before,
+                        'stock_after'    => $before + $saleItem->qty,
+                        'date'           => now()->toDateString(),
+                        'notes'          => "Revert stok — Invoice {$sale->invoice_number} ({$sale->recipient_name})",
+                        'recorded_by_id' => auth()->id() ?? 1,
+                    ]);
+                }
+            }
+
+            $sale->update(['status' => 'belum_dikirim']);
+
+            return $sale->fresh('items');
+        });
+    }
+
     public function delete(int $id): void
     {
-        $sale = Sale::findOrFail($id);
+        DB::transaction(function () use ($id) {
+            $sale = Sale::with('items')->findOrFail($id);
 
-        if ($sale->status === 'sudah_dikirim') {
-            throw new \Exception('Invoice yang sudah terkirim tidak dapat dihapus.');
-        }
+            if ($sale->status === 'sudah_dikirim') {
+                $this->revertStock($id);
+                $sale->refresh();
+            }
 
-        $sale->delete();
+            $sale->delete();
+        });
     }
 
     private function generateInvoiceNumber(): string

@@ -7,7 +7,9 @@
       "PowerShell(head *)",
       "PowerShell(Get-ChildItem C:\\\\laragon\\\\www\\\\absensi\\\\public -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
       "Bash(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\absensi\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(findstr /i \"sale invoice\")",
+      "Bash(Get-ChildItem -Filter \"*ale*\" -File)"
     ]
   }
 }

@@ -95,6 +95,16 @@ class SalesController extends Controller
         }
     }
 
+    public function revertStock($id)
+    {
+        try {
+            $sale = $this->salesService->revertStock((int) $id);
+            return $this->sendResponse($sale, 'Stok berhasil dikembalikan, status invoice kembali ke belum dikirim');
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), [], 422);
+        }
+    }
+
     public function destroy($id)
     {
         try {
