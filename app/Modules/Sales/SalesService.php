@@ -91,7 +91,7 @@ class SalesService
                 }
             }
 
-            $sale->update(['status' => 'sudah_dikirim']);
+            $sale->update(['status' => 'sudah_dikirim', 'shipped_at' => now()]);
 
             return $sale->fresh('items');
         });
@@ -179,7 +179,7 @@ class SalesService
                 }
             }
 
-            $sale->update(['status' => 'belum_dikirim']);
+            $sale->update(['status' => 'belum_dikirim', 'shipped_at' => null]);
 
             return $sale->fresh('items');
         });

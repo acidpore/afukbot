@@ -50,6 +50,7 @@ export interface Sale {
     grand_total: number;
     paid_amount: number;
     status: 'belum_dikirim' | 'sudah_dikirim';
+    shipped_at?: string | null;
     items: SaleItem[];
     created_at?: string;
 }

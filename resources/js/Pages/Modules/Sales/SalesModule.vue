@@ -1073,7 +1073,7 @@ onMounted(async () => {
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">No. Invoice</th>
                                     <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Penerima</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Tanggal</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Tgl. Dikirim</th>
                                     <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wide">Grand Total</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Pembayaran</th>
                                     <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Aksi</th>
@@ -1081,12 +1081,15 @@ onMounted(async () => {
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 <tr v-for="sale in salesSudahDikirim" :key="sale.id" class="hover:bg-emerald-50/30 transition-colors">
-                                    <td class="px-4 py-3 font-mono text-xs font-semibold text-[#1D3557]">{{ sale.invoice_number }}</td>
+                                    <td class="px-4 py-3">
+                                        <div class="font-mono text-xs font-semibold text-[#1D3557]">{{ sale.invoice_number }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">Invoice: {{ formatDate(sale.invoice_date) }}</div>
+                                    </td>
                                     <td class="px-4 py-3">
                                         <div class="font-semibold text-slate-700">{{ sale.recipient_name }}</div>
                                         <div v-if="sale.recipient_address" class="text-xs text-slate-400">{{ sale.recipient_address }}</div>
                                     </td>
-                                    <td class="px-4 py-3 text-slate-600">{{ formatDate(sale.invoice_date) }}</td>
+                                    <td class="px-4 py-3 text-slate-600">{{ sale.shipped_at ? formatDate(sale.shipped_at) : '-' }}</td>
                                     <td class="px-4 py-3 text-right">
                                         <div class="font-bold text-slate-800">{{ fmt(sale.grand_total) }}</div>
                                         <div v-if="sale.paid_amount > 0" class="text-xs text-slate-400">Dibayar: {{ fmt(sale.paid_amount) }}</div>

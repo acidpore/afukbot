@@ -15,6 +15,11 @@ class Sale extends Model
         'grand_total',
         'paid_amount',
         'status',
+        'shipped_at',
+    ];
+
+    protected $casts = [
+        'shipped_at' => 'datetime',
     ];
 
     public function items()
