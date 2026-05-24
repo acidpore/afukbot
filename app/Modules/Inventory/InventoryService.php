@@ -35,7 +35,7 @@ class InventoryService
         return Category::create($data);
     }
 
-    public function bulkCreateItems(array $rows): array
+    public function bulkCreateItems(array $rows, int $userId): array
     {
         $created  = 0;
         $skipped  = 0;
@@ -78,7 +78,7 @@ class InventoryService
                         'stock_after'    => $qty,
                         'date'           => now()->toDateString(),
                         'notes'          => 'Import dari CSV',
-                        'recorded_by_id' => 1,
+                        'recorded_by_id' => $userId,
                     ]);
                 }
 

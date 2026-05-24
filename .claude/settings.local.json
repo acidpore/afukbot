@@ -9,7 +9,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\absensi\" -Directory)",
       "Bash(Select-Object Name)",
       "Bash(findstr /i \"sale invoice\")",
-      "Bash(Get-ChildItem -Filter \"*ale*\" -File)"
+      "Bash(Get-ChildItem -Filter \"*ale*\" -File)",
+      "Bash(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\absensi\" -Depth 2)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }

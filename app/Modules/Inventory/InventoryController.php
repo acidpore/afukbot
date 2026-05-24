@@ -106,7 +106,7 @@ class InventoryController extends Controller
             'items.*.harga_jual'   => 'nullable|integer|min:0',
         ]);
 
-        $result = $this->inventoryService->bulkCreateItems($request->items);
+        $result = $this->inventoryService->bulkCreateItems($request->items, auth()->id());
         return $this->sendResponse($result, 'Bulk import completed');
     }
 }

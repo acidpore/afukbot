@@ -452,7 +452,7 @@ function printInvoice(sale: Sale) {
     doc.setTextColor(51, 51, 51);
     const addrLines = [
         'Ruko Puncak CBD',
-        'Jalan Dukuh Kramat I No.36 Blok 7E OFT',
+        'Jalan Dukuh Kramat I No.36 Blok 7E PSR',
         'Jajar Tunggal, Kec. Wiyung, Kota Surabaya Jawa Timur',
     ];
     for (const line of addrLines) {

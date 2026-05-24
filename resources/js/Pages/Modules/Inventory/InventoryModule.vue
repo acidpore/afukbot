@@ -100,6 +100,31 @@ const handleBulkSubmit = async () => {
   }
 };
 
+const exportItemsCsv = () => {
+  const locationLabel = LOCATION_MAP[props.view] ?? props.view;
+  const rows = [
+    'Nama Barang,Kategori,Stok Awal,Satuan,Harga Jual',
+    ...filteredItems.value.map(item =>
+      [
+        item.name,
+        item.category?.name ?? '',
+        item.quantity,
+        item.unit,
+        item.harga_jual ?? '',
+      ]
+        .map(v => (String(v).includes(',') ? `"${v}"` : v))
+        .join(',')
+    ),
+  ];
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `stok-${locationLabel.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 const downloadCsvTemplate = () => {
   const rows = [
     'Nama Barang,Kategori,Stok Awal,Satuan,Harga Jual',
@@ -414,6 +439,10 @@ const handleSaveCategory = async () => {
             class="bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent shadow-sm w-52"
           >
         </div>
+        <button @click="exportItemsCsv" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
+          <i class="pi pi-download text-xs"></i>
+          Export
+        </button>
         <button @click="isBulkModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
           <i class="pi pi-upload text-xs"></i>
           Import
