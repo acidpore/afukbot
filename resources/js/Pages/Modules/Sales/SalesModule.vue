@@ -400,11 +400,37 @@ async function submitSale() {
     }
 }
 
-async function shipSale(id: number) {
-    if (!confirm('Tandai invoice ini sebagai sudah dikirim? Stok barang akan dipotong.')) return;
+// ── Modal Konfirmasi Kirim ─────────────────────────────────
+const shipModal = ref<{ open: boolean; sale: Sale | null; inputRaw: string; display: string }>({
+    open: false, sale: null, inputRaw: '', display: '',
+});
+
+function openShipModal(sale: Sale) {
+    const total = sale.grand_total;
+    shipModal.value = {
+        open: true, sale,
+        inputRaw: String(total),
+        display:  total.toLocaleString('id-ID'),
+    };
+}
+
+function onShipPayInput(e: Event) {
+    const raw = (e.target as HTMLInputElement).value.replace(/\./g, '').replace(/\D/g, '');
+    const num = parseInt(raw) || 0;
+    shipModal.value.inputRaw = raw;
+    shipModal.value.display  = num > 0 ? num.toLocaleString('id-ID') : '';
+    (e.target as HTMLInputElement).value = shipModal.value.display;
+}
+
+async function confirmShip() {
+    if (!shipModal.value.sale) return;
+    const id     = shipModal.value.sale.id;
+    const amount = parseInt(shipModal.value.inputRaw) || 0;
     try {
         await salesApi.ship(id);
+        if (amount > 0) await salesApi.setPayment(id, amount);
         await loadSales();
+        shipModal.value.open = false;
     } catch (e: any) {
         alert(e?.response?.data?.message || 'Gagal memperbarui status.');
     }
@@ -1055,7 +1081,7 @@ onMounted(async () => {
                                     <td class="px-4 py-3 text-center">
                                         <div class="flex items-center justify-center gap-3">
                                             <button
-                                                @click="shipSale(sale.id)"
+                                                @click="openShipModal(sale)"
                                                 class="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors"
                                                 title="Tandai Terkirim"
                                             >
@@ -1307,6 +1333,52 @@ onMounted(async () => {
                     >
                         <i v-if="editSubmitting" class="pi pi-spin pi-spinner text-xs"></i>
                         {{ editSubmitting ? 'Menyimpan...' : 'Simpan Perubahan' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── Modal Konfirmasi Kirim ─── -->
+        <div v-if="shipModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+                <h3 class="text-base font-bold text-slate-800 mb-1">Konfirmasi Pengiriman</h3>
+                <p class="text-xs text-slate-500 mb-4">{{ shipModal.sale?.invoice_number }} — {{ shipModal.sale?.recipient_name }}</p>
+
+                <div class="bg-slate-50 rounded-xl p-3 mb-4 space-y-1.5">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">Grand Total</span>
+                        <span class="font-bold text-slate-800">{{ fmt(shipModal.sale?.grand_total ?? 0) }}</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="text-xs font-semibold text-slate-500">Jumlah Pembayaran</label>
+                    <button
+                        @click="() => { const t = shipModal.sale!.grand_total; shipModal.inputRaw = String(t); shipModal.display = t.toLocaleString('id-ID'); }"
+                        class="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors"
+                    >Lunas Penuh</button>
+                </div>
+                <div class="relative mb-5">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">Rp</span>
+                    <input
+                        :value="shipModal.display"
+                        @input="onShipPayInput($event)"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="0"
+                        class="w-full border border-slate-300 rounded-xl pl-8 pr-3 py-2.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                    />
+                </div>
+
+                <div class="flex gap-3">
+                    <button @click="shipModal.open = false" class="flex-1 border border-slate-300 text-slate-600 text-sm font-bold py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+                        Batal
+                    </button>
+                    <button
+                        @click="confirmShip"
+                        class="flex-1 bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
+                    >
+                        Kirim & Tandai Lunas
                     </button>
                 </div>
             </div>

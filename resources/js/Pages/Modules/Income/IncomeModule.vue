@@ -664,14 +664,14 @@ onMounted(loadIncomes);
                                 <thead class="bg-slate-50">
                                     <tr>
                                         <th v-for="(col, i) in importPreview[0]" :key="i"
-                                            class="px-3 py-2 text-left font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                                            class="px-3 py-2 text-center font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">
                                             {{ col }}
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
                                     <tr v-for="(row, ri) in importPreview.slice(1)" :key="ri" class="hover:bg-slate-50">
-                                        <td v-for="(cell, ci) in row" :key="ci" class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ cell }}</td>
+                                        <td v-for="(cell, ci) in row" :key="ci" class="px-3 py-2 text-center text-slate-600 whitespace-nowrap">{{ cell }}</td>
                                     </tr>
                                 </tbody>
                             </table>

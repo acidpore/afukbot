@@ -398,7 +398,7 @@ function exportPDF() {
             { content: incData.length.toString(), styles: { fontStyle: 'bold', halign: 'center' } },
             { content: 'Rp ' + totalIncome.value.toLocaleString('id-ID'), styles: { fontStyle: 'bold', halign: 'right', textColor: GREEN } },
         ]],
-        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9, textColor: [30, 30, 30] },
     });
 
     y = (doc as any).lastAutoTable.finalY + 8;
@@ -428,7 +428,7 @@ function exportPDF() {
             { content: expData.length.toString(), styles: { fontStyle: 'bold', halign: 'center' } },
             { content: 'Rp ' + totalFiltered.value.toLocaleString('id-ID'), styles: { fontStyle: 'bold', halign: 'right', textColor: RED } },
         ]],
-        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9, textColor: [30, 30, 30] },
     });
 
     y = (doc as any).lastAutoTable.finalY + 8;
@@ -462,7 +462,8 @@ function exportPDF() {
             { content: 'TOTAL', styles: { fontStyle: 'bold', halign: 'right' } },
             { content: 'Rp ' + totalIncome.value.toLocaleString('id-ID'), styles: { fontStyle: 'bold', halign: 'right', textColor: GREEN } },
         ]],
-        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9, textColor: [30, 30, 30] },
+        showFoot: 'lastPage',
         didParseCell(hookData) {
             if (hookData.section === 'body' && hookData.column.index === 4) {
                 hookData.cell.styles.textColor = GREEN;
@@ -504,7 +505,8 @@ function exportPDF() {
             { content: 'TOTAL', styles: { fontStyle: 'bold', halign: 'right' } },
             { content: 'Rp ' + totalFiltered.value.toLocaleString('id-ID'), styles: { fontStyle: 'bold', halign: 'right', textColor: RED } },
         ]],
-        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: [235, 238, 243], fontStyle: 'bold', fontSize: 9, textColor: [30, 30, 30] },
+        showFoot: 'lastPage',
         didParseCell(hookData) {
             if (hookData.section === 'body' && hookData.column.index === 5) {
                 hookData.cell.styles.textColor = RED;
@@ -685,16 +687,16 @@ onMounted(loadExpenses);
                 <input
                     v-model="filterMonth"
                     type="month"
-                    class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                    class="border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] bg-white shadow-sm cursor-pointer"
                 />
             </div>
             <div>
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kategori Pengeluaran</label>
                 <select
                     v-model="filterCategory"
-                    class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557] bg-white"
+                    class="border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] bg-white shadow-sm cursor-pointer"
                 >
-                    <option value="">Semua</option>
+                    <option value="">Semua Kategori</option>
                     <option v-for="cat in [...new Set(expenses.map(e => e.category))]" :key="cat" :value="cat">{{ cat }}</option>
                 </select>
             </div>
@@ -731,18 +733,18 @@ onMounted(loadExpenses);
             <!-- Saldo Bersih -->
             <div
                 class="rounded-2xl p-4 shadow-sm border"
-                :class="saldo >= 0 ? 'bg-emerald-600 border-emerald-700' : 'bg-red-600 border-red-700'"
+                :class="saldo >= 0 ? 'bg-emerald-600 border-emerald-700' : 'bg-red-100/80 border-red-200'"
             >
-                <p class="text-[10px] font-bold text-white/70 uppercase mb-1">Saldo Bersih</p>
-                <p class="text-xl font-bold text-white">
+                <p :class="saldo >= 0 ? 'text-white/70' : 'text-red-400'" class="text-[10px] font-bold uppercase mb-1">Saldo Bersih</p>
+                <p :class="saldo >= 0 ? 'text-white' : 'text-red-600'" class="text-xl font-bold">
                     {{ (saldo < 0 ? '-' : '') + fmt(Math.abs(saldo)) }}
                 </p>
-                <p class="text-xs text-white/60 mt-0.5">Pemasukan - Pengeluaran</p>
-                <div class="mt-3 pt-3 border-t border-white/20 space-y-1">
-                    <div class="flex justify-between text-xs text-white/80">
+                <p :class="saldo >= 0 ? 'text-white/60' : 'text-red-400/80'" class="text-xs mt-0.5">Pemasukan - Pengeluaran</p>
+                <div :class="saldo >= 0 ? 'border-white/20' : 'border-red-200'" class="mt-3 pt-3 border-t space-y-1">
+                    <div class="flex justify-between text-xs" :class="saldo >= 0 ? 'text-white/80' : 'text-red-500'">
                         <span>Masuk</span><span class="font-semibold">{{ fmt(totalIncome) }}</span>
                     </div>
-                    <div class="flex justify-between text-xs text-white/80">
+                    <div class="flex justify-between text-xs" :class="saldo >= 0 ? 'text-white/80' : 'text-red-500'">
                         <span>Keluar</span><span class="font-semibold">{{ fmt(totalFiltered) }}</span>
                     </div>
                 </div>
@@ -763,30 +765,30 @@ onMounted(loadExpenses);
                     <table class="w-full text-sm">
                         <thead class="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Tanggal</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Kategori</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Deskripsi</th>
-                                <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wide">Jumlah</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Dibayar oleh</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Tanggal</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Kategori</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Deskripsi</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Jumlah</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Dibayar oleh</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <tr v-for="expense in filtered" :key="expense.id" class="hover:bg-slate-50/60 transition-colors">
-                                <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{{ formatDate(expense.expense_date) }}</td>
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 text-center text-slate-600 whitespace-nowrap">{{ formatDate(expense.expense_date) }}</td>
+                                <td class="px-4 py-3 text-center">
                                     <span class="text-[11px] font-bold px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">
                                         {{ expense.category }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 text-center">
                                     <div class="font-semibold text-slate-700">{{ expense.description }}</div>
                                     <div v-if="expense.notes" class="text-xs text-slate-400 mt-0.5">{{ expense.notes }}</div>
                                 </td>
-                                <td class="px-4 py-3 text-right font-bold text-red-600 whitespace-nowrap">
+                                <td class="px-4 py-3 text-center font-bold text-red-600 whitespace-nowrap">
                                     {{ fmt(expense.amount) }}
                                 </td>
-                                <td class="px-4 py-3 text-slate-500 text-xs">{{ expense.paid_by || '-' }}</td>
+                                <td class="px-4 py-3 text-center text-slate-500 text-xs">{{ expense.paid_by || '-' }}</td>
                                 <td class="px-4 py-3 text-center">
                                     <div class="flex items-center justify-center gap-3">
                                         <button @click="openEditModal(expense)" class="text-slate-500 hover:text-[#1D3557] transition-colors" title="Edit">
@@ -929,14 +931,14 @@ onMounted(loadExpenses);
                                 <thead class="bg-slate-50">
                                     <tr>
                                         <th v-for="(col, i) in importPreview[0]" :key="i"
-                                            class="px-3 py-2 text-left font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                                            class="px-3 py-2 text-center font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">
                                             {{ col }}
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
                                     <tr v-for="(row, ri) in importPreview.slice(1)" :key="ri" class="hover:bg-slate-50">
-                                        <td v-for="(cell, ci) in row" :key="ci" class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ cell }}</td>
+                                        <td v-for="(cell, ci) in row" :key="ci" class="px-3 py-2 text-center text-slate-600 whitespace-nowrap">{{ cell }}</td>
                                     </tr>
                                 </tbody>
                             </table>
