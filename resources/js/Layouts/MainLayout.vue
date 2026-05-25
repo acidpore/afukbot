@@ -1,27 +1,44 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
-const isSidebarOpen = ref(true);
+const isSidebarOpen = ref(false);
+
+function closeSidebar() {
+  isSidebarOpen.value = false;
+}
 </script>
 
 <template>
   <div class="min-h-screen flex bg-[#faf9f6]">
+
+    <!-- Overlay (mobile only) -->
+    <div
+      v-if="isSidebarOpen"
+      class="fixed inset-0 z-40 bg-black/40 lg:hidden"
+      @click="closeSidebar"
+    ></div>
+
     <!-- Persistent Sidebar -->
-    <aside 
+    <aside
       class="fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 transition-transform duration-300 lg:static lg:translate-x-0"
       :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
     >
       <div class="flex flex-col h-full">
         <!-- Sidebar Header -->
         <div class="p-6">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <span class="text-accent font-bold text-xl">M</span>
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+                <span class="text-accent font-bold text-xl">M</span>
+              </div>
+              <div>
+                <h1 class="text-lg font-display font-bold text-primary leading-tight">MBG Admin</h1>
+                <p class="text-[10px] text-accent uppercase tracking-widest font-bold">Internal System</p>
+              </div>
             </div>
-            <div>
-              <h1 class="text-lg font-display font-bold text-primary leading-tight">MBG Admin</h1>
-              <p class="text-[10px] text-accent uppercase tracking-widest font-bold">Internal System</p>
-            </div>
+            <button @click="closeSidebar" class="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <i class="pi pi-times"></i>
+            </button>
           </div>
         </div>
 
@@ -29,7 +46,7 @@ const isSidebarOpen = ref(true);
 
         <!-- Sidebar Navigation (Slot for links) -->
         <div class="flex-1 px-4 space-y-2 overflow-y-auto">
-          <slot name="sidebar" />
+          <slot name="sidebar" :closeSidebar="closeSidebar" />
         </div>
 
         <!-- Sidebar Footer -->

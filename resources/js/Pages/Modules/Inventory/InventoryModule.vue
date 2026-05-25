@@ -418,11 +418,11 @@ const handleSaveCategory = async () => {
 </script>
 
 <template>
-  <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+  <div class="space-y-5 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h2 class="text-3xl font-display font-bold text-primary">
+        <h2 class="text-xl sm:text-3xl font-display font-bold text-primary">
           {{ view === 'history' ? 'Mutasi Stok' : 'Stok Barang — ' + (view === 'ruko' ? 'Ruko' : 'Margomulyo') }}
         </h2>
         <p class="text-slate-500 text-sm mt-1">
@@ -561,7 +561,7 @@ const handleSaveCategory = async () => {
       <template v-else>
 
         <!-- Summary Cards -->
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div class="premium-card bg-white relative overflow-hidden">
             <div class="absolute -right-4 -top-4 w-20 h-20 bg-accent/10 rounded-full blur-2xl"></div>
             <div class="flex items-center justify-between mb-3">
@@ -599,14 +599,15 @@ const handleSaveCategory = async () => {
         </div>
 
         <!-- Toolbar -->
-        <div class="flex items-center justify-between gap-4">
-          <div class="relative">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <!-- Search -->
+          <div class="relative flex-1">
             <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
             <input
               v-model="historySearch"
               type="text"
               placeholder="Cari nama barang..."
-              class="bg-white border border-slate-200 rounded-xl pl-8 pr-8 py-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all w-60 shadow-sm"
+              class="bg-white border border-slate-200 rounded-xl pl-8 pr-8 py-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all w-full shadow-sm"
             >
             <button
               v-if="historySearch"
@@ -615,89 +616,128 @@ const handleSaveCategory = async () => {
             ><i class="pi pi-times text-[10px]"></i></button>
           </div>
 
-          <div class="flex items-center gap-2">
-            <button
-              v-for="opt in [{ val: 'all', label: 'Semua' }, { val: 'IN', label: 'Masuk' }, { val: 'OUT', label: 'Keluar' }]"
-              :key="opt.val"
-              @click="historyFilter = opt.val"
-              :class="historyFilter === opt.val
-                ? opt.val === 'IN' ? 'bg-emerald-600 text-white' : opt.val === 'OUT' ? 'bg-red-500 text-white' : 'bg-primary text-white'
-                : 'bg-white border border-slate-200 text-slate-500 hover:border-primary/30 hover:text-primary'"
-              class="px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all shadow-sm"
-            >{{ opt.label }}</button>
+          <!-- Filter + Export -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <!-- Filter pill: full width on mobile -->
+            <div class="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl p-1 shadow-sm w-full sm:w-auto">
+              <button
+                v-for="opt in [{ val: 'all', label: 'Semua' }, { val: 'IN', label: 'Masuk' }, { val: 'OUT', label: 'Keluar' }]"
+                :key="opt.val"
+                @click="historyFilter = opt.val"
+                :class="historyFilter === opt.val
+                  ? opt.val === 'IN' ? 'bg-emerald-600 text-white' : opt.val === 'OUT' ? 'bg-red-500 text-white' : 'bg-primary text-white'
+                  : 'text-slate-500 hover:text-primary'"
+                class="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all text-center"
+              >{{ opt.label }}</button>
+            </div>
 
-            <div class="w-px h-5 bg-slate-200 mx-1"></div>
-
-            <button @click="exportExcel" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-all">
-              <i class="pi pi-file-excel text-xs"></i> Excel
-            </button>
-            <button @click="exportPdf" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-all">
-              <i class="pi pi-file-pdf text-xs"></i> PDF
-            </button>
+            <!-- Export buttons side-by-side -->
+            <div class="grid grid-cols-2 sm:flex gap-2">
+              <button @click="exportExcel" class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-all">
+                <i class="pi pi-file-excel text-xs"></i> Excel
+              </button>
+              <button @click="exportPdf" class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-all">
+                <i class="pi pi-file-pdf text-xs"></i> PDF
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Table -->
         <div class="premium-card bg-white p-0 overflow-hidden shadow-2xl shadow-primary/5">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-slate-50/50 border-b border-slate-100">
-                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal</th>
-                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Barang</th>
-                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tipe</th>
-                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Jumlah</th>
-                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Stok</th>
-                  <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catatan</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-50">
-                <tr
-                  v-for="t in filteredTransactions"
-                  :key="t.id"
-                  class="hover:bg-slate-50/40 transition-colors group"
-                >
-                  <td class="px-6 py-4 text-xs font-bold text-slate-500 whitespace-nowrap">{{ t.date }}</td>
-                  <td class="px-6 py-4">
+
+          <!-- Empty state -->
+          <div v-if="filteredTransactions.length === 0" class="px-6 py-16 text-center text-sm text-slate-400 font-bold">
+            Tidak ada transaksi ditemukan.
+          </div>
+
+          <template v-else>
+            <!-- Mobile cards -->
+            <div class="md:hidden divide-y divide-slate-100">
+              <div v-for="t in filteredTransactions" :key="t.id" class="px-4 py-3.5 hover:bg-slate-50/40 transition-colors">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                      <span
+                        :class="t.type === 'IN'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : 'bg-red-50 text-red-600 border border-red-100'"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
+                      >
+                        <i :class="t.type === 'IN' ? 'pi pi-arrow-down-left' : 'pi pi-arrow-up-right'" class="text-[10px]"></i>
+                        {{ t.type === 'IN' ? 'Masuk' : 'Keluar' }}
+                      </span>
+                      <span class="text-[10px] font-bold text-slate-400">{{ t.date }}</span>
+                    </div>
                     <p class="text-sm font-bold text-slate-900">{{ t.item?.name }}</p>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ t.item?.category?.name }}</p>
-                  </td>
-                  <td class="px-6 py-4 text-center">
-                    <span
-                      :class="t.type === 'IN'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                        : 'bg-red-50 text-red-600 border border-red-100'"
-                      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest"
-                    >
-                      <i :class="t.type === 'IN' ? 'pi pi-arrow-down-left' : 'pi pi-arrow-up-right'" class="text-[10px]"></i>
-                      {{ t.type === 'IN' ? 'Masuk' : 'Keluar' }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 text-center">
-                    <span :class="t.type === 'IN' ? 'text-emerald-600' : 'text-red-500'" class="text-lg font-display font-bold">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{{ t.item?.category?.name }}</p>
+                    <p v-if="t.notes" class="text-xs text-slate-400 mt-0.5 truncate">{{ t.notes }}</p>
+                  </div>
+                  <div class="flex-shrink-0 text-right">
+                    <span :class="t.type === 'IN' ? 'text-emerald-600' : 'text-red-500'" class="text-lg font-bold">
                       {{ t.type === 'IN' ? '+' : '-' }}{{ t.quantity }}
                     </span>
                     <p class="text-[10px] text-slate-400 font-bold uppercase">{{ t.item?.unit }}</p>
-                  </td>
-                  <td class="px-6 py-4 text-center">
-                    <div class="inline-flex items-center gap-2 text-xs text-slate-500">
-                      <span class="font-bold text-slate-400">{{ t.stock_before }}</span>
-                      <i class="pi pi-arrow-right text-[10px] text-slate-300"></i>
+                    <div class="flex items-center gap-1 text-[10px] text-slate-400 mt-1 justify-end">
+                      <span>{{ t.stock_before }}</span>
+                      <i class="pi pi-arrow-right text-[8px]"></i>
                       <span class="font-bold text-primary">{{ t.stock_after }}</span>
                     </div>
-                  </td>
-                  <td class="px-6 py-4 text-xs text-slate-400 max-w-[180px] truncate">
-                    {{ t.notes || '—' }}
-                  </td>
-                </tr>
-                <tr v-if="filteredTransactions.length === 0">
-                  <td colspan="6" class="px-6 py-16 text-center text-sm text-slate-400 font-bold">
-                    Tidak ada transaksi ditemukan.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Desktop table -->
+            <div class="hidden md:block overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50/50 border-b border-slate-100">
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Barang</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tipe</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Jumlah</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Stok</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catatan</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  <tr v-for="t in filteredTransactions" :key="t.id" class="hover:bg-slate-50/40 transition-colors group">
+                    <td class="px-6 py-4 text-xs font-bold text-slate-500 whitespace-nowrap">{{ t.date }}</td>
+                    <td class="px-6 py-4">
+                      <p class="text-sm font-bold text-slate-900">{{ t.item?.name }}</p>
+                      <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ t.item?.category?.name }}</p>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <span
+                        :class="t.type === 'IN'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : 'bg-red-50 text-red-600 border border-red-100'"
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest"
+                      >
+                        <i :class="t.type === 'IN' ? 'pi pi-arrow-down-left' : 'pi pi-arrow-up-right'" class="text-[10px]"></i>
+                        {{ t.type === 'IN' ? 'Masuk' : 'Keluar' }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <span :class="t.type === 'IN' ? 'text-emerald-600' : 'text-red-500'" class="text-lg font-display font-bold">
+                        {{ t.type === 'IN' ? '+' : '-' }}{{ t.quantity }}
+                      </span>
+                      <p class="text-[10px] text-slate-400 font-bold uppercase">{{ t.item?.unit }}</p>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <div class="inline-flex items-center gap-2 text-xs text-slate-500">
+                        <span class="font-bold text-slate-400">{{ t.stock_before }}</span>
+                        <i class="pi pi-arrow-right text-[10px] text-slate-300"></i>
+                        <span class="font-bold text-primary">{{ t.stock_after }}</span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-xs text-slate-400 max-w-[180px] truncate">{{ t.notes || '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
         </div>
 
       </template>

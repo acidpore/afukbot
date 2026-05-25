@@ -386,34 +386,35 @@ onMounted(loadIncomes);
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-50 p-6">
-        <div class="mb-6 flex items-center justify-between">
+    <div class="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <div class="mb-5 flex items-start justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800">Pemasukan</h1>
+                <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Pemasukan</h1>
                 <p class="text-sm text-slate-500 mt-1">Catat dan kelola pemasukan ruko</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap justify-end">
                 <button
                     @click="importModal = true"
-                    class="flex items-center gap-2 border border-slate-300 text-slate-600 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
+                    class="flex items-center gap-1.5 border border-slate-300 text-slate-600 text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
                 >
                     <i class="pi pi-upload text-xs"></i>
-                    Import CSV
+                    <span class="hidden sm:inline">Import CSV</span>
                 </button>
                 <button
                     @click="exportPDF"
                     :disabled="filtered.length === 0"
-                    class="flex items-center gap-2 border border-emerald-600 text-emerald-700 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-emerald-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    class="flex items-center gap-1.5 border border-emerald-600 text-emerald-700 text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl hover:bg-emerald-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                     <i class="pi pi-file-pdf text-xs"></i>
-                    Export PDF
+                    <span class="hidden sm:inline">Export PDF</span>
                 </button>
                 <button
                     @click="showForm = !showForm"
-                    class="flex items-center gap-2 bg-emerald-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
+                    class="flex items-center gap-1.5 bg-emerald-600 text-white text-xs sm:text-sm font-bold px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
                 >
                     <i :class="showForm ? 'pi pi-times' : 'pi pi-plus'" class="text-xs"></i>
-                    {{ showForm ? 'Batal' : 'Catat Pemasukan' }}
+                    <span class="hidden sm:inline">{{ showForm ? 'Batal' : 'Catat Pemasukan' }}</span>
+                    <span class="sm:hidden">{{ showForm ? 'Batal' : 'Tambah' }}</span>
                 </button>
             </div>
         </div>
@@ -423,7 +424,7 @@ onMounted(loadIncomes);
         <div v-if="errorMsg"   class="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{{ errorMsg }}</div>
 
         <!-- Form Tambah -->
-        <div v-if="showForm" class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
+        <div v-if="showForm" class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm mb-5">
             <h2 class="text-base font-bold text-slate-700 mb-4">Catat Pemasukan Baru</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
@@ -475,34 +476,35 @@ onMounted(loadIncomes);
             </div>
         </div>
 
-        <!-- Filter & Summary -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="md:col-span-2 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center gap-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bulan</label>
-                    <input v-model="filterMonth" type="month"
-                        class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500"
-                    />
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sumber</label>
-                    <select v-model="filterSource"
-                        class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white"
-                    >
-                        <option value="">Semua</option>
-                        <option v-for="src in sourceOptions" :key="src" :value="src">{{ src }}</option>
-                    </select>
-                </div>
-                <div class="ml-auto text-right">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase">Total Masuk</p>
-                    <p class="text-lg font-bold text-emerald-600">{{ fmt(totalFiltered) }}</p>
-                    <p class="text-xs text-slate-400">{{ filtered.length }} transaksi</p>
-                </div>
+        <!-- Filter -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-4 grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bulan</label>
+                <input v-model="filterMonth" type="month"
+                    class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white shadow-sm cursor-pointer"
+                />
             </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sumber</label>
+                <select v-model="filterSource"
+                    class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white shadow-sm cursor-pointer"
+                >
+                    <option value="">Semua</option>
+                    <option v-for="src in sourceOptions" :key="src" :value="src">{{ src }}</option>
+                </select>
+            </div>
+        </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-y-auto max-h-48">
+        <!-- Summary cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <div class="bg-white border border-emerald-200 rounded-2xl p-4 shadow-sm">
+                <p class="text-[10px] font-bold text-emerald-500 uppercase mb-1">Total Pemasukan</p>
+                <p class="text-xl font-bold text-emerald-600">{{ fmt(totalFiltered) }}</p>
+                <p class="text-xs text-slate-400 mt-0.5">{{ filtered.length }} transaksi</p>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                 <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Per Sumber</p>
-                <div v-if="summaryBySource.length === 0" class="text-xs text-slate-400 text-center py-4">Tidak ada data</div>
+                <div v-if="summaryBySource.length === 0" class="text-xs text-slate-400 py-1">Tidak ada data</div>
                 <div v-for="row in summaryBySource" :key="row.source" class="flex items-center justify-between py-1 border-b border-slate-50 last:border-0">
                     <span class="text-xs font-semibold text-slate-600">{{ row.source }}</span>
                     <span class="text-xs font-bold text-emerald-600">{{ fmt(row.total) }}</span>
@@ -520,7 +522,35 @@ onMounted(loadIncomes);
                     <i class="pi pi-arrow-circle-down text-3xl mb-2"></i>
                     <p class="text-sm">Tidak ada catatan pemasukan</p>
                 </div>
-                <div v-else class="overflow-x-auto">
+                <div v-else>
+                    <!-- Mobile cards -->
+                    <div class="md:hidden divide-y divide-slate-100">
+                        <div v-for="income in filtered" :key="income.id" class="p-4 hover:bg-emerald-50/20 transition-colors">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                        <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 whitespace-nowrap">{{ income.source }}</span>
+                                        <span class="text-xs text-slate-400">{{ formatDate(income.income_date) }}</span>
+                                    </div>
+                                    <p class="font-semibold text-slate-700 text-sm">{{ income.description }}</p>
+                                    <p v-if="income.notes" class="text-xs text-slate-400 mt-0.5">{{ income.notes }}</p>
+                                </div>
+                                <div class="flex-shrink-0 flex flex-col items-end gap-2">
+                                    <span class="font-bold text-emerald-600 text-sm whitespace-nowrap">{{ fmt(income.amount) }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <button @click="openEditModal(income)" class="text-slate-400 hover:text-[#1D3557] transition-colors">
+                                            <i class="pi pi-pencil text-sm"></i>
+                                        </button>
+                                        <button @click="deleteIncome(income.id)" class="text-red-300 hover:text-red-600 transition-colors">
+                                            <i class="pi pi-trash text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Desktop table -->
+                    <div class="hidden md:block overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-slate-50 border-b border-slate-200">
                             <tr>
@@ -557,20 +587,21 @@ onMounted(loadIncomes);
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </template>
         </div>
 
         <!-- Modal Edit -->
-        <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] flex flex-col">
                 <div class="flex items-center justify-between p-5 border-b border-slate-100">
                     <h3 class="text-base font-bold text-slate-800">Edit Pemasukan</h3>
                     <button @click="editModal.open = false" class="text-slate-400 hover:text-slate-600 transition-colors">
                         <i class="pi pi-times text-lg"></i>
                     </button>
                 </div>
-                <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="overflow-y-auto p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
                         <input v-model="editForm.income_date" type="date"
@@ -623,8 +654,8 @@ onMounted(loadIncomes);
         </div>
 
         <!-- Modal Import CSV -->
-        <div v-if="importModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh]">
+        <div v-if="importModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-xl flex flex-col max-h-[92vh]">
                 <div class="flex items-center justify-between p-5 border-b border-slate-100">
                     <div>
                         <h3 class="text-base font-bold text-slate-800">Import Pemasukan dari CSV</h3>

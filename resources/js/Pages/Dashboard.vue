@@ -83,7 +83,7 @@ onMounted(async () => {
 <template>
   <MainLayout>
     <!-- Sidebar Links Slot -->
-    <template #sidebar>
+    <template #sidebar="{ closeSidebar }">
       <div class="flex flex-col gap-1">
         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-4 py-4">Main Menu</p>
         <template v-for="item in menuItems" :key="item.id">
@@ -102,7 +102,7 @@ onMounted(async () => {
               <button
                 v-for="child in item.children"
                 :key="child.id"
-                @click="activeTab = child.id"
+                @click="activeTab = child.id; closeSidebar()"
                 class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12px] font-bold transition-all duration-200 group"
                 :class="activeTab === child.id
                   ? 'bg-primary text-white shadow-md shadow-primary/20'
@@ -116,7 +116,7 @@ onMounted(async () => {
           <!-- Menu item biasa -->
           <button
             v-else
-            @click="activeTab = item.id"
+            @click="activeTab = item.id; closeSidebar()"
             class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group"
             :class="activeTab === item.id
               ? 'bg-primary text-white shadow-lg shadow-primary/20'

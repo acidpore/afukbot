@@ -742,47 +742,52 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-50 p-6">
-        <div class="mb-6">
-            <h1 class="text-2xl font-bold text-slate-800">Penjualan</h1>
+    <div class="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <div class="mb-5">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Penjualan</h1>
             <p class="text-sm text-slate-500 mt-1">Buat dan kelola invoice penjualan</p>
         </div>
 
-        <div class="flex gap-2 mb-6">
+        <div class="flex flex-col sm:flex-row gap-2 mb-5">
+            <!-- Buat Invoice: full width di mobile, auto di desktop -->
             <button
                 @click="activeTab = 'new'"
                 :class="activeTab === 'new'
                     ? 'bg-[#1D3557] text-white shadow-lg'
                     : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
-                class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+                class="w-full sm:w-auto sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
             >
                 Buat Invoice
             </button>
-            <button
-                @click="activeTab = 'belum_dikirim'; historySubTab = 'belum_dikirim'"
-                :class="activeTab === 'belum_dikirim'
-                    ? 'bg-amber-500 text-white shadow-lg'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
-                class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2"
-            >
-                Belum Dikirim
-                <span v-if="salesBelumDikirim.length" class="bg-white/30 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                    {{ salesBelumDikirim.length }}
-                </span>
-            </button>
-            <button
-                @click="activeTab = 'sudah_dikirim'; historySubTab = 'sudah_dikirim'"
-                :class="activeTab === 'sudah_dikirim'
-                    ? 'bg-emerald-600 text-white shadow-lg'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
-                class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
-            >
-                Sudah Dikirim
-            </button>
+            <!-- Belum + Sudah: berdampingan di mobile -->
+            <div class="grid grid-cols-2 sm:contents gap-2">
+                <button
+                    @click="activeTab = 'belum_dikirim'; historySubTab = 'belum_dikirim'"
+                    :class="activeTab === 'belum_dikirim'
+                        ? 'bg-amber-500 text-white shadow-lg'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
+                    class="py-2.5 sm:px-5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5"
+                >
+                    Belum Kirim
+                    <span v-if="salesBelumDikirim.length"
+                        :class="activeTab === 'belum_dikirim' ? 'bg-white/30 text-white' : 'bg-amber-100 text-amber-700'"
+                        class="text-xs font-bold px-1.5 py-0.5 rounded-full"
+                    >{{ salesBelumDikirim.length }}</span>
+                </button>
+                <button
+                    @click="activeTab = 'sudah_dikirim'; historySubTab = 'sudah_dikirim'"
+                    :class="activeTab === 'sudah_dikirim'
+                        ? 'bg-emerald-600 text-white shadow-lg'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
+                    class="py-2.5 sm:px-5 rounded-xl text-sm font-bold transition-all"
+                >
+                    Sudah Kirim
+                </button>
+            </div>
         </div>
 
         <!-- ─── TAB: Buat Invoice ─── -->
-        <div v-if="activeTab === 'new'" class="flex flex-col gap-6">
+        <div v-if="activeTab === 'new'" class="flex flex-col gap-4 sm:gap-6">
 
             <div v-if="successMsg" class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-4 py-3 rounded-xl">
                 {{ successMsg }}
@@ -792,7 +797,7 @@ onMounted(async () => {
             </div>
 
             <!-- Info Penerima -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
                 <h2 class="text-base font-bold text-slate-700 mb-4">Informasi Penerima</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -834,7 +839,7 @@ onMounted(async () => {
             </div>
 
             <!-- Tabel Item -->
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-base font-bold text-slate-700">Daftar Item</h2>
                     <button
@@ -858,12 +863,24 @@ onMounted(async () => {
                 </div>
 
                 <!-- Baris item -->
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-3">
                     <div
                         v-for="(item, idx) in items"
                         :key="idx"
-                        class="grid grid-cols-1 md:grid-cols-[2rem_1fr_1fr_9rem_11rem_10rem_2.5rem] gap-3 items-center bg-slate-50/60 border border-slate-200 rounded-xl px-3 py-3"
+                        class="bg-slate-50/60 border border-slate-200 rounded-xl px-3 py-3"
                     >
+                        <!-- Mobile header -->
+                        <div class="flex items-center justify-between mb-3 md:hidden">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Item {{ idx + 1 }}</span>
+                            <button
+                                @click="removeItem(idx)"
+                                :disabled="items.length === 1"
+                                class="text-red-400 hover:text-red-600 disabled:opacity-25 disabled:cursor-not-allowed transition-colors p-1"
+                            ><i class="pi pi-trash text-sm"></i></button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-[2rem_1fr_1fr_9rem_11rem_10rem_2.5rem] gap-3 items-center">
+
                         <!-- Nomor -->
                         <div class="hidden md:flex items-center justify-center w-7 h-7 rounded-full bg-slate-200 text-slate-500 text-xs font-bold flex-shrink-0">
                             {{ idx + 1 }}
@@ -871,6 +888,7 @@ onMounted(async () => {
 
                         <!-- Nama Barang (search) -->
                         <div class="relative">
+                        <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Barang</label>
                             <div
                                 class="flex items-center border rounded-lg px-3 py-2 gap-2 bg-white focus-within:ring-1 focus-within:ring-[#1D3557]/30 focus-within:border-[#1D3557] transition-colors"
                                 :class="item.item_name ? 'border-[#1D3557]/40' : 'border-slate-200'"
@@ -937,46 +955,52 @@ onMounted(async () => {
                         </div>
 
                         <!-- Keterangan -->
+                        <div class="md:contents">
+                        <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Keterangan</label>
                         <input
                             v-model="item.description"
                             type="text"
-                            placeholder="Keterangan"
+                            placeholder="Keterangan (opsional)"
                             class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
-                        />
+                        /></div>
 
-                        <!-- Qty -->
-                        <input
-                            v-model.number="item.qty"
-                            type="number"
-                            min="1"
-                            placeholder="0"
-                            class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
-                        />
-
-                        <!-- Harga Satuan -->
-                        <div class="relative">
-                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">Rp</span>
-                            <input
-                                :value="priceDisplays[idx]"
-                                @input="onPriceInput(idx, $event)"
-                                @focus="onPriceFocus(idx, $event)"
-                                @blur="onPriceBlur(idx, $event)"
-                                type="text"
-                                inputmode="numeric"
-                                placeholder="0"
-                                class="w-full border border-slate-200 bg-white rounded-lg pl-8 pr-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
-                            />
+                        <!-- Qty + Harga (berdampingan di mobile) -->
+                        <div class="grid grid-cols-2 gap-2 md:contents">
+                            <div>
+                                <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Qty</label>
+                                <input
+                                    v-model.number="item.qty"
+                                    type="number" min="1" placeholder="0"
+                                    class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                />
+                            </div>
+                            <div>
+                                <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Harga Satuan</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">Rp</span>
+                                    <input
+                                        :value="priceDisplays[idx]"
+                                        @input="onPriceInput(idx, $event)"
+                                        @focus="onPriceFocus(idx, $event)"
+                                        @blur="onPriceBlur(idx, $event)"
+                                        type="text" inputmode="numeric" placeholder="0"
+                                        class="w-full border border-slate-200 bg-white rounded-lg pl-8 pr-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Total -->
+                        <div class="md:contents">
+                        <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Total</label>
                         <div class="text-right">
                             <span class="text-sm font-bold text-slate-700 whitespace-nowrap">
                                 {{ (Number(item.qty) > 0 && Number(item.unit_price) > 0) ? fmt(Number(item.qty) * Number(item.unit_price)) : '—' }}
                             </span>
-                        </div>
+                        </div></div>
 
-                        <!-- Hapus -->
-                        <div class="flex justify-end md:justify-center">
+                        <!-- Hapus (desktop only, mobile ada di header card) -->
+                        <div class="hidden md:flex justify-center">
                             <button
                                 @click="removeItem(idx)"
                                 :disabled="items.length === 1"
@@ -985,6 +1009,8 @@ onMounted(async () => {
                                 <i class="pi pi-trash text-sm"></i>
                             </button>
                         </div>
+
+                        </div><!-- end grid -->
                     </div>
                 </div>
 
@@ -1020,7 +1046,7 @@ onMounted(async () => {
 
         <!-- ─── TAB: Belum Dikirim / Sudah Dikirim ─── -->
         <div v-else class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h2 class="text-base font-bold text-slate-700">
                         {{ activeTab === 'belum_dikirim' ? 'Invoice Belum Dikirim' : 'Invoice Sudah Dikirim' }}
@@ -1041,7 +1067,44 @@ onMounted(async () => {
                         <i class="pi pi-inbox text-3xl mb-2"></i>
                         <p class="text-sm">Tidak ada invoice yang menunggu pengiriman</p>
                     </div>
-                    <div v-else class="overflow-x-auto">
+                    <div v-else>
+                        <!-- Mobile cards -->
+                        <div class="md:hidden divide-y divide-slate-100">
+                            <div v-for="sale in salesBelumDikirim" :key="sale.id" class="p-4 hover:bg-amber-50/30 transition-colors">
+                                <div class="flex items-start justify-between gap-3 mb-2">
+                                    <div class="min-w-0">
+                                        <p class="font-mono text-xs font-bold text-[#1D3557]">{{ sale.invoice_number }}</p>
+                                        <p class="font-semibold text-slate-800 mt-0.5">{{ sale.recipient_name }}</p>
+                                        <p v-if="sale.recipient_address" class="text-xs text-slate-400">{{ sale.recipient_address }}</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">{{ formatDate(sale.invoice_date) }}</p>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="font-bold text-slate-800">{{ fmt(sale.grand_total) }}</p>
+                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" :class="paymentStatus(sale).color">{{ paymentStatus(sale).label }}</span>
+                                        <p v-if="sisaTagihan(sale) > 0" class="text-xs text-red-500 font-semibold mt-0.5">Sisa: {{ fmt(sisaTagihan(sale)) }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 mt-2 flex-wrap">
+                                    <button @click="openShipModal(sale)" class="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-send text-xs"></i> Kirim
+                                    </button>
+                                    <button v-if="sisaTagihan(sale) > 0" @click="openPayModal(sale)" class="text-xs font-bold text-[#1D3557] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                                        + Catat Bayar
+                                    </button>
+                                    <button @click="openEditModal(sale)" class="text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-pencil text-xs"></i> Edit
+                                    </button>
+                                    <button @click="printInvoice(sale)" class="text-xs font-bold text-[#1D3557] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-file-pdf text-xs"></i>
+                                    </button>
+                                    <button @click="deleteSale(sale.id)" class="text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-trash text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Desktop table -->
+                        <div class="hidden md:block overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="bg-slate-50 border-b border-slate-200">
                                 <tr>
@@ -1102,6 +1165,7 @@ onMounted(async () => {
                                 </tr>
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1111,7 +1175,44 @@ onMounted(async () => {
                         <i class="pi pi-inbox text-3xl mb-2"></i>
                         <p class="text-sm">Belum ada invoice yang terkirim</p>
                     </div>
-                    <div v-else class="overflow-x-auto">
+                    <div v-else>
+                        <!-- Mobile cards -->
+                        <div class="md:hidden divide-y divide-slate-100">
+                            <div v-for="sale in salesSudahDikirim" :key="sale.id" class="p-4 hover:bg-emerald-50/20 transition-colors">
+                                <div class="flex items-start justify-between gap-3 mb-2">
+                                    <div class="min-w-0">
+                                        <p class="font-mono text-xs font-bold text-[#1D3557]">{{ sale.invoice_number }}</p>
+                                        <p class="font-semibold text-slate-800 mt-0.5">{{ sale.recipient_name }}</p>
+                                        <p v-if="sale.recipient_address" class="text-xs text-slate-400">{{ sale.recipient_address }}</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">Dikirim: {{ sale.shipped_at ? formatDate(sale.shipped_at) : '-' }}</p>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="font-bold text-slate-800">{{ fmt(sale.grand_total) }}</p>
+                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" :class="paymentStatus(sale).color">{{ paymentStatus(sale).label }}</span>
+                                        <p v-if="sisaTagihan(sale) > 0" class="text-xs text-red-500 font-semibold mt-0.5">Sisa: {{ fmt(sisaTagihan(sale)) }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 mt-2 flex-wrap">
+                                    <button v-if="sisaTagihan(sale) > 0" @click="openPayModal(sale)" class="text-xs font-bold text-[#1D3557] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                                        + Catat Bayar
+                                    </button>
+                                    <button @click="openEditModal(sale)" class="text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-pencil text-xs"></i> Edit
+                                    </button>
+                                    <button @click="printInvoice(sale)" class="text-xs font-bold text-[#1D3557] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-file-pdf text-xs"></i>
+                                    </button>
+                                    <button @click="revertStock(sale.id)" class="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-history text-xs"></i>
+                                    </button>
+                                    <button @click="deleteSale(sale.id, true)" class="text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
+                                        <i class="pi pi-trash text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Desktop table -->
+                        <div class="hidden md:block overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="bg-slate-50 border-b border-slate-200">
                                 <tr>
@@ -1170,14 +1271,15 @@ onMounted(async () => {
                                 </tr>
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
             </template>
         </div>
 
         <!-- ─── Modal Edit Invoice ─── -->
-        <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl max-h-[92vh] flex flex-col">
                 <!-- Header -->
                 <div class="flex items-center justify-between p-5 border-b border-slate-100">
                     <div>
@@ -1231,10 +1333,20 @@ onMounted(async () => {
 
                         <div class="flex flex-col gap-2">
                             <div v-for="(item, idx) in editItems" :key="idx"
-                                class="grid grid-cols-1 md:grid-cols-[1fr_1fr_8rem_10rem_9rem_2rem] gap-2 items-center bg-slate-50/60 border border-slate-200 rounded-xl px-3 py-2.5"
+                                class="bg-slate-50/60 border border-slate-200 rounded-xl px-3 py-3"
                             >
+                                <!-- Mobile header -->
+                                <div class="flex items-center justify-between mb-2 md:hidden">
+                                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Item {{ idx + 1 }}</span>
+                                    <button @click="removeEditItem(idx)" :disabled="editItems.length === 1"
+                                        class="text-red-400 hover:text-red-600 disabled:opacity-25 disabled:cursor-not-allowed transition-colors p-1"
+                                    ><i class="pi pi-trash text-sm"></i></button>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr_8rem_10rem_9rem_2rem] gap-2 items-center">
                                 <!-- Nama Barang -->
                                 <div class="relative">
+                                    <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Barang</label>
                                     <div class="flex items-center border rounded-lg px-3 py-2 gap-2 bg-white focus-within:ring-1 focus-within:ring-[#1D3557]/30 focus-within:border-[#1D3557]"
                                         :class="item.item_name ? 'border-[#1D3557]/40' : 'border-slate-200'"
                                     >
@@ -1266,39 +1378,50 @@ onMounted(async () => {
                                 </div>
 
                                 <!-- Keterangan -->
-                                <input v-model="item.description" type="text" placeholder="Keterangan"
-                                    class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
-                                />
-
-                                <!-- Qty -->
-                                <input v-model.number="item.qty" type="number" min="1" placeholder="0"
-                                    class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
-                                />
-
-                                <!-- Harga Satuan -->
-                                <div class="relative">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">Rp</span>
-                                    <input
-                                        :value="editPriceDisplays[idx]"
-                                        @input="onEditPriceInput(idx, $event)"
-                                        @focus="onEditPriceFocus(idx, $event)"
-                                        @blur="onEditPriceBlur(idx, $event)"
-                                        type="text" inputmode="numeric" placeholder="0"
-                                        class="w-full border border-slate-200 bg-white rounded-lg pl-8 pr-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                <div>
+                                    <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Keterangan</label>
+                                    <input v-model="item.description" type="text" placeholder="Keterangan"
+                                        class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                                     />
                                 </div>
 
-                                <!-- Total -->
-                                <div class="text-right text-sm font-bold text-slate-700 whitespace-nowrap">
-                                    {{ (Number(item.qty) > 0 && Number(item.unit_price) > 0) ? fmt(Number(item.qty) * Number(item.unit_price)) : '—' }}
+                                <!-- Qty + Harga berdampingan di mobile -->
+                                <div class="grid grid-cols-2 gap-2 md:contents">
+                                    <div>
+                                        <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Qty</label>
+                                        <input v-model.number="item.qty" type="number" min="1" placeholder="0"
+                                            class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Harga Satuan</label>
+                                        <div class="relative">
+                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">Rp</span>
+                                            <input
+                                                :value="editPriceDisplays[idx]"
+                                                @input="onEditPriceInput(idx, $event)"
+                                                @focus="onEditPriceFocus(idx, $event)"
+                                                @blur="onEditPriceBlur(idx, $event)"
+                                                type="text" inputmode="numeric" placeholder="0"
+                                                class="w-full border border-slate-200 bg-white rounded-lg pl-8 pr-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <!-- Hapus -->
+                                <!-- Total -->
+                                <div>
+                                    <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Total</label>
+                                    <div class="text-right text-sm font-bold text-slate-700 whitespace-nowrap">
+                                        {{ (Number(item.qty) > 0 && Number(item.unit_price) > 0) ? fmt(Number(item.qty) * Number(item.unit_price)) : '—' }}
+                                    </div>
+                                </div>
+
+                                <!-- Hapus (desktop) -->
                                 <button @click="removeEditItem(idx)" :disabled="editItems.length === 1"
-                                    class="text-red-400 hover:text-red-600 disabled:opacity-25 disabled:cursor-not-allowed transition-colors p-1 flex justify-center"
-                                >
-                                    <i class="pi pi-trash text-sm"></i>
-                                </button>
+                                    class="hidden md:flex text-red-400 hover:text-red-600 disabled:opacity-25 disabled:cursor-not-allowed transition-colors p-1 justify-center"
+                                ><i class="pi pi-trash text-sm"></i></button>
+                                </div><!-- end grid -->
                             </div>
                         </div>
 
@@ -1339,8 +1462,8 @@ onMounted(async () => {
         </div>
 
         <!-- ─── Modal Konfirmasi Kirim ─── -->
-        <div v-if="shipModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+        <div v-if="shipModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 w-full sm:max-w-sm">
                 <h3 class="text-base font-bold text-slate-800 mb-1">Konfirmasi Pengiriman</h3>
                 <p class="text-xs text-slate-500 mb-4">{{ shipModal.sale?.invoice_number }} — {{ shipModal.sale?.recipient_name }}</p>
 
@@ -1385,8 +1508,8 @@ onMounted(async () => {
         </div>
 
         <!-- ─── Modal Catat Pembayaran ─── -->
-        <div v-if="payModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+        <div v-if="payModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 w-full sm:max-w-sm">
                 <h3 class="text-base font-bold text-slate-800 mb-1">{{ payModal.mode === 'edit' ? 'Koreksi Pembayaran' : 'Catat Pembayaran' }}</h3>
                 <p class="text-xs text-slate-500 mb-4">{{ payModal.sale?.invoice_number }} — {{ payModal.sale?.recipient_name }}</p>
 

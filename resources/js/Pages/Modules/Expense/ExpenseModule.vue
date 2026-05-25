@@ -552,34 +552,35 @@ onMounted(loadExpenses);
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-50 p-6">
-        <div class="mb-6 flex items-center justify-between">
+    <div class="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <div class="mb-5 flex items-start justify-between gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800">Pengeluaran</h1>
+                <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Pengeluaran</h1>
                 <p class="text-sm text-slate-500 mt-1">Catat dan kelola pengeluaran ruko</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap justify-end">
                 <button
                     @click="exportPDF"
                     :disabled="filtered.length === 0"
-                    class="flex items-center gap-2 border border-[#1D3557] text-[#1D3557] text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-[#1D3557]/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    class="flex items-center gap-1.5 border border-[#1D3557] text-[#1D3557] text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl hover:bg-[#1D3557]/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                     <i class="pi pi-file-pdf text-xs"></i>
-                    Export PDF
+                    <span class="hidden sm:inline">Export PDF</span>
                 </button>
                 <button
                     @click="importModal = true"
-                    class="flex items-center gap-2 border border-slate-300 text-slate-600 text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
+                    class="flex items-center gap-1.5 border border-slate-300 text-slate-600 text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
                 >
                     <i class="pi pi-upload text-xs"></i>
-                    Import CSV
+                    <span class="hidden sm:inline">Import CSV</span>
                 </button>
                 <button
                     @click="showForm = !showForm"
-                    class="flex items-center gap-2 bg-[#1D3557] text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-[#162840] transition-colors"
+                    class="flex items-center gap-1.5 bg-[#1D3557] text-white text-xs sm:text-sm font-bold px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl hover:bg-[#162840] transition-colors"
                 >
                     <i :class="showForm ? 'pi pi-times' : 'pi pi-plus'" class="text-xs"></i>
-                    {{ showForm ? 'Batal' : 'Catat Pengeluaran' }}
+                    <span class="hidden sm:inline">{{ showForm ? 'Batal' : 'Catat Pengeluaran' }}</span>
+                    <span class="sm:hidden">{{ showForm ? 'Batal' : 'Tambah' }}</span>
                 </button>
             </div>
         </div>
@@ -593,7 +594,7 @@ onMounted(loadExpenses);
         </div>
 
         <!-- Form Tambah -->
-        <div v-if="showForm" class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-6">
+        <div v-if="showForm" class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm mb-5">
             <h2 class="text-base font-bold text-slate-700 mb-4">Catat Pengeluaran Baru</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
@@ -681,29 +682,29 @@ onMounted(loadExpenses);
         </div>
 
         <!-- Filter -->
-        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-3">
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-4 grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
             <div>
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bulan</label>
                 <input
                     v-model="filterMonth"
                     type="month"
-                    class="border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] bg-white shadow-sm cursor-pointer"
+                    class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] bg-white shadow-sm cursor-pointer"
                 />
             </div>
             <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kategori Pengeluaran</label>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kategori</label>
                 <select
                     v-model="filterCategory"
-                    class="border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] bg-white shadow-sm cursor-pointer"
+                    class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] bg-white shadow-sm cursor-pointer"
                 >
-                    <option value="">Semua Kategori</option>
+                    <option value="">Semua</option>
                     <option v-for="cat in [...new Set(expenses.map(e => e.category))]" :key="cat" :value="cat">{{ cat }}</option>
                 </select>
             </div>
         </div>
 
         <!-- Ringkasan Keuangan -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <!-- Total Pemasukan -->
             <div class="bg-white border border-emerald-200 rounded-2xl p-4 shadow-sm">
                 <p class="text-[10px] font-bold text-emerald-500 uppercase mb-1">Total Pemasukan</p>
@@ -722,7 +723,7 @@ onMounted(loadExpenses);
                 <p class="text-[10px] font-bold text-red-400 uppercase mb-1">Total Pengeluaran</p>
                 <p class="text-xl font-bold text-red-600">{{ fmt(totalFiltered) }}</p>
                 <p class="text-xs text-slate-400 mt-0.5">{{ filtered.length }} transaksi</p>
-                <div class="mt-2 pt-2 border-t border-slate-100 space-y-1 max-h-24 overflow-y-auto">
+                <div class="mt-2 pt-2 border-t border-slate-100 space-y-1">
                     <div v-for="row in summaryByCategory" :key="row.category" class="flex justify-between">
                         <span class="text-xs text-slate-500">{{ row.category }}</span>
                         <span class="text-xs font-semibold text-red-600">{{ fmt(row.total) }}</span>
@@ -761,7 +762,36 @@ onMounted(loadExpenses);
                     <i class="pi pi-wallet text-3xl mb-2"></i>
                     <p class="text-sm">Tidak ada catatan pengeluaran</p>
                 </div>
-                <div v-else class="overflow-x-auto">
+                <div v-else>
+                    <!-- Mobile cards -->
+                    <div class="md:hidden divide-y divide-slate-100">
+                        <div v-for="expense in filtered" :key="expense.id" class="p-4 hover:bg-slate-50/60 transition-colors">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                        <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">{{ expense.category }}</span>
+                                        <span class="text-xs text-slate-400">{{ formatDate(expense.expense_date) }}</span>
+                                    </div>
+                                    <p class="font-semibold text-slate-700 text-sm">{{ expense.description }}</p>
+                                    <p v-if="expense.notes" class="text-xs text-slate-400 mt-0.5">{{ expense.notes }}</p>
+                                    <p v-if="expense.paid_by" class="text-xs text-slate-400 mt-0.5">Oleh: {{ expense.paid_by }}</p>
+                                </div>
+                                <div class="flex-shrink-0 flex flex-col items-end gap-2">
+                                    <span class="font-bold text-red-600 text-sm whitespace-nowrap">{{ fmt(expense.amount) }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <button @click="openEditModal(expense)" class="text-slate-400 hover:text-[#1D3557] transition-colors">
+                                            <i class="pi pi-pencil text-sm"></i>
+                                        </button>
+                                        <button @click="deleteExpense(expense.id)" class="text-red-300 hover:text-red-600 transition-colors">
+                                            <i class="pi pi-trash text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Desktop table -->
+                    <div class="hidden md:block overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-slate-50 border-b border-slate-200">
                             <tr>
@@ -802,20 +832,21 @@ onMounted(loadExpenses);
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </template>
         </div>
 
         <!-- Modal Edit -->
-        <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] flex flex-col">
                 <div class="flex items-center justify-between p-5 border-b border-slate-100">
                     <h3 class="text-base font-bold text-slate-800">Edit Pengeluaran</h3>
                     <button @click="editModal.open = false" class="text-slate-400 hover:text-slate-600 transition-colors">
                         <i class="pi pi-times text-lg"></i>
                     </button>
                 </div>
-                <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="overflow-y-auto p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal <span class="text-red-500">*</span></label>
                         <input v-model="editForm.expense_date" type="date"
