@@ -30,6 +30,7 @@ class SalesController extends Controller
             'recipient_name'                  => 'required|string',
             'recipient_address'               => 'nullable|string',
             'invoice_date'                    => 'required|date',
+            'shipped_at'                      => 'nullable|date',
             'notes'                           => 'nullable|string',
             'items'                           => 'required|array|min:1',
             'items.*.item_name'               => 'required|string',
@@ -51,6 +52,7 @@ class SalesController extends Controller
             'recipient_name'               => 'required|string',
             'recipient_address'            => 'nullable|string',
             'invoice_date'                 => 'required|date',
+            'shipped_at'                   => 'nullable|date',
             'notes'                        => 'nullable|string',
             'items'                        => 'sometimes|array|min:1',
             'items.*.item_name'            => 'required_with:items|string',
@@ -86,10 +88,18 @@ class SalesController extends Controller
         }
     }
 
-    public function ship($id)
+    public function ship(Request $request, $id)
     {
+        $request->validate([
+            'shipped_at' => 'nullable|date',
+            'notes'      => 'nullable|string',
+        ]);
         try {
-            $sale = $this->salesService->markAsShipped((int) $id);
+            $sale = $this->salesService->markAsShipped(
+                (int) $id,
+                $request->input('shipped_at'),
+                $request->input('notes')
+            );
             return $this->sendResponse($sale, 'Invoice ditandai sebagai terkirim');
         } catch (\Exception $e) {
             return $this->sendError($e->getMessage(), [], 422);

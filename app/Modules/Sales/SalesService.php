@@ -35,6 +35,7 @@ class SalesService
                 'recipient_name'    => $data['recipient_name'],
                 'recipient_address' => $data['recipient_address'] ?? null,
                 'invoice_date'      => $data['invoice_date'],
+                'shipped_at'        => !empty($data['shipped_at']) ? $data['shipped_at'] : null,
                 'notes'             => $data['notes'] ?? null,
                 'grand_total'       => $grandTotal,
                 'status'            => 'belum_dikirim',
@@ -67,9 +68,9 @@ class SalesService
         });
     }
 
-    public function markAsShipped(int $id): Sale
+    public function markAsShipped(int $id, ?string $shippedAt = null, ?string $notes = null): Sale
     {
-        return DB::transaction(function () use ($id) {
+        return DB::transaction(function () use ($id, $shippedAt, $notes) {
             $sale = Sale::with('items')->findOrFail($id);
 
             if ($sale->status === 'sudah_dikirim') {
@@ -104,7 +105,14 @@ class SalesService
                 }
             }
 
-            $sale->update(['status' => 'sudah_dikirim', 'shipped_at' => now()]);
+            $updateData = [
+                'status'     => 'sudah_dikirim',
+                'shipped_at' => $shippedAt ? \Carbon\Carbon::parse($shippedAt) : now(),
+            ];
+            if ($notes !== null) {
+                $updateData['notes'] = $notes;
+            }
+            $sale->update($updateData);
 
             return $sale->fresh('items');
         });
@@ -119,6 +127,7 @@ class SalesService
                 'recipient_name'    => $data['recipient_name'],
                 'recipient_address' => $data['recipient_address'] ?? null,
                 'invoice_date'      => $data['invoice_date'],
+                'shipped_at'        => array_key_exists('shipped_at', $data) ? ($data['shipped_at'] ?: null) : $sale->shipped_at,
                 'notes'             => $data['notes'] ?? null,
             ]);
 

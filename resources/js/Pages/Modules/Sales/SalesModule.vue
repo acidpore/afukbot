@@ -27,6 +27,7 @@ const form = ref({
     recipient_name:    '',
     recipient_address: '',
     invoice_date:      new Date().toISOString().slice(0, 10),
+    shipped_at:        '',
     notes:             '',
 });
 
@@ -57,7 +58,7 @@ const salesSudahDikirim = computed(() => sales.value.filter(s => s.status === 's
 
 // ── Modal Edit ────────────────────────────────────────────
 const editModal = ref<{ open: boolean; sale: Sale | null }>({ open: false, sale: null });
-const editForm  = ref({ recipient_name: '', recipient_address: '', invoice_date: '', notes: '' });
+const editForm  = ref({ recipient_name: '', recipient_address: '', invoice_date: '', shipped_at: '', notes: '' });
 const editItems = ref<SaleItem[]>([]);
 const editSearchQueries  = ref<string[]>([]);
 const editDropdownOpen   = ref<boolean[]>([]);
@@ -69,6 +70,7 @@ function openEditModal(sale: Sale) {
         recipient_name:    sale.recipient_name,
         recipient_address: sale.recipient_address,
         invoice_date:      sale.invoice_date,
+        shipped_at:        sale.shipped_at ? sale.shipped_at.slice(0, 10) : '',
         notes:             sale.notes,
     };
     editItems.value          = sale.items.map(i => ({ ...i }));
@@ -352,6 +354,7 @@ function resetForm() {
         recipient_name:    '',
         recipient_address: '',
         invoice_date:      new Date().toISOString().slice(0, 10),
+        shipped_at:        '',
         notes:             '',
     };
     items.value             = [emptyItem()];
@@ -401,16 +404,34 @@ async function submitSale() {
 }
 
 // ── Modal Konfirmasi Kirim ─────────────────────────────────
-const shipModal = ref<{ open: boolean; sale: Sale | null; inputRaw: string; display: string }>({
-    open: false, sale: null, inputRaw: '', display: '',
+const shipModal = ref<{ open: boolean; sale: Sale | null; inputRaw: string; display: string; shippedAt: string }>({
+    open: false, sale: null, inputRaw: '', display: '', shippedAt: '',
 });
+
+const shipKekurangan = computed(() => {
+    if (!shipModal.value.sale) return 0;
+    const paid    = shipModal.value.sale.paid_amount;
+    const total   = shipModal.value.sale.grand_total;
+    const bayarKini = parseInt(shipModal.value.inputRaw) || 0;
+    return Math.max(0, total - paid - bayarKini);
+});
+
+const shipKeteranganAuto = computed(() =>
+    shipKekurangan.value > 0
+        ? `Kekurangan sejumlah Rp ${shipKekurangan.value.toLocaleString('id-ID')}`
+        : ''
+);
 
 function openShipModal(sale: Sale) {
     const total = sale.grand_total;
+    const defaultDate = sale.shipped_at
+        ? sale.shipped_at.slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
     shipModal.value = {
         open: true, sale,
         inputRaw: String(total),
         display:  total.toLocaleString('id-ID'),
+        shippedAt: defaultDate,
     };
 }
 
@@ -427,7 +448,10 @@ async function confirmShip() {
     const id     = shipModal.value.sale.id;
     const amount = parseInt(shipModal.value.inputRaw) || 0;
     try {
-        await salesApi.ship(id);
+        await salesApi.ship(id, {
+            shipped_at: shipModal.value.shippedAt || undefined,
+            notes: shipKeteranganAuto.value || undefined,
+        });
         if (amount > 0) await salesApi.setPayment(id, amount);
         await loadSales();
         shipModal.value.open = false;
@@ -548,7 +572,7 @@ function printInvoice(sale: Sale) {
     const poRows = [
         ['Nomor',         sale.invoice_number],
         ['Tanggal',       formatDate(sale.invoice_date)],
-        ['Tanggal Kirim', '-'],
+        ['Tanggal Kirim', sale.shipped_at ? formatDate(sale.shipped_at) : '-'],
     ];
     let py = y + 12;
     for (const [lbl, val] of poRows) {
@@ -698,11 +722,24 @@ function printInvoice(sale: Sale) {
     y = Math.max(y, sy + 10) + 8;
 
     // ── 5. DP NOTE ─────────────────────────────────────────
+    const notesText  = sale.notes?.trim() || 'DP 50% PELUNASAN';
+    const dpAmount   = parseDPAmount(sale.notes, sale.grand_total);
+    const kekurangan = dpAmount > 0 ? Math.max(0, sale.grand_total - dpAmount) : 0;
+
     doc.setFontSize(9);
     doc.setFont('times', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(sale.notes?.trim() || 'DP 50% PELUNASAN', LM, y);
+    doc.text(notesText, LM, y);
     y += 5;
+
+    if (kekurangan > 0) {
+        doc.setFont('times', 'bold');
+        doc.setTextColor(180, 0, 0);
+        doc.text('Kekurangan Rp ' + kekurangan.toLocaleString('id-ID'), LM, y);
+        doc.setTextColor(0, 0, 0);
+        y += 5;
+    }
+
     doc.setFont('times', 'normal');
     doc.text('GARANSI SUS 304 ANTI MAGNET LOLOS UJI LAB DAN VERIFIKASI MBG', LM, y);
     y += 8;
@@ -733,6 +770,26 @@ function printInvoice(sale: Sale) {
 function formatDate(dateStr: string): string {
     const d = new Date(dateStr);
     return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function parseDPAmount(notes: string | null | undefined, grandTotal: number): number {
+    if (!notes) return 0;
+    const text = notes.trim().toLowerCase();
+
+    // Pola: DP diikuti angka + satuan (juta/jt/ribu/rb/k) atau persen
+    const match = text.match(/dp\s*([\d.,]+)\s*(juta|jt|ribu|rb|k|%)?/i);
+    if (!match) return 0;
+
+    const rawNum = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
+    if (isNaN(rawNum)) return 0;
+
+    const satuan = (match[2] ?? '').toLowerCase();
+    if (satuan === '%') return Math.round(grandTotal * rawNum / 100);
+    if (satuan === 'juta' || satuan === 'jt') return Math.round(rawNum * 1_000_000);
+    if (satuan === 'ribu' || satuan === 'rb' || satuan === 'k') return Math.round(rawNum * 1_000);
+
+    // Tanpa satuan — angka mentah (misal "DP 10000000")
+    return Math.round(rawNum);
 }
 
 // ── Lifecycle ──────────────────────────────────────────────
@@ -822,6 +879,14 @@ onMounted(async () => {
                         <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Invoice <span class="text-red-500">*</span></label>
                         <input
                             v-model="form.invoice_date"
+                            type="date"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Kirim</label>
+                        <input
+                            v-model="form.shipped_at"
                             type="date"
                             class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                         />
@@ -1308,6 +1373,10 @@ onMounted(async () => {
                             <input v-model="editForm.invoice_date" type="date" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                         </div>
                         <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Kirim</label>
+                            <input v-model="editForm.shipped_at" type="date" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                        </div>
+                        <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1.5">Catatan</label>
                             <input v-model="editForm.notes" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                         </div>
@@ -1472,16 +1541,29 @@ onMounted(async () => {
                         <span class="text-slate-500">Grand Total</span>
                         <span class="font-bold text-slate-800">{{ fmt(shipModal.sale?.grand_total ?? 0) }}</span>
                     </div>
+                    <div v-if="(shipModal.sale?.paid_amount ?? 0) > 0" class="flex justify-between text-sm">
+                        <span class="text-slate-500">Sudah Dibayar</span>
+                        <span class="font-bold text-emerald-700">{{ fmt(shipModal.sale?.paid_amount ?? 0) }}</span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Kirim</label>
+                    <input
+                        v-model="shipModal.shippedAt"
+                        type="date"
+                        class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                    />
                 </div>
 
                 <div class="flex items-center justify-between mb-1.5">
                     <label class="text-xs font-semibold text-slate-500">Jumlah Pembayaran</label>
                     <button
-                        @click="() => { const t = shipModal.sale!.grand_total; shipModal.inputRaw = String(t); shipModal.display = t.toLocaleString('id-ID'); }"
+                        @click="() => { const sisa = (shipModal.sale!.grand_total - shipModal.sale!.paid_amount); shipModal.inputRaw = String(sisa); shipModal.display = sisa.toLocaleString('id-ID'); }"
                         class="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors"
                     >Lunas Penuh</button>
                 </div>
-                <div class="relative mb-5">
+                <div class="relative mb-3">
                     <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">Rp</span>
                     <input
                         :value="shipModal.display"
@@ -1493,6 +1575,11 @@ onMounted(async () => {
                     />
                 </div>
 
+                <div v-if="shipKeteranganAuto" class="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mb-4">
+                    <p class="text-xs font-semibold text-red-600">Keterangan otomatis:</p>
+                    <p class="text-sm font-bold text-red-700 mt-0.5">{{ shipKeteranganAuto }}</p>
+                </div>
+
                 <div class="flex gap-3">
                     <button @click="shipModal.open = false" class="flex-1 border border-slate-300 text-slate-600 text-sm font-bold py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
                         Batal
@@ -1501,7 +1588,7 @@ onMounted(async () => {
                         @click="confirmShip"
                         class="flex-1 bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
                     >
-                        Kirim & Tandai Lunas
+                        Kirim
                     </button>
                 </div>
             </div>
