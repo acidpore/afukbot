@@ -4,6 +4,7 @@ namespace App\Modules\Sales;
 
 use App\Models\Sale;
 use App\Models\Item;
+use App\Models\Category;
 use App\Models\StockTransaction;
 use Illuminate\Support\Facades\DB;
 
@@ -40,13 +41,25 @@ class SalesService
             ]);
 
             foreach ($data['items'] as $item) {
+                $inventoryItemIds = $item['inventory_item_ids'] ?? null;
+
+                if (!empty($item['is_new_item'])) {
+                    $inventoryItemIds = [$this->autoCreateInventoryItem(
+                        $item['item_name'],
+                        (int) $item['qty'],
+                        (int) $item['unit_price'],
+                        auth()->id(),
+                        $sale->invoice_number,
+                    )];
+                }
+
                 $sale->items()->create([
                     'item_name'           => $item['item_name'],
                     'description'         => $item['description'] ?? null,
                     'qty'                 => $item['qty'],
                     'unit_price'          => $item['unit_price'],
                     'total_price'         => $item['qty'] * $item['unit_price'],
-                    'inventory_item_ids'  => $item['inventory_item_ids'] ?? null,
+                    'inventory_item_ids'  => $inventoryItemIds,
                 ]);
             }
 
@@ -197,6 +210,35 @@ class SalesService
 
             $sale->delete();
         });
+    }
+
+    private function autoCreateInventoryItem(string $name, int $qty, int $hargaJual, int $userId, string $invoiceNumber): int
+    {
+        $category = Category::firstOrCreate(['name' => 'Lainnya']);
+
+        $item = Item::create([
+            'name'        => $name,
+            'category_id' => $category->id,
+            'quantity'    => $qty,
+            'unit'        => 'pcs',
+            'location'    => 'Ruko',
+            'harga_jual'  => $hargaJual,
+        ]);
+
+        if ($qty > 0) {
+            StockTransaction::create([
+                'item_id'        => $item->id,
+                'type'           => 'IN',
+                'quantity'       => $qty,
+                'stock_before'   => 0,
+                'stock_after'    => $qty,
+                'date'           => now()->toDateString(),
+                'notes'          => "Stok awal - auto dari {$invoiceNumber}",
+                'recorded_by_id' => $userId,
+            ]);
+        }
+
+        return $item->id;
     }
 
     private function generateInvoiceNumber(): string

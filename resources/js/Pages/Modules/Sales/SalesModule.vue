@@ -250,7 +250,7 @@ const pairSets = computed(() => {
 });
 
 // Filtered suggestions per baris — set ditampilkan di atas dengan tag "Set"
-function suggestions(idx: number): { type: 'set' | 'item'; label: string; unit_price: number; inventory_item_ids: number[]; data?: any }[] {
+function suggestions(idx: number): { type: 'set' | 'item' | 'new'; label: string; unit_price: number; inventory_item_ids: number[]; data?: any }[] {
     const q = (itemSearchQueries.value[idx] ?? '').toLowerCase();
 
     const matchedSets = pairSets.value
@@ -266,7 +266,14 @@ function suggestions(idx: number): { type: 'set' | 'item'; label: string; unit_p
         .slice(0, 8)
         .map(inv => ({ type: 'item' as const, label: inv.name, unit_price: inv.harga_jual ?? 0, inventory_item_ids: [inv.id], data: inv }));
 
-    return [...matchedSets, ...matchedItems].slice(0, 10);
+    const results: { type: 'set' | 'item' | 'new'; label: string; unit_price: number; inventory_item_ids: number[]; data?: any }[] =
+        [...matchedSets, ...matchedItems].slice(0, 10);
+
+    if (q.trim() && !matchedItems.some(i => i.label.toLowerCase() === q)) {
+        results.push({ type: 'new', label: (itemSearchQueries.value[idx] ?? '').trim(), unit_price: 0, inventory_item_ids: [] });
+    }
+
+    return results;
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -319,10 +326,11 @@ function onSearchInput(idx: number) {
     itemDropdownOpen.value[idx] = true;
 }
 
-function selectSuggestion(idx: number, suggestion: { type: 'set' | 'item'; label: string; unit_price: number; inventory_item_ids: number[]; data?: any }) {
+function selectSuggestion(idx: number, suggestion: { type: 'set' | 'item' | 'new'; label: string; unit_price: number; inventory_item_ids: number[]; data?: any }) {
     items.value[idx].item_name           = suggestion.label;
     items.value[idx].unit_price          = suggestion.unit_price;
     items.value[idx].inventory_item_ids  = suggestion.inventory_item_ids;
+    items.value[idx].is_new_item         = suggestion.type === 'new';
     itemSearchQueries.value[idx]         = suggestion.label;
     itemDropdownOpen.value[idx]          = false;
     priceDisplays.value[idx]             = suggestion.unit_price > 0 ? suggestion.unit_price.toLocaleString('id-ID') : '';
@@ -851,7 +859,8 @@ onMounted(async () => {
                                     placeholder="Cari barang..."
                                     class="w-full text-sm bg-transparent focus:outline-none min-w-0"
                                 />
-                                <i v-if="item.item_name" class="pi pi-check-circle text-emerald-500 text-xs flex-shrink-0"></i>
+                                <span v-if="item.is_new_item" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase tracking-wide flex-shrink-0">Baru</span>
+                                <i v-else-if="item.item_name" class="pi pi-check-circle text-emerald-500 text-xs flex-shrink-0"></i>
                             </div>
 
                             <!-- Dropdown suggestions -->
@@ -864,20 +873,29 @@ onMounted(async () => {
                                     :key="si"
                                     @mousedown.prevent="selectSuggestion(idx, sug)"
                                     class="flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 cursor-pointer group border-b border-slate-100 last:border-0"
+                                    :class="sug.type === 'new' ? 'bg-blue-50/60 hover:bg-blue-50' : ''"
                                 >
                                     <div class="flex items-center gap-2 min-w-0">
                                         <span
                                             v-if="sug.type === 'set'"
                                             class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase tracking-wide flex-shrink-0"
                                         >Set</span>
+                                        <span
+                                            v-if="sug.type === 'new'"
+                                            class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 uppercase tracking-wide flex-shrink-0"
+                                        >Baru</span>
                                         <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-slate-700 group-hover:text-[#1D3557] truncate">{{ sug.label }}</p>
+                                            <p class="text-sm font-semibold text-slate-700 group-hover:text-[#1D3557] truncate">
+                                                <template v-if="sug.type === 'new'">Tambah "{{ sug.label }}" ke stok Ruko</template>
+                                                <template v-else>{{ sug.label }}</template>
+                                            </p>
                                             <p v-if="sug.type === 'set'" class="text-[10px] text-amber-600">Badan + Tutup (1 pasang)</p>
+                                            <p v-else-if="sug.type === 'new'" class="text-[10px] text-blue-500">Barang baru — otomatis masuk ke daftar stok</p>
                                             <p v-else class="text-xs text-slate-400">{{ sug.data?.category?.name ?? '-' }}</p>
                                         </div>
                                     </div>
                                     <div class="text-right flex-shrink-0 ml-3">
-                                        <p class="text-xs font-bold text-[#1D3557]">{{ fmt(sug.unit_price) }}</p>
+                                        <p v-if="sug.type !== 'new'" class="text-xs font-bold text-[#1D3557]">{{ fmt(sug.unit_price) }}</p>
                                         <p v-if="sug.type === 'item'" class="text-[10px] text-slate-400">Stok: {{ sug.data?.quantity }} {{ sug.data?.unit }}</p>
                                     </div>
                                 </div>

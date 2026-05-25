@@ -8,6 +8,8 @@ import AttendanceModule from './Modules/Attendance/AttendanceModule.vue';
 import PayrollModule from './Modules/Payroll/PayrollModule.vue';
 import InventoryModule from './Modules/Inventory/InventoryModule.vue';
 import SalesModule from './Modules/Sales/SalesModule.vue';
+import ExpenseModule from './Modules/Expense/ExpenseModule.vue';
+import IncomeModule from './Modules/Income/IncomeModule.vue';
 
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = ref(urlParams.get('tab') || 'overview');
@@ -46,6 +48,8 @@ const menuItems = [
     ],
   },
   { id: 'sales', name: 'Penjualan', icon: 'pi pi-receipt' },
+  { id: 'expenses', name: 'Pengeluaran', icon: 'pi pi-wallet' },
+  { id: 'incomes',  name: 'Pemasukan',  icon: 'pi pi-arrow-circle-down' },
 ];
 
 const inventoryExpanded = computed(() =>
@@ -260,6 +264,16 @@ onMounted(async () => {
       <!-- Module: Sales -->
       <div v-else-if="activeTab === 'sales'">
         <SalesModule />
+      </div>
+
+      <!-- Module: Expenses -->
+      <div v-else-if="activeTab === 'expenses'">
+        <ExpenseModule />
+      </div>
+
+      <!-- Module: Incomes -->
+      <div v-else-if="activeTab === 'incomes'">
+        <IncomeModule />
       </div>
 
       <!-- Module Placeholder -->

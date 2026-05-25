@@ -38,6 +38,7 @@ class SalesController extends Controller
             'items.*.unit_price'              => 'required|integer|min:0',
             'items.*.inventory_item_ids'      => 'nullable|array',
             'items.*.inventory_item_ids.*'    => 'integer',
+            'items.*.is_new_item'             => 'nullable|boolean',
         ]);
 
         $sale = $this->salesService->create($request->all());

@@ -38,6 +38,7 @@ export interface SaleItem {
     unit_price: number;
     total_price?: number;
     inventory_item_ids?: number[];
+    is_new_item?: boolean;
 }
 
 export interface Sale {
@@ -52,6 +53,29 @@ export interface Sale {
     status: 'belum_dikirim' | 'sudah_dikirim';
     shipped_at?: string | null;
     items: SaleItem[];
+    created_at?: string;
+}
+
+export interface Income {
+    id: number;
+    income_date: string;
+    source: string;
+    description: string;
+    amount: number;
+    notes: string | null;
+    recorded_by_id: number | null;
+    created_at?: string;
+}
+
+export interface Expense {
+    id: number;
+    expense_date: string;
+    category: string;
+    description: string;
+    amount: number;
+    paid_by: string | null;
+    notes: string | null;
+    recorded_by_id: number | null;
     created_at?: string;
 }
 
