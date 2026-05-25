@@ -49,8 +49,12 @@ class IncomeService
 
     public function importCsv(\Illuminate\Http\UploadedFile $file): array
     {
-        $handle = fopen($file->getRealPath(), 'r');
-        $header = array_map(fn($h) => strtolower(trim($h)), fgetcsv($handle));
+        $handle    = fopen($file->getRealPath(), 'r');
+        $firstLine = fgets($handle);
+        rewind($handle);
+
+        $sep    = substr_count($firstLine, ';') >= substr_count($firstLine, ',') ? ';' : ',';
+        $header = array_map(fn($h) => strtolower(trim(preg_replace('/^\xEF\xBB\xBF/', '', $h))), fgetcsv($handle, 0, $sep));
 
         $required = ['tanggal', 'sumber', 'deskripsi', 'jumlah'];
         foreach ($required as $col) {
@@ -64,13 +68,12 @@ class IncomeService
         $skipped  = [];
         $row      = 1;
 
-        while (($data = fgetcsv($handle)) !== false) {
+        while (($data = fgetcsv($handle, 0, $sep)) !== false) {
             $row++;
-            if (count($data) < count($required)) {
+            if (!$data || count($data) < count($required)) {
                 $skipped[] = "Baris {$row}: kolom tidak lengkap";
                 continue;
             }
-
             $mapped = array_combine($header, array_pad($data, count($header), ''));
             $amount = (int) preg_replace('/[^0-9]/', '', $mapped['jumlah'] ?? '');
 
@@ -80,7 +83,10 @@ class IncomeService
             }
 
             try {
-                $date = \Carbon\Carbon::parse(trim($mapped['tanggal']))->format('Y-m-d');
+                $raw  = trim($mapped['tanggal']);
+                $date = preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $raw)
+                    ? \Carbon\Carbon::createFromFormat('d/m/Y', $raw)->format('Y-m-d')
+                    : \Carbon\Carbon::parse($raw)->format('Y-m-d');
             } catch (\Exception) {
                 $skipped[] = "Baris {$row}: format tanggal tidak dikenali ({$mapped['tanggal']})";
                 continue;

@@ -624,7 +624,7 @@ onMounted(loadIncomes);
 
         <!-- Modal Import CSV -->
         <div v-if="importModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh]">
                 <div class="flex items-center justify-between p-5 border-b border-slate-100">
                     <div>
                         <h3 class="text-base font-bold text-slate-800">Import Pemasukan dari CSV</h3>
@@ -635,7 +635,7 @@ onMounted(loadIncomes);
                     </button>
                 </div>
 
-                <div class="p-5 space-y-4">
+                <div class="p-5 space-y-4 overflow-y-auto">
                     <div class="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
                         <div>
                             <p class="text-sm font-semibold text-slate-700">Belum punya template?</p>
