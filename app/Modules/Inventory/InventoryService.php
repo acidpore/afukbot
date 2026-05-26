@@ -11,7 +11,9 @@ class InventoryService
 {
     public function getAllItems()
     {
-        return Item::with('category')->get();
+        return Item::with(['category:id,name'])
+            ->select('id', 'name', 'category_id', 'quantity', 'unit', 'location', 'harga_jual', 'aliases')
+            ->get();
     }
 
     public function getValuasi(): array
