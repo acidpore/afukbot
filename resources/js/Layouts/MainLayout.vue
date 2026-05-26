@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import axios from 'axios';
 
 const isSidebarOpen = ref(false);
 
 function closeSidebar() {
   isSidebarOpen.value = false;
+}
+
+async function logout() {
+  try {
+    await axios.post('/auth/logout');
+  } finally {
+    window.location.href = '/login';
+  }
 }
 </script>
 
@@ -59,8 +68,8 @@ function closeSidebar() {
               <p class="text-xs font-bold text-slate-900 truncate">Administrator</p>
               <p class="text-[10px] text-slate-500 truncate">admin@mbg.com</p>
             </div>
-            <button class="text-slate-400 hover:text-red-500 transition-colors">
-              <i class="pi pi-log-out"></i>
+            <button @click="logout" title="Logout" class="text-slate-400 hover:text-red-500 transition-colors">
+              <i class="pi pi-sign-out"></i>
             </button>
           </div>
         </div>

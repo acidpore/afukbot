@@ -12,6 +12,7 @@ import SalesModule from './Modules/Sales/SalesModule.vue';
 import ExpenseModule from './Modules/Expense/ExpenseModule.vue';
 import IncomeModule from './Modules/Income/IncomeModule.vue';
 import BudgetModule from './Modules/Budget/BudgetModule.vue';
+import SettingsModule from './Modules/Settings/SettingsModule.vue';
 
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = ref(urlParams.get('tab') || 'overview');
@@ -83,6 +84,7 @@ const valuasi = ref({
 const formatRupiah = (val: number) =>
   'Rp ' + val.toLocaleString('id-ID');
 
+
 const menuItems = [
   { id: 'overview', name: 'Dashboard', icon: 'pi pi-chart-bar' },
   {
@@ -106,6 +108,7 @@ const menuItems = [
       { id: 'rab',      name: 'RAB Tracking', icon: 'pi pi-chart-bar' },
     ],
   },
+  { id: 'settings', name: 'Pengaturan', icon: 'pi pi-cog' },
 ];
 
 const inventoryExpanded = computed(() =>
@@ -247,18 +250,11 @@ onUnmounted(() => {
               : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
           >
             <i :class="item.icon" class="text-lg group-hover:scale-110 transition-transform"></i>
-            <span class="tracking-wide">{{ item.name }}</span>
+            <span class="tracking-wide flex-1 text-left">{{ item.name }}</span>
           </button>
         </template>
       </div>
 
-      <div class="mt-8 flex flex-col gap-1">
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-4 py-4">Settings</p>
-        <button class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold text-slate-500 hover:bg-slate-50 hover:text-primary transition-all">
-          <i class="pi pi-cog"></i>
-          <span class="tracking-wide">Pengaturan</span>
-        </button>
-      </div>
     </template>
 
     <!-- Main Workspace Content -->
@@ -538,6 +534,11 @@ onUnmounted(() => {
       <!-- Module: RAB Budget -->
       <div v-else-if="activeTab === 'rab'">
         <BudgetModule />
+      </div>
+
+      <!-- Module: Settings -->
+      <div v-else-if="activeTab === 'settings'">
+        <SettingsModule />
       </div>
 
       <!-- Module Placeholder -->

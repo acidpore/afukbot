@@ -172,6 +172,11 @@ class TelegramService
             return;
         }
 
+        if (str_starts_with($data, 'reg_approve_') || str_starts_with($data, 'reg_reject_')) {
+            $this->handleRegCallback($chatId, $messageId, $data);
+            return;
+        }
+
         if (!str_starts_with($data, 'adjust_')) return;
 
         // format: adjust_{token}_{itemId} atau adjust_{token}_all_{ids}
@@ -971,6 +976,30 @@ class TelegramService
             'unit_price'         => (int) $badan->harga_jual + (int) $tutup->harga_jual,
             'inventory_item_ids' => [$badan->id, $tutup->id],
         ];
+    }
+
+    private function handleRegCallback(int|string $chatId, int $messageId, string $data): void
+    {
+        $approve = str_starts_with($data, 'reg_approve_');
+        $userId  = (int) substr($data, $approve ? strlen('reg_approve_') : strlen('reg_reject_'));
+
+        $user = \App\Models\User::find($userId);
+        if (!$user) {
+            $this->editMessageText($chatId, $messageId, "❌ User tidak ditemukan.");
+            return;
+        }
+
+        $status = $approve ? 'active' : 'rejected';
+        $user->update(['status' => $status]);
+
+        $icon = $approve ? '✅' : '❌';
+        $word = $approve ? 'DISETUJUI' : 'DITOLAK';
+        $this->editMessageText($chatId, $messageId,
+            "{$icon} <b>Akun {$word}</b>\n\n"
+            . "Nama  : <b>{$user->name}</b>\n"
+            . "Email : {$user->email}\n"
+            . "Status: <b>{$word}</b>"
+        );
     }
 
     private function handleHelp(int|string $chatId): void

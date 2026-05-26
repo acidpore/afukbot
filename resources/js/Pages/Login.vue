@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import axios from 'axios';
 
-const email = ref('');
+const email    = ref('');
 const password = ref('');
+const error    = ref('');
+const loading  = ref(false);
 
-const handleLogin = () => {
-  // Logic login dummy untuk demo
-  window.location.href = '/dashboard'; // Kita asumsikan ada rute dashboard
-};
+async function handleLogin() {
+  error.value   = '';
+  loading.value = true;
+  try {
+    // Ambil CSRF cookie dulu (diperlukan untuk session auth)
+    await axios.get('/sanctum/csrf-cookie').catch(() => {});
+    await axios.post('/auth/login', { email: email.value, password: password.value });
+    window.location.href = '/dashboard';
+  } catch (e: any) {
+    error.value = e?.response?.data?.message ?? 'Gagal login, coba lagi.';
+  } finally {
+    loading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -55,8 +68,22 @@ const handleLogin = () => {
             <label for="remember" class="text-xs text-slate-500">Ingat saya di perangkat ini</label>
           </div>
 
-          <button type="submit" class="w-full btn-primary justify-center py-4 shadow-xl shadow-primary/20">
-            Sign In to System
+          <!-- Error message -->
+          <div v-if="error" class="bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl px-4 py-3 flex items-center gap-2">
+            <i class="pi pi-exclamation-circle text-sm"></i>
+            {{ error }}
+          </div>
+
+          <p class="text-center text-xs text-slate-400">
+            Belum punya akun?
+            <a href="/register" class="font-bold text-accent hover:underline">Daftar di sini</a>
+          </p>
+
+          <button type="submit" :disabled="loading" class="w-full btn-primary justify-center py-4 shadow-xl shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed">
+            <span v-if="loading" class="flex items-center justify-center gap-2">
+              <i class="pi pi-spin pi-spinner text-sm"></i> Masuk...
+            </span>
+            <span v-else>Sign In to System</span>
           </button>
         </form>
       </div>
