@@ -48,6 +48,8 @@ export interface Sale {
     recipient_address: string;
     invoice_date: string;
     notes: string;
+    sender_name: string | null;
+    sender_address: string | null;
     attachment_path: string | null;
     grand_total: number;
     paid_amount: number;

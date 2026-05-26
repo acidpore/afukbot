@@ -55,6 +55,8 @@ class SalesController extends Controller
             'invoice_date'                 => 'required|date',
             'shipped_at'                   => 'nullable|date',
             'notes'                        => 'nullable|string',
+            'sender_name'                  => 'nullable|string',
+            'sender_address'               => 'nullable|string',
             'paid_amount'                  => 'nullable|integer|min:0',
             'items'                        => 'sometimes|array|min:1',
             'items.*.item_name'            => 'required_with:items|string',

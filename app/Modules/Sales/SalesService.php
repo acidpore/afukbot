@@ -133,6 +133,8 @@ class SalesService
                 'invoice_date'      => $data['invoice_date'],
                 'shipped_at'        => array_key_exists('shipped_at', $data) ? ($data['shipped_at'] ?: null) : $sale->shipped_at,
                 'notes'             => $data['notes'] ?? null,
+                'sender_name'       => $data['sender_name'] ?? null,
+                'sender_address'    => $data['sender_address'] ?? null,
             ];
             if (array_key_exists('paid_amount', $data)) {
                 $currentGrandTotal = $sale->grand_total;

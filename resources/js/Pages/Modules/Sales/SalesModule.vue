@@ -102,7 +102,7 @@ const salesSudahDikirim = computed(() => sales.value.filter(s => s.status === 's
 
 // ── Modal Edit ────────────────────────────────────────────
 const editModal = ref<{ open: boolean; sale: Sale | null }>({ open: false, sale: null });
-const editForm  = ref({ recipient_name: '', recipient_address: '', invoice_date: '', shipped_at: '', notes: '' });
+const editForm  = ref({ recipient_name: '', recipient_address: '', invoice_date: '', shipped_at: '', notes: '', sender_name: '', sender_address: '' });
 const editItems = ref<SaleItem[]>([]);
 const editSearchQueries  = ref<string[]>([]);
 const editDropdownOpen   = ref<boolean[]>([]);
@@ -118,6 +118,8 @@ function openEditModal(sale: Sale) {
         invoice_date:      sale.invoice_date,
         shipped_at:        sale.shipped_at ? sale.shipped_at.slice(0, 10) : '',
         notes:             sale.notes,
+        sender_name:       sale.sender_name ?? '',
+        sender_address:    sale.sender_address ?? '',
     };
     editItems.value          = sale.items.map(i => ({ ...i }));
     editSearchQueries.value  = sale.items.map(i => i.item_name);
@@ -668,17 +670,21 @@ async function printInvoice(sale: Sale) {
     doc.setFontSize(20);
     doc.setFont('times', 'bold');
     doc.setTextColor(...NAVY);
-    doc.text('PT Indo Pangan', pageW / 2, y, { align: 'center' });
+    const senderName = sale.sender_name?.trim() || 'PT Indo Pangan';
+    doc.text(senderName, pageW / 2, y, { align: 'center' });
     y += 5;
 
     doc.setFontSize(8);
     doc.setFont('times', 'normal');
     doc.setTextColor(51, 51, 51);
-    const addrLines = [
+    const defaultAddr = [
         'Ruko Puncak CBD',
         'Jalan Dukuh Kramat I No.36 Blok 7E PSR',
         'Jajar Tunggal, Kec. Wiyung, Kota Surabaya Jawa Timur',
     ];
+    const addrLines = sale.sender_address?.trim()
+        ? sale.sender_address.split('\n').map(s => s.trim()).filter(Boolean)
+        : defaultAddr;
     for (const line of addrLines) {
         doc.text(line, pageW / 2, y, { align: 'center' });
         y += 3.5;
@@ -1593,6 +1599,19 @@ onMounted(async () => {
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Kirim</label>
                             <input v-model="editForm.shipped_at" type="date" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                        </div>
+                        <div class="md:col-span-2 border-t border-slate-100 pt-4 mt-1">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Kop PDF (opsional — kosongkan untuk pakai default)</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Pengirim</label>
+                                    <input v-model="editForm.sender_name" type="text" placeholder="PT Indo Pangan" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Alamat Pengirim</label>
+                                    <textarea v-model="editForm.sender_address" rows="3" placeholder="Satu baris per baris alamat" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] resize-none"></textarea>
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1.5">Catatan</label>
