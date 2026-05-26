@@ -150,44 +150,72 @@
           </div>
         </div>
 
-        <!-- Items table -->
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
-            <tr>
-              <th class="px-4 py-2 text-center">Nama</th>
-              <th class="px-4 py-2 text-center">Satuan</th>
-              <th class="px-4 py-2 text-center">Frekuensi</th>
-              <th class="px-4 py-2 text-center">Budget/Bulan</th>
-              <th class="px-4 py-2 text-center">Status</th>
-              <th class="px-4 py-2 text-center">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-            <tr v-for="item in cat.items" :key="item.id" class="hover:bg-gray-50">
-              <td class="px-4 py-3 text-center font-medium text-gray-800">{{ item.name }}</td>
-              <td class="px-4 py-3 text-center text-gray-600">{{ fmt(item.unit_cost) }}</td>
-              <td class="px-4 py-3 text-center text-gray-500">{{ rateLabel(item.rate) }} ×{{ item.multiplier }}</td>
-              <td class="px-4 py-3 text-center font-semibold text-gray-800">{{ fmt(item.total_monthly_budget) }}</td>
-              <td class="px-4 py-3 text-center">
+        <!-- Desktop table -->
+        <div class="hidden sm:block overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr>
+                <th class="px-4 py-2 text-center">Nama</th>
+                <th class="px-4 py-2 text-center">Satuan</th>
+                <th class="px-4 py-2 text-center">Frekuensi</th>
+                <th class="px-4 py-2 text-center">Budget/Bulan</th>
+                <th class="px-4 py-2 text-center">Status</th>
+                <th class="px-4 py-2 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="item in cat.items" :key="item.id" class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-center font-medium text-gray-800">{{ item.name }}</td>
+                <td class="px-4 py-3 text-center text-gray-600">{{ fmt(item.unit_cost) }}</td>
+                <td class="px-4 py-3 text-center text-gray-500">{{ rateLabel(item.rate) }} ×{{ item.multiplier }}</td>
+                <td class="px-4 py-3 text-center font-semibold text-gray-800">{{ fmt(item.total_monthly_budget) }}</td>
+                <td class="px-4 py-3 text-center">
+                  <span :class="item.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                    class="text-xs px-2 py-0.5 rounded-full">
+                    {{ item.is_active ? 'Aktif' : 'Non-aktif' }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <div class="flex justify-center gap-2">
+                    <button @click="openEditItem(item)" class="text-xs text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
+                    <button @click="confirmDeleteItem(item.id)" class="text-xs text-red-500 hover:text-red-700 transition-colors">Hapus</button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!cat.items.length">
+                <td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">Belum ada item</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile cards -->
+        <div class="sm:hidden divide-y divide-gray-100">
+          <div v-if="!cat.items.length" class="px-4 py-6 text-center text-gray-400 text-sm">Belum ada item</div>
+          <div v-for="item in cat.items" :key="item.id" class="px-4 py-3 flex items-center justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-800 text-sm truncate">{{ item.name }}</p>
+              <p class="text-xs text-gray-500 mt-0.5">{{ fmt(item.unit_cost) }} · {{ rateLabel(item.rate) }} ×{{ item.multiplier }}</p>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-xs font-bold text-amber-700">{{ fmt(item.total_monthly_budget) }}/bln</span>
                 <span :class="item.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
-                  class="text-xs px-2 py-0.5 rounded-full">
+                  class="text-[10px] px-1.5 py-0.5 rounded-full font-medium">
                   {{ item.is_active ? 'Aktif' : 'Non-aktif' }}
                 </span>
-              </td>
-              <td class="px-4 py-3 text-center">
-                <div class="flex justify-center gap-2">
-                  <button @click="openEditItem(item)"
-                    class="text-xs text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
-                  <button @click="confirmDeleteItem(item.id)"
-                    class="text-xs text-red-500 hover:text-red-700 transition-colors">Hapus</button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!cat.items.length">
-              <td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">Belum ada item</td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+            </div>
+            <div class="flex gap-2 shrink-0">
+              <button @click="openEditItem(item)"
+                class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                <i class="pi pi-pencil text-xs"></i>
+              </button>
+              <button @click="confirmDeleteItem(item.id)"
+                class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                <i class="pi pi-trash text-xs"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -201,15 +229,20 @@
             class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
         </div>
         <div>
+          <label class="text-xs text-gray-500 block mb-1">Kategori</label>
+          <select v-model="txCatId" @change="txItemId = null; loadTransactions()"
+            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
+            <option :value="null">Semua Kategori</option>
+            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+          </select>
+        </div>
+        <div>
           <label class="text-xs text-gray-500 block mb-1">Item</label>
           <select v-model="txItemId" @change="loadTransactions"
-            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
-            <option :value="null">Semua</option>
-            <template v-for="cat in categories" :key="cat.id">
-              <optgroup :label="cat.name">
-                <option v-for="item in cat.items" :key="item.id" :value="item.id">{{ item.name }}</option>
-              </optgroup>
-            </template>
+            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+            :disabled="!txCatId">
+            <option :value="null">Semua Item</option>
+            <option v-for="item in filteredTxItems" :key="item.id" :value="item.id">{{ item.name }}</option>
           </select>
         </div>
         <button @click="openAddTransaction"
@@ -355,27 +388,40 @@
     <!-- Add/Edit Item Modal -->
     <Transition name="modal">
       <div v-if="itemModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" @click="itemModal.open = false" />
-        <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-          <h2 class="text-lg font-bold text-gray-800">{{ itemModal.id ? 'Edit Item' : 'Tambah Item' }}</h2>
-          <div class="space-y-3">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="itemModal.open = false" />
+        <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+          <!-- Header -->
+          <div class="px-6 py-5 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-100 flex items-center justify-between">
             <div>
-              <label class="text-xs text-gray-500 mb-1 block">Nama Item</label>
-              <input v-model="itemForm.name" type="text" placeholder="e.g. Listrik"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+              <h2 class="text-base font-bold text-amber-900">{{ itemModal.id ? 'Edit Item RAB' : 'Tambah Item RAB' }}</h2>
+              <p class="text-xs text-amber-600 mt-0.5">{{ itemModal.id ? 'Perbarui data item anggaran' : 'Tambah item ke anggaran bulanan' }}</p>
             </div>
+            <button @click="itemModal.open = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-amber-200/50 hover:bg-amber-200 text-amber-700 transition-colors">
+              <i class="pi pi-times text-xs"></i>
+            </button>
+          </div>
+
+          <!-- Body -->
+          <div class="px-6 py-5 space-y-4">
+            <div>
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Nama Item</label>
+              <input v-model="itemForm.name" type="text" placeholder="e.g. Listrik, Server Database"
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
+            </div>
+
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs text-gray-500 mb-1 block">Biaya Satuan (Rp)</label>
-                <input v-model="itemForm.unit_cost" type="text" inputmode="numeric"
-                  @input="onCostInput"
-                  placeholder="0"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Biaya Satuan</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium pointer-events-none">Rp</span>
+                  <input v-model="itemForm.unit_cost" type="text" inputmode="numeric" @input="onCostInput" placeholder="0"
+                    class="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
+                </div>
               </div>
               <div>
-                <label class="text-xs text-gray-500 mb-1 block">Frekuensi</label>
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Frekuensi</label>
                 <select v-model="itemForm.rate"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
+                  class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none">
                   <option value="harian">Harian</option>
                   <option value="mingguan">Mingguan</option>
                   <option value="dua_mingguan">2 Mingguan</option>
@@ -384,29 +430,37 @@
                 </select>
               </div>
             </div>
+
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs text-gray-500 mb-1 block">Multiplier</label>
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Multiplier</label>
                 <input v-model.number="itemForm.multiplier" type="number" min="1"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+                  class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
               </div>
               <div class="flex items-end pb-1">
-                <label class="flex items-center gap-2 cursor-pointer select-none">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 w-full hover:bg-amber-50 hover:border-amber-200 transition-colors">
                   <input type="checkbox" v-model="itemForm.is_active" class="w-4 h-4 rounded accent-amber-500" />
-                  <span class="text-sm text-gray-700">Aktif</span>
+                  <span class="text-sm font-medium text-slate-700">Aktif</span>
                 </label>
               </div>
             </div>
-            <div class="bg-amber-50 rounded-lg px-3 py-2 text-sm text-amber-800">
-              Budget/bulan: <strong>{{ fmt(computedBudget) }}</strong>
+
+            <!-- Budget preview -->
+            <div class="flex items-center justify-between bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 rounded-xl px-4 py-3">
+              <span class="text-xs font-semibold text-amber-700 uppercase tracking-wide">Budget / Bulan</span>
+              <span class="text-base font-bold text-amber-800">{{ fmt(computedBudget) }}</span>
             </div>
           </div>
-          <div class="flex justify-end gap-3 pt-2">
+
+          <!-- Footer -->
+          <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
             <button @click="itemModal.open = false"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">Batal</button>
+              class="px-5 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">
+              Batal
+            </button>
             <button @click="saveItem" :disabled="saving"
-              class="px-5 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50">
-              {{ saving ? 'Menyimpan...' : 'Simpan' }}
+              class="px-6 py-2.5 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-lg shadow-amber-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ saving ? 'Menyimpan...' : (itemModal.id ? 'Simpan Perubahan' : 'Tambah Item') }}
             </button>
           </div>
         </div>
@@ -416,14 +470,25 @@
     <!-- Add/Edit Transaction Modal -->
     <Transition name="modal">
       <div v-if="txModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" @click="txModal.open = false" />
-        <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-          <h2 class="text-lg font-bold text-gray-800">{{ txModal.id ? 'Edit Transaksi' : 'Tambah Transaksi' }}</h2>
-          <div class="space-y-3">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="txModal.open = false" />
+        <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+          <!-- Header -->
+          <div class="px-6 py-5 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-100 flex items-center justify-between">
             <div>
-              <label class="text-xs text-gray-500 mb-1 block">Item</label>
+              <h2 class="text-base font-bold text-amber-900">{{ txModal.id ? 'Edit Transaksi' : 'Catat Pengeluaran' }}</h2>
+              <p class="text-xs text-amber-600 mt-0.5">{{ txModal.id ? 'Perbarui data transaksi' : 'Input realisasi pengeluaran' }}</p>
+            </div>
+            <button @click="txModal.open = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-amber-200/50 hover:bg-amber-200 text-amber-700 transition-colors">
+              <i class="pi pi-times text-xs"></i>
+            </button>
+          </div>
+
+          <!-- Body -->
+          <div class="px-6 py-5 space-y-4">
+            <div>
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Item Anggaran</label>
               <select v-model.number="txForm.budget_item_id"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400">
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none">
                 <option :value="0" disabled>Pilih item...</option>
                 <template v-for="cat in categories" :key="cat.id">
                   <optgroup :label="cat.name">
@@ -432,32 +497,39 @@
                 </template>
               </select>
             </div>
+
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="text-xs text-gray-500 mb-1 block">Jumlah (Rp)</label>
-                <input v-model="txForm.amount" type="text" inputmode="numeric"
-                  @input="onAmountInput"
-                  placeholder="0"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Jumlah</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium pointer-events-none">Rp</span>
+                  <input v-model="txForm.amount" type="text" inputmode="numeric" @input="onAmountInput" placeholder="0"
+                    class="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
+                </div>
               </div>
               <div>
-                <label class="text-xs text-gray-500 mb-1 block">Tanggal</label>
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Tanggal</label>
                 <input v-model="txForm.transaction_date" type="date"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+                  class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
               </div>
             </div>
+
             <div>
-              <label class="text-xs text-gray-500 mb-1 block">Keterangan (opsional)</label>
-              <textarea v-model="txForm.note" rows="2" placeholder="Catatan transaksi..."
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 resize-none" />
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Keterangan <span class="normal-case font-normal text-slate-400">(opsional)</span></label>
+              <textarea v-model="txForm.note" rows="2" placeholder="Catatan tambahan..."
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none resize-none" />
             </div>
           </div>
-          <div class="flex justify-end gap-3 pt-2">
+
+          <!-- Footer -->
+          <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
             <button @click="txModal.open = false"
-              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">Batal</button>
+              class="px-5 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">
+              Batal
+            </button>
             <button @click="saveTransaction" :disabled="saving"
-              class="px-5 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50">
-              {{ saving ? 'Menyimpan...' : 'Simpan' }}
+              class="px-6 py-2.5 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-lg shadow-amber-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ saving ? 'Menyimpan...' : (txModal.id ? 'Simpan Perubahan' : 'Catat Pengeluaran') }}
             </button>
           </div>
         </div>
@@ -515,7 +587,14 @@ const saving       = ref(false)
 
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const txMonth       = ref(new Date().toISOString().slice(0, 7))
+const txCatId       = ref<number | null>(null)
 const txItemId      = ref<number | null>(null)
+
+const filteredTxItems = computed(() =>
+  txCatId.value
+    ? (categories.value.find((c: any) => c.id === txCatId.value)?.items ?? [])
+    : []
+)
 
 const catModal = ref({ open: false, id: null as number | null })
 const catForm  = ref({ name: '' })
