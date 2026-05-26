@@ -1585,86 +1585,93 @@ onMounted(async () => {
                 </div>
 
                 <!-- Body -->
-                <div class="overflow-y-auto p-5 flex flex-col gap-5">
-                    <!-- Info Penerima -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Penerima <span class="text-red-500">*</span></label>
-                            <input v-model="editForm.recipient_name" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Dikirim ke</label>
-                            <input v-model="editForm.recipient_address" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Invoice <span class="text-red-500">*</span></label>
-                            <input v-model="editForm.invoice_date" type="date" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Kirim</label>
-                            <input v-model="editForm.shipped_at" type="date" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                        </div>
-                        <div class="md:col-span-2 border-t border-slate-100 pt-4 mt-1">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Kop PDF (opsional — kosongkan untuk pakai default)</p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Pengirim</label>
-                                    <input v-model="editForm.sender_name" type="text" placeholder="PT Indo Pangan" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Alamat Pengirim</label>
-                                    <textarea v-model="editForm.sender_address" rows="3" placeholder="Satu baris per baris alamat" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557] resize-none"></textarea>
-                                </div>
+                <div class="overflow-y-auto p-5 flex flex-col gap-6">
+
+                    <!-- Seksi: Info Penerima -->
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Penerima</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Penerima <span class="text-red-500">*</span></label>
+                                <input v-model="editForm.recipient_name" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Dikirim ke (Alamat)</label>
+                                <input v-model="editForm.recipient_address" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Catatan</label>
-                            <input v-model="editForm.notes" type="text" placeholder="Contoh: DP 10 Juta / Bayar 50%" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                            <p v-if="editParsedPayment > 0" class="mt-1.5 text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                                <i class="pi pi-check-circle text-[11px]"></i>
-                                Terdeteksi pembayaran: {{ fmt(editParsedPayment) }}
-                                <span v-if="editModal.sale" class="text-slate-400 font-normal">· sisa {{ fmt((editModal.sale.status === 'belum_dikirim' ? editItems.reduce((s,i) => s + Number(i.qty)*Number(i.unit_price), 0) : editModal.sale.grand_total) - editParsedPayment) }}</span>
-                            </p>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Lampiran PDF (misal: Sertifikat Halal)</label>
-                            <div v-if="editModal.sale?.attachment_path" class="flex items-center gap-3 mb-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                                <a
-                                    :href="`/storage/${editModal.sale.attachment_path}`"
-                                    target="_blank"
-                                    class="flex items-center gap-1.5 text-xs font-semibold text-[#1D3557] hover:underline flex-1 min-w-0"
-                                >
-                                    <i class="pi pi-file-pdf text-red-500 text-sm flex-shrink-0"></i>
-                                    <span class="truncate">{{ editModal.sale.attachment_path.split('/').pop() }}</span>
-                                </a>
-                                <button
-                                    @click="removeAttachment(editModal.sale!)"
-                                    class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
-                                    title="Hapus lampiran"
-                                >
-                                    <i class="pi pi-times text-xs"></i>
-                                </button>
+                    </div>
+
+                    <!-- Seksi: Tanggal & Catatan -->
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Detail Invoice</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Invoice <span class="text-red-500">*</span></label>
+                                <input v-model="editForm.invoice_date" type="date" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                             </div>
-                            <div class="flex gap-2">
-                                <input
-                                    type="file"
-                                    accept="application/pdf"
-                                    @change="(e) => { attachmentFile = (e.target as HTMLInputElement).files?.[0] ?? null }"
-                                    class="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
-                                />
-                                <button
-                                    v-if="attachmentFile"
-                                    @click="uploadAttachment(editModal.sale!)"
-                                    :disabled="attachmentUploading"
-                                    class="flex items-center gap-1.5 bg-[#1D3557] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#162840] disabled:opacity-40 transition-colors whitespace-nowrap"
-                                >
-                                    <i v-if="attachmentUploading" class="pi pi-spin pi-spinner text-xs"></i>
-                                    <i v-else class="pi pi-upload text-xs"></i>
-                                    {{ attachmentUploading ? 'Mengunggah...' : 'Upload' }}
-                                </button>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tanggal Kirim</label>
+                                <input v-model="editForm.shipped_at" type="date" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1 pl-1">{{ editModal.sale?.attachment_path ? 'Pilih file baru untuk mengganti lampiran.' : 'Hanya file PDF. Maks. 10 MB.' }}</p>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Catatan</label>
+                                <input v-model="editForm.notes" type="text" placeholder="Contoh: DP 10 Juta / Bayar 50%" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                                <p v-if="editParsedPayment > 0" class="mt-1.5 text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                                    <i class="pi pi-check-circle text-[11px]"></i>
+                                    Terdeteksi pembayaran: {{ fmt(editParsedPayment) }}
+                                    <span v-if="editModal.sale" class="text-slate-400 font-normal">· sisa {{ fmt((editModal.sale.status === 'belum_dikirim' ? editItems.reduce((s,i) => s + Number(i.qty)*Number(i.unit_price), 0) : editModal.sale.grand_total) - editParsedPayment) }}</span>
+                                </p>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Seksi: Kop PDF -->
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Kop PDF <span class="text-slate-300 font-normal normal-case tracking-normal">— kosongkan untuk pakai PT Indo Pangan</span></p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Pengirim</label>
+                                <input v-model="editForm.sender_name" type="text" placeholder="PT Indo Pangan" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Alamat Pengirim</label>
+                                <input v-model="editForm.sender_address" type="text" placeholder="Alamat pengirim" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seksi: Lampiran -->
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Lampiran PDF</p>
+                        <div v-if="editModal.sale?.attachment_path" class="flex items-center gap-3 mb-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                            <a :href="`/storage/${editModal.sale.attachment_path}`" target="_blank" class="flex items-center gap-1.5 text-xs font-semibold text-[#1D3557] hover:underline flex-1 min-w-0">
+                                <i class="pi pi-file-pdf text-red-500 text-sm flex-shrink-0"></i>
+                                <span class="truncate">{{ editModal.sale.attachment_path.split('/').pop() }}</span>
+                            </a>
+                            <button @click="removeAttachment(editModal.sale!)" class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0" title="Hapus lampiran">
+                                <i class="pi pi-times text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input
+                                type="file"
+                                accept="application/pdf"
+                                @change="(e) => { attachmentFile = (e.target as HTMLInputElement).files?.[0] ?? null }"
+                                class="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                            />
+                            <button
+                                v-if="attachmentFile"
+                                @click="uploadAttachment(editModal.sale!)"
+                                :disabled="attachmentUploading"
+                                class="flex items-center gap-1.5 bg-[#1D3557] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#162840] disabled:opacity-40 transition-colors whitespace-nowrap"
+                            >
+                                <i v-if="attachmentUploading" class="pi pi-spin pi-spinner text-xs"></i>
+                                <i v-else class="pi pi-upload text-xs"></i>
+                                {{ attachmentUploading ? 'Mengunggah...' : 'Upload' }}
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1 pl-1">{{ editModal.sale?.attachment_path ? 'Pilih file baru untuk mengganti.' : 'Hanya file PDF. Maks. 10 MB.' }}</p>
                     </div>
 
                     <!-- Item (hanya belum dikirim) -->
