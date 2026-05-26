@@ -139,7 +139,7 @@ class InventoryService
                 'stock_after'    => $item->quantity,
                 'date'           => now()->toDateString(),
                 'notes'          => $notes,
-                'recorded_by_id' => $userId ?? 1,
+                'recorded_by_id' => $userId ?? null,
             ]);
 
             return [
