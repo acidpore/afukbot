@@ -207,6 +207,7 @@ async function submitEdit() {
         const idx = sales.value.findIndex(s => s.id === editModal.value.sale!.id);
         if (idx !== -1) sales.value[idx] = res.data.data;
         editModal.value.open = false;
+        window.dispatchEvent(new CustomEvent('sales-updated'));
     } catch (e: any) {
         alert(e?.response?.data?.message || 'Gagal menyimpan perubahan.');
     } finally {
@@ -274,6 +275,7 @@ async function submitPayment() {
         const idx = sales.value.findIndex(s => s.id === payModal.value.sale!.id);
         if (idx !== -1) sales.value[idx] = res.data.data;
         payModal.value.open = false;
+        window.dispatchEvent(new CustomEvent('sales-updated'));
     } catch (e: any) {
         alert(e?.response?.data?.message || 'Gagal mencatat pembayaran.');
     }
@@ -543,6 +545,7 @@ async function loadSales() {
     try {
         const res = await salesApi.getAll();
         sales.value = res.data.data;
+        window.dispatchEvent(new CustomEvent('sales-updated'));
     } finally {
         loading.value = false;
     }
@@ -1117,24 +1120,24 @@ onMounted(async () => {
 
             <!-- Tabel Item -->
             <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
-                    <h2 class="text-base font-bold text-slate-700">Daftar Item</h2>
+                <div class="flex items-center justify-between mb-4 gap-2">
+                    <h2 class="text-base font-bold text-slate-700 shrink-0">Daftar Item</h2>
                     <div class="flex items-center gap-2">
                         <button @click="downloadImportTemplate" class="flex items-center gap-1.5 border border-slate-300 text-slate-600 text-xs font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors">
                             <i class="pi pi-download text-xs"></i>
-                            Template
+                            <span class="hidden sm:inline">Template</span>
                         </button>
                         <label class="flex items-center gap-1.5 border border-slate-300 text-slate-600 text-xs font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
                             <i class="pi pi-file-excel text-xs"></i>
-                            Import Excel / CSV
+                            <span class="hidden sm:inline">Import</span>
                             <input type="file" accept=".xlsx,.xls,.csv" class="hidden" @change="onImportItemsFile" />
                         </label>
                         <button
                             @click="addItem"
-                            class="flex items-center gap-2 bg-[#1D3557] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#162840] transition-colors"
+                            class="flex items-center gap-1.5 bg-[#1D3557] text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-[#162840] transition-colors"
                         >
                             <i class="pi pi-plus text-xs"></i>
-                            Tambah Item
+                            <span class="hidden sm:inline">Tambah Item</span>
                         </button>
                     </div>
                 </div>

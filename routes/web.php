@@ -24,4 +24,5 @@ require __DIR__.'/../app/Modules/Telegram/routes.php';
 require __DIR__.'/../app/Modules/Sales/routes.php';
 require __DIR__.'/../app/Modules/Expense/routes.php';
 require __DIR__.'/../app/Modules/Income/routes.php';
+require __DIR__.'/../app/Modules/ManualPiutang/routes.php';
 

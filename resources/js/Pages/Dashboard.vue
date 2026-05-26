@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import MainLayout from '@/Layouts/MainLayout.vue';
 import { inventoryApi } from '@/api/inventory.api';
 import { salesApi } from '@/api/sales.api';
+import { piutangApi, type ManualPiutang } from '@/api/piutang.api';
 import EmployeeList from './Modules/Employee/EmployeeList.vue';
 import AttendanceModule from './Modules/Attendance/AttendanceModule.vue';
 import PayrollModule from './Modules/Payroll/PayrollModule.vue';
@@ -30,6 +31,47 @@ const kekurangan = ref<{ invoice_number: string; recipient_name: string; sisa: n
 const totalKekurangan = computed(() => kekurangan.value.reduce((s, k) => s + k.sisa, 0));
 
 const top10Items = ref<{ item_name: string; total_qty: number; total_revenue: number }[]>([]);
+
+const manualPiutang    = ref<ManualPiutang[]>([]);
+const piutangForm      = ref({ name: '', amount: '', notes: '' });
+
+function onPiutangAmountInput(e: Event) {
+  const raw = (e.target as HTMLInputElement).value.replace(/\D/g, '');
+  const num = parseInt(raw) || 0;
+  const formatted = num > 0 ? num.toLocaleString('id-ID') : '';
+  piutangForm.value.amount = raw;
+  (e.target as HTMLInputElement).value = formatted;
+}
+const piutangFormOpen  = ref(false);
+const piutangSubmitting = ref(false);
+
+const totalManualPiutang = computed(() => manualPiutang.value.reduce((s, p) => s + p.amount, 0));
+const totalAllPiutang    = computed(() => totalKekurangan.value + totalManualPiutang.value);
+
+async function fetchManualPiutang() {
+    const res = await piutangApi.getAll();
+    manualPiutang.value = res.data.data;
+}
+
+async function addManualPiutang() {
+    const amount = parseInt(piutangForm.value.amount.replace(/\D/g, ''));
+    if (!piutangForm.value.name.trim() || !amount) return;
+    piutangSubmitting.value = true;
+    try {
+        const res = await piutangApi.create({ name: piutangForm.value.name.trim(), amount, notes: piutangForm.value.notes || undefined });
+        manualPiutang.value.unshift(res.data.data);
+        piutangForm.value = { name: '', amount: '', notes: '' };
+        piutangFormOpen.value = false;
+    } finally {
+        piutangSubmitting.value = false;
+    }
+}
+
+async function deleteManualPiutang(id: number) {
+    if (!confirm('Hapus entri piutang ini?')) return;
+    await piutangApi.remove(id);
+    manualPiutang.value = manualPiutang.value.filter(p => p.id !== id);
+}
 
 const valuasi = ref({
   total_valuasi: 0,
@@ -96,13 +138,30 @@ function processSales(sales: any[]) {
 }
 
 async function fetchSales() {
-  const salesRes = await salesApi.getAll();
-  processSales(salesRes.data.data);
+  try {
+    const salesRes = await salesApi.getAll();
+    processSales(salesRes.data.data);
+  } catch {}
+}
+
+async function fetchValuasi() {
+  try {
+    const res = await inventoryApi.getValuasi();
+    valuasi.value = res.data.data;
+  } catch {}
+}
+
+async function fetchAll() {
+  await Promise.all([fetchSales(), fetchValuasi()]);
 }
 
 watch(activeTab, (tab) => {
   if (tab === 'sales' || tab === 'overview') fetchSales();
 });
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') fetchAll();
+}
 
 onMounted(async () => {
   try {
@@ -110,6 +169,7 @@ onMounted(async () => {
       inventoryApi.getItems(),
       inventoryApi.getValuasi(),
       salesApi.getAll(),
+      fetchManualPiutang(),
     ]);
 
     stats.value.totalItems = itemsRes.data.data.length;
@@ -118,6 +178,16 @@ onMounted(async () => {
   } catch (error) {
     console.error('Gagal mengambil data dashboard:', error);
   }
+
+  // Refetch saat user kembali ke tab browser
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  // Refetch instan saat ada perubahan data sales
+  window.addEventListener('sales-updated', fetchSales);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  window.removeEventListener('sales-updated', fetchSales);
 });
 </script>
 
@@ -280,20 +350,61 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- Hutang Invoice -->
-          <div class="premium-card bg-white">
-            <div class="flex items-center justify-between mb-5">
-              <h2 class="text-xl font-display font-bold text-primary">Piutang Invoice</h2>
-              <span v-if="totalKekurangan > 0" class="text-sm font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">{{ formatRupiah(totalKekurangan) }}</span>
+          <!-- Piutang Invoice + Manual -->
+          <div class="premium-card bg-white flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-display font-bold text-primary">Piutang</h2>
+              <span v-if="totalAllPiutang > 0" class="text-sm font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">{{ formatRupiah(totalAllPiutang) }}</span>
             </div>
-            <div v-if="kekurangan.length === 0" class="text-sm text-slate-400 text-center py-6">Semua invoice sudah lunas</div>
-            <div v-else class="space-y-2 max-h-64 overflow-y-auto pr-1">
-              <div v-for="k in kekurangan" :key="k.invoice_number" class="flex items-center justify-between gap-3 py-2 border-b border-slate-50 last:border-0">
-                <div class="min-w-0">
-                  <p class="text-xs font-semibold text-slate-700 truncate">{{ k.recipient_name }}</p>
-                  <p class="text-[10px] text-slate-400 font-mono">{{ k.invoice_number }}</p>
+
+            <!-- Dari invoice -->
+            <div v-if="kekurangan.length > 0">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Dari Invoice</p>
+              <div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                <div v-for="k in kekurangan" :key="k.invoice_number" class="flex items-center justify-between gap-3 py-1.5 border-b border-slate-50 last:border-0">
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold text-slate-700 truncate">{{ k.recipient_name }}</p>
+                    <p class="text-[10px] text-slate-400 font-mono">{{ k.invoice_number }}</p>
+                  </div>
+                  <p class="text-xs font-bold text-amber-600 shrink-0">{{ formatRupiah(k.sisa) }}</p>
                 </div>
-                <p class="text-xs font-bold text-amber-600 shrink-0">{{ formatRupiah(k.sisa) }}</p>
+              </div>
+            </div>
+
+            <!-- Manual -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manual</p>
+                <button @click="piutangFormOpen = !piutangFormOpen" class="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-slate-600">
+                  <i :class="piutangFormOpen ? 'pi pi-times' : 'pi pi-plus'" class="text-[10px]"></i>
+                  {{ piutangFormOpen ? 'Batal' : 'Tambah' }}
+                </button>
+              </div>
+
+              <!-- Form tambah -->
+              <div v-if="piutangFormOpen" class="bg-slate-50 rounded-xl p-3 mb-3 space-y-2">
+                <input v-model="piutangForm.name" type="text" placeholder="Nama (mis: Invoice Pak Abdul)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#1D3557]/20 bg-white" />
+                <input v-model="piutangForm.amount" type="text" inputmode="numeric" placeholder="Nominal (mis: 58131000)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#1D3557]/20 bg-white" />
+                <input v-model="piutangForm.notes" type="text" placeholder="Keterangan (opsional)" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#1D3557]/20 bg-white" />
+                <button @click="addManualPiutang" :disabled="piutangSubmitting" class="w-full bg-[#1D3557] text-white text-xs font-bold py-2 rounded-lg hover:bg-[#162840] disabled:opacity-40 transition-colors">
+                  Simpan
+                </button>
+              </div>
+
+              <div v-if="manualPiutang.length === 0 && !piutangFormOpen" class="text-xs text-slate-400 py-2">Belum ada entri manual.</div>
+              <div v-else class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                <div v-for="p in manualPiutang" :key="p.id" class="flex items-center justify-between gap-3 py-1.5 border-b border-slate-50 last:border-0 group">
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold text-slate-700 truncate">{{ p.name }}</p>
+                    <p v-if="p.notes" class="text-[10px] text-slate-400 truncate">{{ p.notes }}</p>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <p class="text-xs font-bold text-amber-600">{{ formatRupiah(p.amount) }}</p>
+                    <button @click="deleteManualPiutang(p.id)" class="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                      <i class="pi pi-times text-[10px]"></i>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -333,25 +444,68 @@ onMounted(async () => {
 
       <!-- Module: Sales -->
       <div v-else-if="activeTab === 'sales'">
-        <!-- Card Kekurangan Pembayaran -->
-        <div v-if="kekurangan.length > 0" class="premium-card bg-white mb-6 border border-amber-100">
+        <!-- Card Piutang di tab Sales -->
+        <div class="premium-card bg-white mb-6 border border-amber-100">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kekurangan Pembayaran</p>
-              <h3 class="text-2xl font-display font-bold text-amber-600 leading-tight mt-1">{{ formatRupiah(totalKekurangan) }}</h3>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Piutang</p>
+              <h3 class="text-2xl font-display font-bold text-amber-600 leading-tight mt-1">Rp{{ totalAllPiutang.toLocaleString('id-ID') }}</h3>
             </div>
             <div class="text-right">
-              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ kekurangan.length }} invoice</p>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ kekurangan.length }} invoice · {{ manualPiutang.length }} manual</p>
               <i class="pi pi-exclamation-circle text-2xl text-amber-300 mt-1"></i>
             </div>
           </div>
-          <div class="space-y-2 max-h-48 overflow-y-auto">
-            <div v-for="k in kekurangan" :key="k.invoice_number" class="flex items-center justify-between bg-amber-50 rounded-xl px-4 py-2.5">
-              <div>
-                <p class="text-xs font-bold text-slate-700">{{ k.recipient_name }}</p>
-                <p class="text-[10px] text-slate-400 font-mono">{{ k.invoice_number }}</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Dari Invoice -->
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Dari Invoice</p>
+              <div v-if="kekurangan.length === 0" class="text-xs text-slate-400 py-2">Semua invoice lunas.</div>
+              <div v-else class="space-y-2 max-h-56 overflow-y-auto">
+                <div v-for="k in kekurangan" :key="k.invoice_number" class="flex items-center justify-between bg-amber-50 rounded-xl px-4 py-2.5">
+                  <div>
+                    <p class="text-xs font-bold text-slate-700">{{ k.recipient_name }}</p>
+                    <p class="text-[10px] text-slate-400 font-mono">{{ k.invoice_number }}</p>
+                  </div>
+                  <p class="text-xs font-bold text-amber-600">{{ formatRupiah(k.sisa) }}</p>
+                </div>
               </div>
-              <p class="text-xs font-bold text-amber-600">{{ formatRupiah(k.sisa) }}</p>
+            </div>
+
+            <!-- Manual -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manual</p>
+                <button @click="piutangFormOpen = !piutangFormOpen" class="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-slate-600">
+                  <i :class="piutangFormOpen ? 'pi pi-times' : 'pi pi-plus'" class="text-[10px]"></i>
+                  {{ piutangFormOpen ? 'Batal' : 'Tambah' }}
+                </button>
+              </div>
+              <div v-if="piutangFormOpen" class="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 mb-2 space-y-2">
+                <input v-model="piutangForm.name" type="text" placeholder="Nama" class="w-full border border-amber-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-300/40 focus:border-amber-300" />
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+                  <input @input="onPiutangAmountInput" type="text" inputmode="numeric" placeholder="0" class="w-full border border-amber-200 rounded-xl pl-8 pr-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-300/40 focus:border-amber-300" />
+                </div>
+                <input v-model="piutangForm.notes" type="text" placeholder="Keterangan (opsional)" class="w-full border border-amber-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-300/40 focus:border-amber-300" />
+                <button @click="addManualPiutang" :disabled="piutangSubmitting" class="w-full bg-amber-500 text-white text-xs font-bold py-2 rounded-xl hover:bg-amber-600 disabled:opacity-40 transition-colors">Simpan</button>
+              </div>
+              <div v-if="manualPiutang.length === 0 && !piutangFormOpen" class="text-xs text-slate-400 py-2">Belum ada entri manual.</div>
+              <div v-else class="space-y-2 max-h-56 overflow-y-auto">
+                <div v-for="p in manualPiutang" :key="p.id" class="flex items-center justify-between bg-amber-50 rounded-xl px-4 py-2.5 group">
+                  <div>
+                    <p class="text-xs font-bold text-slate-700">{{ p.name }}</p>
+                    <p v-if="p.notes" class="text-[10px] text-slate-400">{{ p.notes }}</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <p class="text-xs font-bold text-amber-600">{{ formatRupiah(p.amount) }}</p>
+                    <button @click="deleteManualPiutang(p.id)" class="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                      <i class="pi pi-times text-[10px]"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
