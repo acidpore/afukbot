@@ -11,6 +11,7 @@ import InventoryModule from './Modules/Inventory/InventoryModule.vue';
 import SalesModule from './Modules/Sales/SalesModule.vue';
 import ExpenseModule from './Modules/Expense/ExpenseModule.vue';
 import IncomeModule from './Modules/Income/IncomeModule.vue';
+import BudgetModule from './Modules/Budget/BudgetModule.vue';
 
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = ref(urlParams.get('tab') || 'overview');
@@ -95,12 +96,24 @@ const menuItems = [
     ],
   },
   { id: 'sales', name: 'Penjualan', icon: 'pi pi-receipt' },
-  { id: 'expenses', name: 'Pengeluaran', icon: 'pi pi-wallet' },
-  { id: 'incomes',  name: 'Pemasukan',  icon: 'pi pi-arrow-circle-down' },
+  {
+    id: 'keuangan',
+    name: 'Keuangan Ruko',
+    icon: 'pi pi-chart-line',
+    children: [
+      { id: 'expenses', name: 'Pengeluaran', icon: 'pi pi-wallet' },
+      { id: 'incomes',  name: 'Pemasukan',  icon: 'pi pi-arrow-circle-down' },
+      { id: 'rab',      name: 'RAB Tracking', icon: 'pi pi-chart-bar' },
+    ],
+  },
 ];
 
 const inventoryExpanded = computed(() =>
   activeTab.value === 'inventory' || activeTab.value.startsWith('inventory-')
+);
+
+const keuanganExpanded = computed(() =>
+  activeTab.value === 'keuangan' || activeTab.value === 'expenses' || activeTab.value === 'incomes'
 );
 
 function processSales(sales: any[]) {
@@ -203,13 +216,13 @@ onUnmounted(() => {
             <button
               @click="activeTab = item.id"
               class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group"
-              :class="inventoryExpanded ? 'text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
+              :class="(item.id === 'inventory' ? inventoryExpanded : keuanganExpanded) ? 'text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
             >
               <i :class="item.icon" class="text-lg transition-transform"></i>
               <span class="tracking-wide flex-1 text-left">{{ item.name }}</span>
-              <i :class="inventoryExpanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" class="text-[10px] opacity-50"></i>
+              <i :class="(item.id === 'inventory' ? inventoryExpanded : keuanganExpanded) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" class="text-[10px] opacity-50"></i>
             </button>
-            <div v-if="inventoryExpanded" class="ml-4 flex flex-col gap-0.5 border-l-2 border-slate-100 pl-3">
+            <div v-if="item.id === 'inventory' ? inventoryExpanded : keuanganExpanded" class="ml-4 flex flex-col gap-0.5 border-l-2 border-slate-100 pl-3">
               <button
                 v-for="child in item.children"
                 :key="child.id"
@@ -520,6 +533,11 @@ onUnmounted(() => {
       <!-- Module: Incomes -->
       <div v-else-if="activeTab === 'incomes'">
         <IncomeModule />
+      </div>
+
+      <!-- Module: RAB Budget -->
+      <div v-else-if="activeTab === 'rab'">
+        <BudgetModule />
       </div>
 
       <!-- Module Placeholder -->

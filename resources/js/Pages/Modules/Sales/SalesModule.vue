@@ -15,6 +15,25 @@ const sales       = ref<Sale[]>([]);
 const loading     = ref(false);
 const submitting  = ref(false);
 const errorMsg    = ref('');
+
+// ── Confirm Modal ─────────────────────────────────────────
+const confirmModal = ref<{ show: boolean; title: string; message: string; onConfirm: () => void }>({
+    show: false, title: '', message: '', onConfirm: () => {},
+});
+
+function showConfirm(title: string, message: string, onConfirm: () => void) {
+    confirmModal.value = { show: true, title, message, onConfirm };
+}
+
+// ── Toast ──────────────────────────────────────────────────
+const toast = ref<{ show: boolean; message: string; type: 'error' | 'success' }>({ show: false, message: '', type: 'error' });
+let toastTimer: ReturnType<typeof setTimeout>;
+
+function showToast(message: string, type: 'error' | 'success' = 'error') {
+    clearTimeout(toastTimer);
+    toast.value = { show: true, message, type };
+    toastTimer = setTimeout(() => { toast.value.show = false; }, 4000);
+}
 const successMsg  = ref('');
 
 // Daftar barang dari inventory ruko
@@ -209,7 +228,7 @@ async function submitEdit() {
         editModal.value.open = false;
         window.dispatchEvent(new CustomEvent('sales-updated'));
     } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal menyimpan perubahan.');
+        showToast(e?.response?.data?.message || 'Gagal menyimpan perubahan.');
     } finally {
         editSubmitting.value = false;
     }
@@ -225,22 +244,23 @@ async function uploadAttachment(sale: Sale) {
         if (editModal.value.sale?.id === sale.id) editModal.value.sale = res.data.data;
         attachmentFile.value = null;
     } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal mengunggah lampiran.');
+        showToast(e?.response?.data?.message || 'Gagal mengunggah lampiran.');
     } finally {
         attachmentUploading.value = false;
     }
 }
 
 async function removeAttachment(sale: Sale) {
-    if (!confirm('Hapus lampiran PDF ini?')) return;
-    try {
-        const res = await salesApi.deleteAttachment(sale.id);
-        const idx = sales.value.findIndex(s => s.id === sale.id);
-        if (idx !== -1) sales.value[idx] = res.data.data;
-        if (editModal.value.sale?.id === sale.id) editModal.value.sale = res.data.data;
-    } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal menghapus lampiran.');
-    }
+    showConfirm('Hapus Lampiran', 'Hapus lampiran PDF ini?', async () => {
+        try {
+            const res = await salesApi.deleteAttachment(sale.id);
+            const idx = sales.value.findIndex(s => s.id === sale.id);
+            if (idx !== -1) sales.value[idx] = res.data.data;
+            if (editModal.value.sale?.id === sale.id) editModal.value.sale = res.data.data;
+        } catch (e: any) {
+            showToast(e?.response?.data?.message || 'Gagal menghapus lampiran.');
+        }
+    });
 }
 
 // ── Modal Pembayaran ───────────────────────────────────────
@@ -277,7 +297,7 @@ async function submitPayment() {
         payModal.value.open = false;
         window.dispatchEvent(new CustomEvent('sales-updated'));
     } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal mencatat pembayaran.');
+        showToast(e?.response?.data?.message || 'Gagal mencatat pembayaran.');
     }
 }
 
@@ -627,31 +647,33 @@ async function confirmShip() {
         await loadSales();
         shipModal.value.open = false;
     } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal memperbarui status.');
+        showToast(e?.response?.data?.message || 'Gagal memperbarui status.');
     }
 }
 
 async function deleteSale(id: number, isShipped = false) {
     const msg = isShipped
-        ? 'Hapus invoice ini? Stok barang yang sudah dipotong akan dikembalikan ke inventaris.'
-        : 'Hapus invoice ini?';
-    if (!confirm(msg)) return;
-    try {
-        await salesApi.remove(id);
-        await loadSales();
-    } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal menghapus invoice.');
-    }
+        ? 'Stok barang yang sudah dipotong akan dikembalikan ke inventaris.'
+        : 'Invoice akan dihapus permanen.';
+    showConfirm('Hapus Invoice', msg, async () => {
+        try {
+            await salesApi.remove(id);
+            await loadSales();
+        } catch (e: any) {
+            showToast(e?.response?.data?.message || 'Gagal menghapus invoice.');
+        }
+    });
 }
 
 async function revertStock(id: number) {
-    if (!confirm('Kembalikan stok untuk invoice ini? Status invoice akan kembali ke "Belum Dikirim" dan stok barang akan dipulihkan.')) return;
-    try {
-        await salesApi.revertStock(id);
-        await loadSales();
-    } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal mengembalikan stok.');
-    }
+    showConfirm('Kembalikan Stok', 'Status invoice akan kembali ke "Belum Dikirim" dan stok barang akan dipulihkan.', async () => {
+        try {
+            await salesApi.revertStock(id);
+            await loadSales();
+        } catch (e: any) {
+            showToast(e?.response?.data?.message || 'Gagal mengembalikan stok.');
+        }
+    });
 }
 
 // ── Invoice PDF ────────────────────────────────────────────
@@ -1944,6 +1966,44 @@ onMounted(async () => {
             </div>
         </div>
     </div>
+
+    <!-- Confirm Modal -->
+    <Transition enter-active-class="transition ease-out duration-200" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100" leave-active-class="transition ease-in duration-150" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+        <div v-if="confirmModal.show" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/40" @click="confirmModal.show = false"></div>
+            <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+                <div class="flex items-start gap-4 mb-5">
+                    <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                        <i class="pi pi-exclamation-triangle text-red-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">{{ confirmModal.title }}</h3>
+                        <p class="text-xs text-slate-500 mt-1 leading-relaxed">{{ confirmModal.message }}</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button @click="confirmModal.show = false" class="flex-1 border border-slate-300 text-slate-600 text-sm font-bold py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+                        Batal
+                    </button>
+                    <button @click="() => { confirmModal.onConfirm(); confirmModal.show = false; }" class="flex-1 bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-red-700 transition-colors">
+                        Ya, Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Transition>
+
+    <!-- Toast Notification -->
+    <Transition enter-active-class="transition ease-out duration-300" enter-from-class="opacity-0 translate-y-4" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition ease-in duration-200" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-4">
+        <div v-if="toast.show" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-sm font-semibold max-w-sm w-full mx-4"
+            :class="toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'">
+            <i :class="toast.type === 'error' ? 'pi pi-exclamation-circle' : 'pi pi-check-circle'" class="text-base shrink-0"></i>
+            <span class="flex-1">{{ toast.message }}</span>
+            <button @click="toast.show = false" class="opacity-60 hover:opacity-100 transition-opacity shrink-0">
+                <i class="pi pi-times text-xs"></i>
+            </button>
+        </div>
+    </Transition>
 
     <!-- Import Items Preview Modal -->
     <div v-if="importItemsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(BudgetSeeder::class);
         // 1. Admin Account
         User::create([
             'name' => 'Super Admin MBG',
