@@ -42,6 +42,34 @@ const emptyItem = (): SaleItem => ({
 
 const items = ref<SaleItem[]>([emptyItem()]);
 
+// ── Parser pembayaran dari keterangan ─────────────────────
+function parsePaymentFromNotes(text: string, total: number): number {
+    if (!text) return 0;
+    const t = text.toLowerCase().trim();
+
+    // Pola persen: "dp 50%" / "bayar 30%"
+    const pctMatch = t.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    if (pctMatch) {
+        const pct = parseFloat(pctMatch[1].replace(',', '.'));
+        return Math.round((pct / 100) * total);
+    }
+
+    // Normalisasi ribuan/jutaan: "10 juta" "500rb" "500ribu" "1.5 juta"
+    const normalized = t
+        .replace(/(\d)[.,](\d{3})(?!\d)/g, '$1$2') // 10.000 → 10000
+        .replace(/(\d+(?:[.,]\d+)?)\s*juta/g,  (_, n) => String(Math.round(parseFloat(n.replace(',', '.')) * 1_000_000)))
+        .replace(/(\d+(?:[.,]\d+)?)\s*(ribu|rb|k)/g, (_, n) => String(Math.round(parseFloat(n.replace(',', '.')) * 1_000)));
+
+    // Ambil angka pertama yang muncul setelah kata pembayaran
+    const numMatch = normalized.match(/(?:dp|bayar|lunas|transfer|tf|pembayaran|cicil|angsuran|down\s*payment)[^\d]*(\d+)/i)
+        ?? normalized.match(/(\d{4,})/); // fallback: angka >= 4 digit
+    if (numMatch) {
+        const val = parseInt(numMatch[1]);
+        if (val > 0 && val <= total) return val;
+    }
+    return 0;
+}
+
 // ── Import Items Excel/CSV ─────────────────────────────────
 const importItemsModal   = ref(false);
 const importItemsPreview = ref<{ item_name: string; qty: number; unit_price: number; description: string }[]>([]);
@@ -54,7 +82,16 @@ const grandTotal = computed(() =>
 
 const itemsValid = computed(() =>
     items.value.every(i => i.item_name.trim() && Number(i.qty) > 0 && Number(i.unit_price) >= 0)
-);
+)
+
+const parsedPayment = computed(() => parsePaymentFromNotes(form.value.notes, grandTotal.value))
+const editParsedPayment = computed(() => {
+    if (!editModal.value.sale) return 0;
+    const total = editModal.value.sale.status === 'belum_dikirim'
+        ? editItems.value.reduce((s, i) => s + Number(i.qty) * Number(i.unit_price), 0)
+        : editModal.value.sale.grand_total;
+    return parsePaymentFromNotes(editForm.value.notes, total);
+});
 
 const formValid = computed(() =>
     form.value.recipient_name.trim() && form.value.invoice_date && itemsValid.value
@@ -159,6 +196,7 @@ async function submitEdit() {
     try {
         const payload: any = {
             ...editForm.value,
+            paid_amount: editParsedPayment.value,
         };
         if (editModal.value.sale?.status === 'belum_dikirim') {
             payload.items = editItems.value.map(i => ({ ...i, total_price: Number(i.qty) * Number(i.unit_price) }));
@@ -516,6 +554,7 @@ async function submitSale() {
     try {
         const payload = {
             ...form.value,
+            paid_amount: parsedPayment.value,
             items: items.value.map(i => ({ ...i, total_price: i.qty * i.unit_price })),
         };
         const res = await salesApi.create(payload);
@@ -1054,9 +1093,14 @@ onMounted(async () => {
                         <input
                             v-model="form.notes"
                             type="text"
-                            placeholder="Catatan tambahan (opsional)"
+                            placeholder="Contoh: DP 10 Juta / Bayar 50%"
                             class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                         />
+                        <p v-if="parsedPayment > 0" class="mt-1.5 text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                            <i class="pi pi-check-circle text-[11px]"></i>
+                            Terdeteksi pembayaran: {{ fmt(parsedPayment) }}
+                            <span class="text-slate-400 font-normal">· sisa {{ fmt(grandTotal - parsedPayment) }}</span>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1552,7 +1596,12 @@ onMounted(async () => {
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1.5">Catatan</label>
-                            <input v-model="editForm.notes" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            <input v-model="editForm.notes" type="text" placeholder="Contoh: DP 10 Juta / Bayar 50%" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            <p v-if="editParsedPayment > 0" class="mt-1.5 text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                                <i class="pi pi-check-circle text-[11px]"></i>
+                                Terdeteksi pembayaran: {{ fmt(editParsedPayment) }}
+                                <span v-if="editModal.sale" class="text-slate-400 font-normal">· sisa {{ fmt((editModal.sale.status === 'belum_dikirim' ? editItems.reduce((s,i) => s + Number(i.qty)*Number(i.unit_price), 0) : editModal.sale.grand_total) - editParsedPayment) }}</span>
+                            </p>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-semibold text-slate-500 mb-1.5">Lampiran PDF (misal: Sertifikat Halal)</label>

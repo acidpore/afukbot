@@ -31,6 +31,8 @@ class SalesService
                 $data['items']
             ));
 
+            $paidAmount = isset($data['paid_amount']) ? min((int) $data['paid_amount'], $grandTotal) : 0;
+
             $sale = Sale::create([
                 'invoice_number'    => $invoiceNumber,
                 'recipient_name'    => $data['recipient_name'],
@@ -39,6 +41,7 @@ class SalesService
                 'shipped_at'        => !empty($data['shipped_at']) ? $data['shipped_at'] : null,
                 'notes'             => $data['notes'] ?? null,
                 'grand_total'       => $grandTotal,
+                'paid_amount'       => $paidAmount,
                 'status'            => 'belum_dikirim',
             ]);
 
@@ -124,13 +127,18 @@ class SalesService
         return DB::transaction(function () use ($id, $data) {
             $sale = Sale::with('items')->findOrFail($id);
 
-            $sale->update([
+            $updatePayload = [
                 'recipient_name'    => $data['recipient_name'],
                 'recipient_address' => $data['recipient_address'] ?? null,
                 'invoice_date'      => $data['invoice_date'],
                 'shipped_at'        => array_key_exists('shipped_at', $data) ? ($data['shipped_at'] ?: null) : $sale->shipped_at,
                 'notes'             => $data['notes'] ?? null,
-            ]);
+            ];
+            if (array_key_exists('paid_amount', $data)) {
+                $currentGrandTotal = $sale->grand_total;
+                $updatePayload['paid_amount'] = min((int) $data['paid_amount'], $currentGrandTotal);
+            }
+            $sale->update($updatePayload);
 
             // Update items hanya kalau belum dikirim
             if ($sale->status === 'belum_dikirim' && !empty($data['items'])) {

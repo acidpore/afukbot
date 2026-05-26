@@ -26,6 +26,11 @@ const stats = ref({
   totalOmzet:       0,
 });
 
+const kekurangan = ref<{ invoice_number: string; recipient_name: string; sisa: number }[]>([]);
+const totalKekurangan = computed(() => kekurangan.value.reduce((s, k) => s + k.sisa, 0));
+
+const top10Items = ref<{ item_name: string; total_qty: number; total_revenue: number }[]>([]);
+
 const valuasi = ref({
   total_valuasi: 0,
   total_item_jenis: 0,
@@ -56,6 +61,49 @@ const inventoryExpanded = computed(() =>
   activeTab.value === 'inventory' || activeTab.value.startsWith('inventory-')
 );
 
+function processSales(sales: any[]) {
+  stats.value.totalInvoice   = sales.length;
+  stats.value.invoicePending = sales.filter((s: any) => s.status === 'belum_dikirim').length;
+  stats.value.totalOmzet     = sales
+    .filter((s: any) => s.status === 'sudah_dikirim')
+    .reduce((sum: number, s: any) => sum + s.grand_total, 0);
+
+  kekurangan.value = sales
+    .filter((s: any) => (s.grand_total - (s.paid_amount ?? 0)) > 0)
+    .map((s: any) => ({
+      invoice_number: s.invoice_number,
+      recipient_name: s.recipient_name,
+      sisa: s.grand_total - (s.paid_amount ?? 0),
+    }))
+    .sort((a: any, b: any) => b.sisa - a.sisa);
+
+  // Top 10 barang terlaris dari semua invoice
+  const itemMap = new Map<string, { total_qty: number; total_revenue: number }>();
+  for (const sale of sales) {
+    for (const item of (sale.items ?? [])) {
+      const key = item.item_name;
+      const prev = itemMap.get(key) ?? { total_qty: 0, total_revenue: 0 };
+      itemMap.set(key, {
+        total_qty:     prev.total_qty + (item.qty ?? 0),
+        total_revenue: prev.total_revenue + (item.total_price ?? item.qty * item.unit_price ?? 0),
+      });
+    }
+  }
+  top10Items.value = [...itemMap.entries()]
+    .map(([item_name, v]) => ({ item_name, ...v }))
+    .sort((a, b) => b.total_qty - a.total_qty)
+    .slice(0, 10);
+}
+
+async function fetchSales() {
+  const salesRes = await salesApi.getAll();
+  processSales(salesRes.data.data);
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'sales' || tab === 'overview') fetchSales();
+});
+
 onMounted(async () => {
   try {
     const [itemsRes, valuasiRes, salesRes] = await Promise.all([
@@ -64,15 +112,8 @@ onMounted(async () => {
       salesApi.getAll(),
     ]);
 
-    const sales = salesRes.data.data;
-
-    stats.value.totalItems     = itemsRes.data.data.length;
-    stats.value.totalInvoice   = sales.length;
-    stats.value.invoicePending = sales.filter((s: any) => s.status === 'belum_dikirim').length;
-    stats.value.totalOmzet     = sales
-      .filter((s: any) => s.status === 'sudah_dikirim')
-      .reduce((sum: number, s: any) => sum + s.grand_total, 0);
-
+    stats.value.totalItems = itemsRes.data.data.length;
+    processSales(salesRes.data.data);
     valuasi.value = valuasiRes.data.data;
   } catch (error) {
     console.error('Gagal mengambil data dashboard:', error);
@@ -189,11 +230,14 @@ onMounted(async () => {
 
           <div class="premium-card group relative overflow-hidden bg-gradient-to-br from-primary to-primary-light text-white">
             <div class="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-            <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">Valuasi Stok</p>
+            <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-3">Valuasi Stok + Piutang</p>
             <div class="flex items-end justify-between">
-              <div>
-                <h3 class="text-2xl font-display font-bold text-white leading-tight">{{ formatRupiah(valuasi.total_valuasi) }}</h3>
-                <p class="text-[10px] text-white/60 font-bold uppercase mt-1">{{ valuasi.total_item_jenis }} jenis &middot; {{ valuasi.total_stok.toLocaleString('id-ID') }} unit</p>
+              <div class="space-y-1.5">
+                <h3 class="text-2xl font-display font-bold text-white leading-tight">{{ formatRupiah(valuasi.total_valuasi + totalKekurangan) }}</h3>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[10px] text-white/60 font-bold uppercase">Stok {{ formatRupiah(valuasi.total_valuasi) }}</span>
+                  <span v-if="totalKekurangan > 0" class="text-[10px] text-amber-300 font-bold">+ Piutang {{ formatRupiah(totalKekurangan) }}</span>
+                </div>
               </div>
               <i class="pi pi-box text-3xl text-white/20"></i>
             </div>
@@ -216,23 +260,49 @@ onMounted(async () => {
           <div class="w-1.5 h-1.5 rounded-full bg-accent/30"></div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="premium-card bg-white">
-          <h4 class="font-display text-xl font-bold text-primary mb-8">Modul Utama (Plan.md)</h4>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <button v-for="mod in [
-              { name: 'Stok Barang', icon: 'pi pi-box' },
-              { name: 'Data Staff', icon: 'pi pi-user' },
-              { name: 'Absensi', icon: 'pi pi-pencil' },
-              { name: 'Payroll', icon: 'pi pi-credit-card' }
-            ]" :key="mod.name" class="flex flex-col items-center gap-4 p-8 rounded-3xl bg-slate-50/50 border border-slate-100 hover:border-accent/30 hover:bg-white hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
-              <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                <i :class="mod.icon" class="text-primary"></i>
+        <!-- Top 10 Barang Laris + Hutang Invoice -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Top 10 Barang Terlaris -->
+          <div class="premium-card bg-white">
+            <h2 class="text-xl font-display font-bold text-primary mb-5">10 Barang Terlaris</h2>
+            <div v-if="top10Items.length === 0" class="text-sm text-slate-400 text-center py-6">Belum ada data penjualan</div>
+            <div v-else class="space-y-2">
+              <div v-for="(item, i) in top10Items" :key="item.item_name" class="flex items-center gap-3">
+                <span class="w-5 text-[10px] font-bold text-slate-300 text-right shrink-0">{{ i + 1 }}</span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-semibold text-slate-700 truncate">{{ item.item_name }}</p>
+                  <p class="text-[10px] text-slate-400">{{ item.total_qty.toLocaleString('id-ID') }} unit &middot; {{ formatRupiah(item.total_revenue) }}</p>
+                </div>
+                <div class="w-16 bg-slate-100 rounded-full h-1.5 shrink-0">
+                  <div class="bg-primary h-1.5 rounded-full" :style="{ width: (item.total_qty / top10Items[0].total_qty * 100) + '%' }"></div>
+                </div>
               </div>
-              <span class="text-[11px] font-bold uppercase tracking-widest text-slate-600 group-hover:text-primary transition-colors text-center">{{ mod.name }}</span>
-            </button>
+            </div>
+          </div>
+
+          <!-- Hutang Invoice -->
+          <div class="premium-card bg-white">
+            <div class="flex items-center justify-between mb-5">
+              <h2 class="text-xl font-display font-bold text-primary">Piutang Invoice</h2>
+              <span v-if="totalKekurangan > 0" class="text-sm font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">{{ formatRupiah(totalKekurangan) }}</span>
+            </div>
+            <div v-if="kekurangan.length === 0" class="text-sm text-slate-400 text-center py-6">Semua invoice sudah lunas</div>
+            <div v-else class="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <div v-for="k in kekurangan" :key="k.invoice_number" class="flex items-center justify-between gap-3 py-2 border-b border-slate-50 last:border-0">
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold text-slate-700 truncate">{{ k.recipient_name }}</p>
+                  <p class="text-[10px] text-slate-400 font-mono">{{ k.invoice_number }}</p>
+                </div>
+                <p class="text-xs font-bold text-amber-600 shrink-0">{{ formatRupiah(k.sisa) }}</p>
+              </div>
+            </div>
           </div>
         </div>
+
+        <div class="section-divider">
+          <div class="w-1.5 h-1.5 rounded-full bg-accent/30"></div>
+        </div>
+
       </div>
 
       <!-- Module: Inventory -->
@@ -263,6 +333,28 @@ onMounted(async () => {
 
       <!-- Module: Sales -->
       <div v-else-if="activeTab === 'sales'">
+        <!-- Card Kekurangan Pembayaran -->
+        <div v-if="kekurangan.length > 0" class="premium-card bg-white mb-6 border border-amber-100">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kekurangan Pembayaran</p>
+              <h3 class="text-2xl font-display font-bold text-amber-600 leading-tight mt-1">{{ formatRupiah(totalKekurangan) }}</h3>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ kekurangan.length }} invoice</p>
+              <i class="pi pi-exclamation-circle text-2xl text-amber-300 mt-1"></i>
+            </div>
+          </div>
+          <div class="space-y-2 max-h-48 overflow-y-auto">
+            <div v-for="k in kekurangan" :key="k.invoice_number" class="flex items-center justify-between bg-amber-50 rounded-xl px-4 py-2.5">
+              <div>
+                <p class="text-xs font-bold text-slate-700">{{ k.recipient_name }}</p>
+                <p class="text-[10px] text-slate-400 font-mono">{{ k.invoice_number }}</p>
+              </div>
+              <p class="text-xs font-bold text-amber-600">{{ formatRupiah(k.sisa) }}</p>
+            </div>
+          </div>
+        </div>
         <SalesModule />
       </div>
 
