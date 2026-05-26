@@ -714,7 +714,9 @@ async function printInvoice(sale: Sale) {
     doc.setFont('times', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('Kepada', LM + 3, y + 5);
-    doc.text(sale.recipient_name, LM + 3, y + 12);
+    doc.setFont('times', 'normal');
+    const recipientLines = doc.splitTextToSize(sale.recipient_name, halfL - 6);
+    doc.text(recipientLines.slice(0, 2), LM + 3, y + 12);
 
     // Kotak Dikirim ke (tengah)
     const dikX = LM + halfL + 3;
@@ -725,7 +727,9 @@ async function printInvoice(sale: Sale) {
     doc.setFont('times', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('Dikirim ke', dikX + 3, y + 5);
-    doc.text(sale.recipient_address || '-', dikX + 3, y + 12);
+    doc.setFont('times', 'normal');
+    const addrWrapped = doc.splitTextToSize(sale.recipient_address || '-', halfL - 6);
+    doc.text(addrWrapped.slice(0, 3), dikX + 3, y + 12);
 
     // PO Box — border + background (kanan)
     doc.setFillColor(...BG_PO);
