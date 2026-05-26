@@ -57,6 +57,19 @@ class IncomeController extends Controller
         }
     }
 
+    public function uploadReceipt(Request $request, $id)
+    {
+        $request->validate(['receipt' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120']);
+        $income = $this->incomeService->uploadReceipt((int) $id, $request->file('receipt'));
+        return $this->sendResponse($income, 'Bukti pemasukan berhasil diunggah');
+    }
+
+    public function deleteReceipt($id)
+    {
+        $income = $this->incomeService->deleteReceipt((int) $id);
+        return $this->sendResponse($income, 'Bukti pemasukan berhasil dihapus');
+    }
+
     public function import(Request $request)
     {
         $request->validate(['file' => 'required|file|mimes:csv,txt|max:2048']);

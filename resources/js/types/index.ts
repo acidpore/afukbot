@@ -48,6 +48,7 @@ export interface Sale {
     recipient_address: string;
     invoice_date: string;
     notes: string;
+    attachment_path: string | null;
     grand_total: number;
     paid_amount: number;
     status: 'belum_dikirim' | 'sudah_dikirim';
@@ -63,6 +64,7 @@ export interface Income {
     description: string;
     amount: number;
     notes: string | null;
+    receipt_path: string | null;
     recorded_by_id: number | null;
     created_at?: string;
 }
@@ -75,6 +77,7 @@ export interface Expense {
     amount: number;
     paid_by: string | null;
     notes: string | null;
+    receipt_path: string | null;
     recorded_by_id: number | null;
     created_at?: string;
 }

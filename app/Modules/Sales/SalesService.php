@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\Category;
 use App\Models\StockTransaction;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class SalesService
 {
@@ -205,6 +206,27 @@ class SalesService
 
             return $sale->fresh('items');
         });
+    }
+
+    public function uploadAttachment(int $id, \Illuminate\Http\UploadedFile $file): Sale
+    {
+        $sale = Sale::findOrFail($id);
+        if ($sale->attachment_path) {
+            Storage::disk('public')->delete($sale->attachment_path);
+        }
+        $path = $file->store('sale-attachments', 'public');
+        $sale->update(['attachment_path' => $path]);
+        return $sale->fresh('items');
+    }
+
+    public function deleteAttachment(int $id): Sale
+    {
+        $sale = Sale::findOrFail($id);
+        if ($sale->attachment_path) {
+            Storage::disk('public')->delete($sale->attachment_path);
+            $sale->update(['attachment_path' => null]);
+        }
+        return $sale->fresh('items');
     }
 
     public function delete(int $id): void

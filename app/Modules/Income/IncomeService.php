@@ -4,6 +4,7 @@ namespace App\Modules\Income;
 
 use App\Models\Income;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Storage;
 
 class IncomeService
 {
@@ -44,7 +45,32 @@ class IncomeService
 
     public function delete(int $id): void
     {
-        Income::findOrFail($id)->delete();
+        $income = Income::findOrFail($id);
+        if ($income->receipt_path) {
+            Storage::disk('public')->delete($income->receipt_path);
+        }
+        $income->delete();
+    }
+
+    public function uploadReceipt(int $id, \Illuminate\Http\UploadedFile $file): Income
+    {
+        $income = Income::findOrFail($id);
+        if ($income->receipt_path) {
+            Storage::disk('public')->delete($income->receipt_path);
+        }
+        $path = $file->store('receipts', 'public');
+        $income->update(['receipt_path' => $path]);
+        return $income->fresh();
+    }
+
+    public function deleteReceipt(int $id): Income
+    {
+        $income = Income::findOrFail($id);
+        if ($income->receipt_path) {
+            Storage::disk('public')->delete($income->receipt_path);
+            $income->update(['receipt_path' => null]);
+        }
+        return $income->fresh();
     }
 
     public function importCsv(\Illuminate\Http\UploadedFile $file): array

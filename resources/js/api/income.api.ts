@@ -11,11 +11,19 @@ export const incomeApi = {
     create: (data: object)              => api.post<ApiResponse<Income>>('/incomes', data),
     update: (id: number, data: object)  => api.put<ApiResponse<Income>>(`/incomes/${id}`, data),
     remove: (id: number)                => api.delete<ApiResponse<null>>(`/incomes/${id}`),
-    import: (file: File)                => {
+    import: (file: File) => {
         const form = new FormData();
         form.append('file', file);
         return api.post<ApiResponse<{ imported: number; skipped: string[] }>>('/incomes/import', form, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    uploadReceipt: (id: number, file: File) => {
+        const form = new FormData();
+        form.append('receipt', file);
+        return api.post<ApiResponse<Income>>(`/incomes/${id}/receipt`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+    },
+    deleteReceipt: (id: number) => api.delete<ApiResponse<Income>>(`/incomes/${id}/receipt`),
 };

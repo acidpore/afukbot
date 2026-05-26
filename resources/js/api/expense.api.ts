@@ -19,4 +19,12 @@ export const expenseApi = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
     },
+    uploadReceipt: (id: number, file: File) => {
+        const form = new FormData();
+        form.append('receipt', file);
+        return api.post<ApiResponse<Expense>>(`/expenses/${id}/receipt`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+    },
+    deleteReceipt: (id: number) => api.delete<ApiResponse<Expense>>(`/expenses/${id}/receipt`),
 };

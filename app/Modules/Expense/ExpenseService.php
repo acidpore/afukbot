@@ -4,6 +4,7 @@ namespace App\Modules\Expense;
 
 use App\Models\Expense;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Storage;
 
 class ExpenseService
 {
@@ -46,7 +47,32 @@ class ExpenseService
 
     public function delete(int $id): void
     {
-        Expense::findOrFail($id)->delete();
+        $expense = Expense::findOrFail($id);
+        if ($expense->receipt_path) {
+            Storage::disk('public')->delete($expense->receipt_path);
+        }
+        $expense->delete();
+    }
+
+    public function uploadReceipt(int $id, \Illuminate\Http\UploadedFile $file): Expense
+    {
+        $expense = Expense::findOrFail($id);
+        if ($expense->receipt_path) {
+            Storage::disk('public')->delete($expense->receipt_path);
+        }
+        $path = $file->store('receipts', 'public');
+        $expense->update(['receipt_path' => $path]);
+        return $expense->fresh();
+    }
+
+    public function deleteReceipt(int $id): Expense
+    {
+        $expense = Expense::findOrFail($id);
+        if ($expense->receipt_path) {
+            Storage::disk('public')->delete($expense->receipt_path);
+            $expense->update(['receipt_path' => null]);
+        }
+        return $expense->fresh();
     }
 
     public function getSummaryByCategory(string $month): array

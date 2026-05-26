@@ -116,6 +116,19 @@ class SalesController extends Controller
         }
     }
 
+    public function uploadAttachment(Request $request, $id)
+    {
+        $request->validate(['attachment' => 'required|file|mimes:pdf|max:10240']);
+        $sale = $this->salesService->uploadAttachment((int) $id, $request->file('attachment'));
+        return $this->sendResponse($sale, 'Lampiran berhasil diunggah');
+    }
+
+    public function deleteAttachment($id)
+    {
+        $sale = $this->salesService->deleteAttachment((int) $id);
+        return $this->sendResponse($sale, 'Lampiran berhasil dihapus');
+    }
+
     public function destroy($id)
     {
         try {

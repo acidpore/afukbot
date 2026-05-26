@@ -37,6 +37,8 @@ const editForm  = ref({
 });
 const editAmountDisplay = ref('');
 const editSubmitting    = ref(false);
+const receiptFile       = ref<File | null>(null);
+const editReceiptFile   = ref<File | null>(null);
 
 // ── Computed ───────────────────────────────────────────────
 const filtered = computed(() =>
@@ -122,6 +124,7 @@ function resetForm() {
         notes:       '',
     };
     amountDisplay.value = '';
+    receiptFile.value   = null;
     showForm.value = false;
 }
 
@@ -134,7 +137,16 @@ function openEditModal(income: Income) {
         notes:       income.notes ?? '',
     };
     editAmountDisplay.value = income.amount > 0 ? income.amount.toLocaleString('id-ID') : '';
+    editReceiptFile.value   = null;
     editModal.value = { open: true, income };
+}
+
+function receiptUrl(path: string): string {
+    return `/storage/${path}`;
+}
+
+function isPdf(path: string): boolean {
+    return path.toLowerCase().endsWith('.pdf');
 }
 
 // ── API ────────────────────────────────────────────────────
@@ -155,7 +167,12 @@ async function submitIncome() {
     successMsg.value = '';
     try {
         const res = await incomeApi.create({ ...form.value });
-        incomes.value.unshift(res.data.data);
+        let income = res.data.data;
+        if (receiptFile.value) {
+            const upRes = await incomeApi.uploadReceipt(income.id, receiptFile.value);
+            income = upRes.data.data;
+        }
+        incomes.value.unshift(income);
         successMsg.value = 'Pemasukan berhasil dicatat.';
         resetForm();
     } catch (e: any) {
@@ -170,13 +187,30 @@ async function submitEdit() {
     editSubmitting.value = true;
     try {
         const res = await incomeApi.update(editModal.value.income!.id, { ...editForm.value });
+        let updated = res.data.data;
+        if (editReceiptFile.value) {
+            const upRes = await incomeApi.uploadReceipt(updated.id, editReceiptFile.value);
+            updated = upRes.data.data;
+        }
         const idx = incomes.value.findIndex(i => i.id === editModal.value.income!.id);
-        if (idx !== -1) incomes.value[idx] = res.data.data;
+        if (idx !== -1) incomes.value[idx] = updated;
         editModal.value.open = false;
     } catch (e: any) {
         alert(e?.response?.data?.message || 'Gagal menyimpan perubahan.');
     } finally {
         editSubmitting.value = false;
+    }
+}
+
+async function removeReceipt(income: Income) {
+    if (!confirm('Hapus bukti pemasukan ini?')) return;
+    try {
+        const res = await incomeApi.deleteReceipt(income.id);
+        const idx = incomes.value.findIndex(i => i.id === income.id);
+        if (idx !== -1) incomes.value[idx] = res.data.data;
+        if (editModal.value.income?.id === income.id) editModal.value.income = res.data.data;
+    } catch (e: any) {
+        alert(e?.response?.data?.message || 'Gagal menghapus bukti.');
     }
 }
 
@@ -463,6 +497,16 @@ onMounted(loadIncomes);
                         class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                     />
                 </div>
+                <div class="lg:col-span-3">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Bukti Pemasukan</label>
+                    <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        @change="(e) => { receiptFile = (e.target as HTMLInputElement).files?.[0] ?? null }"
+                        class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                    />
+                    <p class="text-[11px] text-slate-400 mt-1 pl-1">JPG, PNG, WebP, atau PDF. Maks. 5 MB.</p>
+                </div>
             </div>
             <div class="flex justify-end gap-3 mt-5">
                 <button @click="resetForm" class="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-300 text-slate-600 hover:bg-slate-100 transition-colors">Batal</button>
@@ -534,6 +578,11 @@ onMounted(loadIncomes);
                                     </div>
                                     <p class="font-semibold text-slate-700 text-sm">{{ income.description }}</p>
                                     <p v-if="income.notes" class="text-xs text-slate-400 mt-0.5">{{ income.notes }}</p>
+                                    <a v-if="income.receipt_path" :href="receiptUrl(income.receipt_path)" target="_blank"
+                                        class="inline-flex items-center gap-1 text-xs text-[#1D3557] font-semibold mt-1 hover:underline">
+                                        <i :class="isPdf(income.receipt_path) ? 'pi pi-file-pdf text-red-500' : 'pi pi-image text-sky-500'" class="text-xs"></i>
+                                        Lihat bukti
+                                    </a>
                                 </div>
                                 <div class="flex-shrink-0 flex flex-col items-end gap-2">
                                     <span class="font-bold text-emerald-600 text-sm whitespace-nowrap">{{ fmt(income.amount) }}</span>
@@ -558,6 +607,7 @@ onMounted(loadIncomes);
                                 <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Sumber</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Deskripsi</th>
                                 <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wide">Jumlah</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Bukti</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Aksi</th>
                             </tr>
                         </thead>
@@ -574,6 +624,14 @@ onMounted(loadIncomes);
                                     <div v-if="income.notes" class="text-xs text-slate-400 mt-0.5">{{ income.notes }}</div>
                                 </td>
                                 <td class="px-4 py-3 text-right font-bold text-emerald-600 whitespace-nowrap">{{ fmt(income.amount) }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <a v-if="income.receipt_path" :href="receiptUrl(income.receipt_path)" target="_blank"
+                                        class="inline-flex items-center gap-1 text-xs text-[#1D3557] font-semibold hover:underline">
+                                        <i :class="isPdf(income.receipt_path) ? 'pi pi-file-pdf text-red-500' : 'pi pi-image text-sky-500'"></i>
+                                        Lihat
+                                    </a>
+                                    <span v-else class="text-slate-300 text-xs">-</span>
+                                </td>
                                 <td class="px-4 py-3 text-center">
                                     <div class="flex items-center justify-center gap-3">
                                         <button @click="openEditModal(income)" class="text-slate-500 hover:text-[#1D3557] transition-colors" title="Edit">
@@ -637,6 +695,26 @@ onMounted(loadIncomes);
                         <input v-model="editForm.description" type="text"
                             class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
                         />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Bukti Pemasukan</label>
+                        <div v-if="editModal.income?.receipt_path" class="flex items-center gap-3 mb-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                            <a :href="receiptUrl(editModal.income.receipt_path)" target="_blank"
+                                class="flex items-center gap-1.5 text-xs font-semibold text-[#1D3557] hover:underline flex-1 min-w-0">
+                                <i :class="isPdf(editModal.income.receipt_path) ? 'pi pi-file-pdf text-red-500' : 'pi pi-image text-sky-500'" class="text-sm flex-shrink-0"></i>
+                                <span class="truncate">{{ editModal.income.receipt_path.split('/').pop() }}</span>
+                            </a>
+                            <button @click="removeReceipt(editModal.income!)" class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0" title="Hapus bukti">
+                                <i class="pi pi-times text-xs"></i>
+                            </button>
+                        </div>
+                        <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,application/pdf"
+                            @change="(e) => { editReceiptFile = (e.target as HTMLInputElement).files?.[0] ?? null }"
+                            class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                        />
+                        <p class="text-[11px] text-slate-400 mt-1 pl-1">{{ editModal.income?.receipt_path ? 'Pilih file baru untuk mengganti bukti.' : 'JPG, PNG, WebP, atau PDF. Maks. 5 MB.' }}</p>
                     </div>
                 </div>
                 <div class="flex gap-3 p-5 border-t border-slate-100">

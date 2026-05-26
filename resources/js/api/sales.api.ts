@@ -14,6 +14,14 @@ export const salesApi = {
     pay:        (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/pay`, { amount }),
     setPayment: (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/set-payment`, { amount }),
     ship:        (id: number, data: { shipped_at?: string; notes?: string }) => api.patch<ApiResponse<Sale>>(`/sales/${id}/ship`, data),
-    revertStock: (id: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/revert-stock`, {}),
-    remove:      (id: number) => api.delete<ApiResponse<null>>(`/sales/${id}`),
+    revertStock:      (id: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/revert-stock`, {}),
+    remove:           (id: number) => api.delete<ApiResponse<null>>(`/sales/${id}`),
+    uploadAttachment: (id: number, file: File) => {
+        const form = new FormData();
+        form.append('attachment', file);
+        return api.post<ApiResponse<Sale>>(`/sales/${id}/attachment`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+    },
+    deleteAttachment: (id: number) => api.delete<ApiResponse<Sale>>(`/sales/${id}/attachment`),
 };

@@ -12,6 +12,7 @@ class Income extends Model
         'description',
         'amount',
         'notes',
+        'receipt_path',
         'recorded_by_id',
     ];
 

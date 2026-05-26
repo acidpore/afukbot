@@ -12,7 +12,8 @@
       "Bash(Get-ChildItem -Filter \"*ale*\" -File)",
       "Bash(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\absensi\" -Depth 2)",
       "Bash(Select-Object FullName)",
-      "Bash(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\absensi\\\\app\\\\Modules\\\\Sales\" -Recurse -File)"
+      "Bash(Get-ChildItem -Path \"C:\\\\laragon\\\\www\\\\absensi\\\\app\\\\Modules\\\\Sales\" -Recurse -File)",
+      "PowerShell(Get-ChildItem C:\\\\laragon\\\\www\\\\absensi\\\\app -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\('C:\\\\laragon\\\\www\\\\absensi\\\\', ''\\) })"
     ]
   }
 }

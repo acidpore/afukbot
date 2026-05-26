@@ -8,5 +8,7 @@ Route::prefix('incomes')->group(function () {
     Route::post('/',       [IncomeController::class, 'store']);
     Route::put('/{id}',    [IncomeController::class, 'update']);
     Route::delete('/{id}', [IncomeController::class, 'destroy']);
-    Route::post('/import',  [IncomeController::class, 'import']);
+    Route::post('/import',           [IncomeController::class, 'import']);
+    Route::post('/{id}/receipt',     [IncomeController::class, 'uploadReceipt']);
+    Route::delete('/{id}/receipt',   [IncomeController::class, 'deleteReceipt']);
 });

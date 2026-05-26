@@ -59,6 +59,19 @@ class ExpenseController extends Controller
         }
     }
 
+    public function uploadReceipt(Request $request, $id)
+    {
+        $request->validate(['receipt' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120']);
+        $expense = $this->expenseService->uploadReceipt((int) $id, $request->file('receipt'));
+        return $this->sendResponse($expense, 'Bukti struk berhasil diunggah');
+    }
+
+    public function deleteReceipt($id)
+    {
+        $expense = $this->expenseService->deleteReceipt((int) $id);
+        return $this->sendResponse($expense, 'Bukti struk berhasil dihapus');
+    }
+
     public function summary(Request $request)
     {
         $month = $request->query('month', now()->format('Y-m'));

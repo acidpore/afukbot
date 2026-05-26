@@ -12,6 +12,7 @@ class Sale extends Model
         'recipient_address',
         'invoice_date',
         'notes',
+        'attachment_path',
         'grand_total',
         'paid_amount',
         'status',

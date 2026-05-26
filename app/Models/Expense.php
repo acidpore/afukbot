@@ -13,6 +13,7 @@ class Expense extends Model
         'amount',
         'paid_by',
         'notes',
+        'receipt_path',
         'recorded_by_id',
     ];
 

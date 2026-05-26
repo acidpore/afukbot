@@ -5,6 +5,8 @@ import { inventoryApi } from '../../../api/inventory.api';
 import type { Sale, SaleItem } from '../../../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { PDFDocument } from 'pdf-lib';
+import * as XLSX from 'xlsx';
 
 // ── State ──────────────────────────────────────────────────
 const activeTab        = ref<'new' | 'belum_dikirim' | 'sudah_dikirim'>('new');
@@ -40,6 +42,11 @@ const emptyItem = (): SaleItem => ({
 
 const items = ref<SaleItem[]>([emptyItem()]);
 
+// ── Import Items Excel/CSV ─────────────────────────────────
+const importItemsModal   = ref(false);
+const importItemsPreview = ref<{ item_name: string; qty: number; unit_price: number; description: string }[]>([]);
+const importItemsError   = ref('');
+
 // ── Computed ───────────────────────────────────────────────
 const grandTotal = computed(() =>
     items.value.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.unit_price) || 0), 0)
@@ -63,7 +70,9 @@ const editItems = ref<SaleItem[]>([]);
 const editSearchQueries  = ref<string[]>([]);
 const editDropdownOpen   = ref<boolean[]>([]);
 const editPriceDisplays  = ref<string[]>([]);
-const editSubmitting     = ref(false);
+const editSubmitting      = ref(false);
+const attachmentFile      = ref<File | null>(null);
+const attachmentUploading = ref(false);
 
 function openEditModal(sale: Sale) {
     editForm.value = {
@@ -162,6 +171,34 @@ async function submitEdit() {
         alert(e?.response?.data?.message || 'Gagal menyimpan perubahan.');
     } finally {
         editSubmitting.value = false;
+    }
+}
+
+async function uploadAttachment(sale: Sale) {
+    if (!attachmentFile.value) return;
+    attachmentUploading.value = true;
+    try {
+        const res = await salesApi.uploadAttachment(sale.id, attachmentFile.value);
+        const idx = sales.value.findIndex(s => s.id === sale.id);
+        if (idx !== -1) sales.value[idx] = res.data.data;
+        if (editModal.value.sale?.id === sale.id) editModal.value.sale = res.data.data;
+        attachmentFile.value = null;
+    } catch (e: any) {
+        alert(e?.response?.data?.message || 'Gagal mengunggah lampiran.');
+    } finally {
+        attachmentUploading.value = false;
+    }
+}
+
+async function removeAttachment(sale: Sale) {
+    if (!confirm('Hapus lampiran PDF ini?')) return;
+    try {
+        const res = await salesApi.deleteAttachment(sale.id);
+        const idx = sales.value.findIndex(s => s.id === sale.id);
+        if (idx !== -1) sales.value[idx] = res.data.data;
+        if (editModal.value.sale?.id === sale.id) editModal.value.sale = res.data.data;
+    } catch (e: any) {
+        alert(e?.response?.data?.message || 'Gagal menghapus lampiran.');
     }
 }
 
@@ -349,6 +386,96 @@ function closeDropdown(idx: number) {
     }, 150);
 }
 
+function onImportItemsFile(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    importItemsError.value   = '';
+    importItemsPreview.value = [];
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        try {
+            const wb    = XLSX.read(ev.target?.result, { type: 'array' });
+            const ws    = wb.Sheets[wb.SheetNames[0]];
+            const rows  = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
+
+            if (rows.length === 0) {
+                importItemsError.value = 'File kosong atau format tidak dikenali.';
+                return;
+            }
+
+            // Normalisasi header: lowercase, trim, hapus spasi
+            const normalize = (s: string) => String(s).toLowerCase().replace(/\s+/g, '_');
+            const firstRow  = rows[0];
+            const keyMap: Record<string, string> = {};
+            for (const k of Object.keys(firstRow)) {
+                keyMap[normalize(k)] = k;
+            }
+
+            const nameKey  = keyMap['nama_barang'] ?? keyMap['nama'] ?? keyMap['item_name'] ?? keyMap['barang'];
+            const qtyKey   = keyMap['qty'] ?? keyMap['kts'] ?? keyMap['kuantitas'] ?? keyMap['jumlah'];
+            const priceKey = keyMap['harga_satuan'] ?? keyMap['@harga'] ?? keyMap['harga'] ?? keyMap['unit_price'] ?? keyMap['price'];
+            const descKey  = keyMap['keterangan'] ?? keyMap['description'] ?? keyMap['deskripsi'] ?? keyMap['ket'];
+
+            if (!nameKey || !qtyKey || !priceKey) {
+                importItemsError.value = 'Kolom wajib tidak ditemukan. Pastikan ada: nama_barang, qty, harga_satuan.';
+                return;
+            }
+
+            const parsed = rows
+                .map(r => ({
+                    item_name:   String(r[nameKey] ?? '').trim(),
+                    qty:         parseInt(String(r[qtyKey]).replace(/\D/g, '')) || 0,
+                    unit_price:  parseInt(String(r[priceKey]).replace(/[^\d]/g, '')) || 0,
+                    description: descKey ? String(r[descKey] ?? '').trim() : '',
+                }))
+                .filter(r => r.item_name && r.qty > 0 && r.unit_price >= 0);
+
+            if (parsed.length === 0) {
+                importItemsError.value = 'Tidak ada baris valid. Pastikan qty > 0 dan nama barang tidak kosong.';
+                return;
+            }
+
+            importItemsPreview.value = parsed;
+            importItemsModal.value   = true;
+        } catch {
+            importItemsError.value = 'Gagal membaca file. Pastikan format Excel (.xlsx) atau CSV.';
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    (e.target as HTMLInputElement).value = '';
+}
+
+function downloadImportTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+        ['nama_barang', 'qty', 'harga_satuan', 'keterangan'],
+        ['Contoh Produk A', 10, 150000, 'Keterangan opsional'],
+        ['Contoh Produk B', 5, 75000, ''],
+    ]);
+    ws['!cols'] = [{ wch: 30 }, { wch: 8 }, { wch: 16 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Items');
+    XLSX.writeFile(wb, 'template_import_item.xlsx');
+}
+
+function confirmImportItems() {
+    const existing = items.value.filter(i => i.item_name.trim());
+    const incoming = importItemsPreview.value.map(r => ({
+        item_name:   r.item_name,
+        description: r.description,
+        qty:         r.qty,
+        unit_price:  r.unit_price,
+    }));
+
+    items.value = existing.length ? [...existing, ...incoming] : incoming;
+    itemSearchQueries.value = items.value.map(i => i.item_name);
+    itemDropdownOpen.value  = items.value.map(() => false);
+    priceDisplays.value     = items.value.map(i => Number(i.unit_price) > 0 ? Number(i.unit_price).toLocaleString('id-ID') : '');
+
+    importItemsModal.value   = false;
+    importItemsPreview.value = [];
+}
+
 function resetForm() {
     form.value = {
         recipient_name:    '',
@@ -484,7 +611,7 @@ async function revertStock(id: number) {
 }
 
 // ── Invoice PDF ────────────────────────────────────────────
-function printInvoice(sale: Sale) {
+async function printInvoice(sale: Sale) {
     const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const NAVY      = [29, 53, 87]  as [number,number,number];
     const NAVY_HEX  = '#1D3557';
@@ -759,12 +886,43 @@ function printInvoice(sale: Sale) {
     doc.text(sale.recipient_name, LM + 10, y);
 
     // ── 7. PAGE NUMBER ─────────────────────────────────────
-    doc.setFontSize(8);
-    doc.setFont('times', 'normal');
-    doc.setTextColor(136, 136, 136);
-    doc.text('1', pageW / 2, 287, { align: 'center' });
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont('times', 'normal');
+        doc.setTextColor(136, 136, 136);
+        doc.text(`${i} / ${pageCount}`, pageW / 2, 287, { align: 'center' });
+    }
 
-    doc.save(`${sale.invoice_number.replace(/\//g, '-')}.pdf`);
+    const filename = `${sale.invoice_number.replace(/\//g, '-')}.pdf`;
+
+    if (sale.attachment_path) {
+        const invoiceBytes     = doc.output('arraybuffer');
+        const attachRes        = await fetch(`/storage/${sale.attachment_path}`);
+        const attachmentBytes  = await attachRes.arrayBuffer();
+
+        const merged       = await PDFDocument.create();
+        const invoicePdf   = await PDFDocument.load(invoiceBytes);
+        const attachPdf    = await PDFDocument.load(attachmentBytes);
+
+        const invoicePages = await merged.copyPages(invoicePdf, invoicePdf.getPageIndices());
+        invoicePages.forEach(p => merged.addPage(p));
+
+        const attachPages  = await merged.copyPages(attachPdf, attachPdf.getPageIndices());
+        attachPages.forEach(p => merged.addPage(p));
+
+        const mergedBytes = await merged.save();
+        const blob        = new Blob([mergedBytes], { type: 'application/pdf' });
+        const url         = URL.createObjectURL(blob);
+        const a           = document.createElement('a');
+        a.href     = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    } else {
+        doc.save(filename);
+    }
 }
 
 function formatDate(dateStr: string): string {
@@ -905,15 +1063,29 @@ onMounted(async () => {
 
             <!-- Tabel Item -->
             <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
                     <h2 class="text-base font-bold text-slate-700">Daftar Item</h2>
-                    <button
-                        @click="addItem"
-                        class="flex items-center gap-2 bg-[#1D3557] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#162840] transition-colors"
-                    >
-                        <i class="pi pi-plus text-xs"></i>
-                        Tambah Item
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button @click="downloadImportTemplate" class="flex items-center gap-1.5 border border-slate-300 text-slate-600 text-xs font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors">
+                            <i class="pi pi-download text-xs"></i>
+                            Template
+                        </button>
+                        <label class="flex items-center gap-1.5 border border-slate-300 text-slate-600 text-xs font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
+                            <i class="pi pi-file-excel text-xs"></i>
+                            Import Excel / CSV
+                            <input type="file" accept=".xlsx,.xls,.csv" class="hidden" @change="onImportItemsFile" />
+                        </label>
+                        <button
+                            @click="addItem"
+                            class="flex items-center gap-2 bg-[#1D3557] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#162840] transition-colors"
+                        >
+                            <i class="pi pi-plus text-xs"></i>
+                            Tambah Item
+                        </button>
+                    </div>
+                </div>
+                <div v-if="importItemsError" class="mb-3 bg-red-50 border border-red-200 text-red-600 text-xs px-4 py-2.5 rounded-xl">
+                    {{ importItemsError }}
                 </div>
 
                 <!-- Header kolom -->
@@ -1219,8 +1391,9 @@ onMounted(async () => {
                                             <button @click="openEditModal(sale)" class="text-slate-500 hover:text-[#1D3557] transition-colors" title="Edit">
                                                 <i class="pi pi-pencil"></i>
                                             </button>
-                                            <button @click="printInvoice(sale)" class="text-[#1D3557] hover:text-[#162840] transition-colors" title="Cetak">
+                                            <button @click="printInvoice(sale)" class="text-[#1D3557] hover:text-[#162840] transition-colors relative" title="Cetak Invoice">
                                                 <i class="pi pi-file-pdf"></i>
+                                                <span v-if="sale.attachment_path" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500"></span>
                                             </button>
                                             <button @click="deleteSale(sale.id)" class="text-red-400 hover:text-red-600 transition-colors" title="Hapus">
                                                 <i class="pi pi-trash"></i>
@@ -1322,8 +1495,9 @@ onMounted(async () => {
                                             <button @click="openEditModal(sale)" class="text-slate-500 hover:text-[#1D3557] transition-colors" title="Edit">
                                                 <i class="pi pi-pencil"></i>
                                             </button>
-                                            <button @click="printInvoice(sale)" class="text-[#1D3557] hover:text-[#162840] transition-colors" title="Cetak">
+                                            <button @click="printInvoice(sale)" class="text-[#1D3557] hover:text-[#162840] transition-colors relative" title="Cetak Invoice">
                                                 <i class="pi pi-file-pdf"></i>
+                                                <span v-if="sale.attachment_path" class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500"></span>
                                             </button>
                                             <button @click="revertStock(sale.id)" class="text-amber-500 hover:text-amber-700 transition-colors" title="Revert Stok (kembalikan ke Belum Dikirim)">
                                                 <i class="pi pi-history"></i>
@@ -1379,6 +1553,45 @@ onMounted(async () => {
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 mb-1.5">Catatan</label>
                             <input v-model="editForm.notes" type="text" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1.5">Lampiran PDF (misal: Sertifikat Halal)</label>
+                            <div v-if="editModal.sale?.attachment_path" class="flex items-center gap-3 mb-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                                <a
+                                    :href="`/storage/${editModal.sale.attachment_path}`"
+                                    target="_blank"
+                                    class="flex items-center gap-1.5 text-xs font-semibold text-[#1D3557] hover:underline flex-1 min-w-0"
+                                >
+                                    <i class="pi pi-file-pdf text-red-500 text-sm flex-shrink-0"></i>
+                                    <span class="truncate">{{ editModal.sale.attachment_path.split('/').pop() }}</span>
+                                </a>
+                                <button
+                                    @click="removeAttachment(editModal.sale!)"
+                                    class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                    title="Hapus lampiran"
+                                >
+                                    <i class="pi pi-times text-xs"></i>
+                                </button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input
+                                    type="file"
+                                    accept="application/pdf"
+                                    @change="(e) => { attachmentFile = (e.target as HTMLInputElement).files?.[0] ?? null }"
+                                    class="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                                />
+                                <button
+                                    v-if="attachmentFile"
+                                    @click="uploadAttachment(editModal.sale!)"
+                                    :disabled="attachmentUploading"
+                                    class="flex items-center gap-1.5 bg-[#1D3557] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#162840] disabled:opacity-40 transition-colors whitespace-nowrap"
+                                >
+                                    <i v-if="attachmentUploading" class="pi pi-spin pi-spinner text-xs"></i>
+                                    <i v-else class="pi pi-upload text-xs"></i>
+                                    {{ attachmentUploading ? 'Mengunggah...' : 'Upload' }}
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1 pl-1">{{ editModal.sale?.attachment_path ? 'Pilih file baru untuk mengganti lampiran.' : 'Hanya file PDF. Maks. 10 MB.' }}</p>
                         </div>
                     </div>
 
@@ -1646,6 +1859,50 @@ onMounted(async () => {
                         Simpan
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Items Preview Modal -->
+    <div v-if="importItemsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between p-6 border-b border-slate-100">
+                <h3 class="text-lg font-bold text-[#1D3557]">Preview Import Item</h3>
+                <button @click="importItemsModal = false" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="overflow-auto flex-1 p-6">
+                <p v-if="importItemsError" class="text-red-600 text-sm mb-4">{{ importItemsError }}</p>
+                <p class="text-sm text-slate-500 mb-4">{{ importItemsPreview.length }} item ditemukan. Klik Konfirmasi untuk menambahkan ke daftar item.</p>
+                <table class="w-full text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50">
+                            <th class="text-left px-3 py-2 border border-slate-200 font-semibold text-slate-600">#</th>
+                            <th class="text-left px-3 py-2 border border-slate-200 font-semibold text-slate-600">Nama Barang</th>
+                            <th class="text-left px-3 py-2 border border-slate-200 font-semibold text-slate-600">Keterangan</th>
+                            <th class="text-right px-3 py-2 border border-slate-200 font-semibold text-slate-600">Qty</th>
+                            <th class="text-right px-3 py-2 border border-slate-200 font-semibold text-slate-600">Harga Satuan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(item, i) in importItemsPreview" :key="i" class="hover:bg-slate-50">
+                            <td class="px-3 py-2 border border-slate-200 text-slate-500">{{ i + 1 }}</td>
+                            <td class="px-3 py-2 border border-slate-200">{{ item.item_name }}</td>
+                            <td class="px-3 py-2 border border-slate-200 text-slate-500">{{ item.description }}</td>
+                            <td class="px-3 py-2 border border-slate-200 text-right">{{ item.qty }}</td>
+                            <td class="px-3 py-2 border border-slate-200 text-right">{{ Number(item.unit_price).toLocaleString('id-ID') }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex gap-3 p-6 border-t border-slate-100">
+                <button @click="importItemsModal = false" class="flex-1 border border-slate-300 text-slate-600 text-sm font-bold py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+                    Batal
+                </button>
+                <button @click="confirmImportItems" :disabled="importItemsPreview.length === 0" class="flex-1 bg-[#1D3557] text-white text-sm font-bold py-2.5 rounded-xl hover:bg-[#162840] disabled:opacity-40 transition-colors">
+                    Konfirmasi ({{ importItemsPreview.length }} item)
+                </button>
             </div>
         </div>
     </div>
