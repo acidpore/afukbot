@@ -295,12 +295,18 @@ class SalesService
                 $key = strtolower(trim($item->item_name));
                 if (!isset($itemMap[$key])) {
                     $itemMap[$key] = [
-                        'item_name' => $item->item_name,
-                        'total_qty' => 0,
-                        'invoices'  => [],
+                        'item_name'          => $item->item_name,
+                        'total_qty'          => 0,
+                        'inventory_item_ids' => [],
+                        'invoices'           => [],
                     ];
                 }
                 $itemMap[$key]['total_qty'] += $item->qty;
+                foreach ($item->inventory_item_ids ?? [] as $id) {
+                    if (!in_array($id, $itemMap[$key]['inventory_item_ids'])) {
+                        $itemMap[$key]['inventory_item_ids'][] = $id;
+                    }
+                }
                 $itemMap[$key]['invoices'][] = [
                     'invoice_number' => $sale->invoice_number,
                     'recipient_name' => $sale->recipient_name,
@@ -309,11 +315,23 @@ class SalesService
             }
         }
 
-        $inventoryStock = Item::all()->keyBy(fn($i) => strtolower(trim($i->item_name)));
+        $allInventoryIds = [];
+        foreach ($itemMap as $entry) {
+            foreach ($entry['inventory_item_ids'] as $id) {
+                $allInventoryIds[] = $id;
+            }
+        }
+        $inventoryStock = Item::whereIn('id', array_unique($allInventoryIds))
+            ->get()
+            ->keyBy('id');
 
         foreach ($itemMap as &$entry) {
-            $key = strtolower(trim($entry['item_name']));
-            $entry['stok'] = isset($inventoryStock[$key]) ? (int) $inventoryStock[$key]->quantity : null;
+            if (!empty($entry['inventory_item_ids'])) {
+                $entry['stok'] = collect($entry['inventory_item_ids'])
+                    ->sum(fn($id) => (int) ($inventoryStock[$id]->quantity ?? 0));
+            } else {
+                $entry['stok'] = null;
+            }
         }
         unset($entry);
 
