@@ -537,6 +537,22 @@
               <textarea v-model="txForm.note" rows="2" placeholder="Catatan tambahan..."
                 class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none resize-none" />
             </div>
+
+            <div>
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Bukti <span class="normal-case font-normal text-slate-400">(opsional)</span></label>
+              <label class="flex items-center gap-3 border border-dashed border-slate-200 rounded-xl px-4 py-3 cursor-pointer hover:border-amber-300 hover:bg-amber-50/50 transition-colors group">
+                <i class="pi pi-upload text-slate-300 group-hover:text-amber-400 transition-colors"></i>
+                <span class="text-sm text-slate-400 group-hover:text-amber-500 transition-colors truncate">
+                  {{ txReceiptFile ? txReceiptFile.name : 'Upload foto / PDF struk...' }}
+                </span>
+                <input type="file" accept="image/*,application/pdf" class="hidden"
+                  @change="e => txReceiptFile = (e.target as HTMLInputElement).files?.[0] ?? null" />
+              </label>
+              <button v-if="txReceiptFile" @click="txReceiptFile = null"
+                class="mt-1.5 text-[10px] text-slate-400 hover:text-red-500 transition-colors">
+                Hapus file
+              </button>
+            </div>
           </div>
 
           <!-- Footer -->
@@ -623,6 +639,7 @@ const itemForm  = ref({ name: '', unit_cost: '0', rate: 'bulanan', multiplier: 1
 const txModal      = ref({ open: false, id: null as number | null })
 const txForm       = ref({ budget_item_id: 0, amount: '0', transaction_date: today(), note: '' })
 const txModalCatId = ref<number | null>(null)
+const txReceiptFile = ref<File | null>(null)
 const txModalItems = computed(() => {
   if (!txModalCatId.value) return []
   return categories.value.find(c => c.id === txModalCatId.value)?.items ?? []
@@ -825,9 +842,10 @@ async function deleteItem(id: number) {
 // ── Transaction CRUD ───────────────────────────────────────────
 
 function openAddTransaction() {
-  txModal.value  = { open: true, id: null }
-  txForm.value   = { budget_item_id: 0, amount: '0', transaction_date: today(), note: '' }
+  txModal.value      = { open: true, id: null }
+  txForm.value       = { budget_item_id: 0, amount: '0', transaction_date: today(), note: '' }
   txModalCatId.value = null
+  txReceiptFile.value = null
 }
 
 function openEditTransaction(tx: any) {
@@ -853,10 +871,23 @@ async function saveTransaction() {
       transaction_date: txForm.value.transaction_date,
       note: txForm.value.note || null,
     }
+    let savedId: number
     if (txModal.value.id) {
       await budgetApi.updateTransaction(txModal.value.id, payload)
+      savedId = txModal.value.id
     } else {
-      await budgetApi.createTransaction(payload)
+      const res = await budgetApi.createTransaction(payload)
+      savedId = res.data.data?.id
+    }
+    if (txReceiptFile.value && savedId) {
+      try {
+        await budgetApi.uploadReceipt(savedId, txReceiptFile.value)
+      } catch {
+        showToast('Transaksi disimpan, tapi bukti gagal diunggah.', 'error')
+        txModal.value.open = false
+        await Promise.all([loadTransactions(), loadSummary()])
+        return
+      }
     }
     txModal.value.open = false
     await Promise.all([loadTransactions(), loadSummary()])

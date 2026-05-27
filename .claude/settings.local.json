@@ -20,7 +20,8 @@
       "Bash(npm install *)",
       "Bash(php artisan *)",
       "Bash(xargs grep -n \"fillable\\\\|item_name\\\\|qty\\\\|quantity\")",
-      "Bash(xargs grep -l \"rab\\\\|RAB\\\\|realisasi\\\\|Realisasi\")"
+      "Bash(xargs grep -l \"rab\\\\|RAB\\\\|realisasi\\\\|Realisasi\")",
+      "Bash(xargs grep -ln \"receipt\\\\|bukti\\\\|upload\")"
     ]
   }
 }
