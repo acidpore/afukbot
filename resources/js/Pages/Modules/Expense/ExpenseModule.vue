@@ -223,10 +223,11 @@ async function submitExpense() {
         const res = await expenseApi.create(payload);
         let expense = res.data.data;
         expenses.value.unshift(expense);
+        const pendingReceipt = receiptFile.value;
         resetForm();
-        if (receiptFile.value) {
+        if (pendingReceipt) {
             try {
-                const upRes = await expenseApi.uploadReceipt(expense.id, receiptFile.value);
+                const upRes = await expenseApi.uploadReceipt(expense.id, pendingReceipt);
                 expenses.value[0] = upRes.data.data;
             } catch {
                 showToast('Pengeluaran dicatat, tapi struk gagal diunggah.', 'error');
