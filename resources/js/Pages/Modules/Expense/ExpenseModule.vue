@@ -222,13 +222,18 @@ async function submitExpense() {
         if (payload.category === 'Lainnya') payload.category = customCategory.value.trim();
         const res = await expenseApi.create(payload);
         let expense = res.data.data;
-        if (receiptFile.value) {
-            const upRes = await expenseApi.uploadReceipt(expense.id, receiptFile.value);
-            expense = upRes.data.data;
-        }
         expenses.value.unshift(expense);
-        successMsg.value = 'Pengeluaran berhasil dicatat.';
         resetForm();
+        if (receiptFile.value) {
+            try {
+                const upRes = await expenseApi.uploadReceipt(expense.id, receiptFile.value);
+                expenses.value[0] = upRes.data.data;
+            } catch {
+                showToast('Pengeluaran dicatat, tapi struk gagal diunggah.', 'error');
+                return;
+            }
+        }
+        showToast('Pengeluaran berhasil dicatat.');
     } catch (e: any) {
         errorMsg.value = e?.response?.data?.message || 'Terjadi kesalahan.';
     } finally {
