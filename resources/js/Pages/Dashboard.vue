@@ -34,6 +34,9 @@ const totalKekurangan = computed(() => kekurangan.value.reduce((s, k) => s + k.s
 
 const top10Items = ref<{ item_name: string; total_qty: number; total_revenue: number }[]>([]);
 
+const pendingItems = ref<{ item_name: string; total_qty: number; invoices: { invoice_number: string; recipient_name: string; qty: number }[] }[]>([]);
+const pendingInvoiceCount = ref(0);
+
 const manualPiutang    = ref<ManualPiutang[]>([]);
 const piutangForm      = ref({ name: '', amount: '', notes: '' });
 
@@ -155,8 +158,13 @@ function processSales(sales: any[]) {
 
 async function fetchSales() {
   try {
-    const salesRes = await salesApi.getAll();
+    const [salesRes, pendingRes] = await Promise.all([
+      salesApi.getAll(),
+      salesApi.getPendingItems(),
+    ]);
     processSales(salesRes.data.data);
+    pendingItems.value = pendingRes.data.data.items;
+    pendingInvoiceCount.value = pendingRes.data.data.total_invoices;
   } catch {}
 }
 
@@ -181,16 +189,19 @@ function onVisibilityChange() {
 
 onMounted(async () => {
   try {
-    const [itemsRes, valuasiRes, salesRes] = await Promise.all([
+    const [itemsRes, valuasiRes, salesRes, pendingRes] = await Promise.all([
       inventoryApi.getItems(),
       inventoryApi.getValuasi(),
       salesApi.getAll(),
+      salesApi.getPendingItems(),
       fetchManualPiutang(),
     ]);
 
     stats.value.totalItems = itemsRes.data.data.length;
     processSales(salesRes.data.data);
     valuasi.value = valuasiRes.data.data;
+    pendingItems.value = pendingRes.data.data.items;
+    pendingInvoiceCount.value = pendingRes.data.data.total_invoices;
   } catch (error) {
     console.error('Gagal mengambil data dashboard:', error);
   }
@@ -414,6 +425,27 @@ onUnmounted(() => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barang Perlu Disiapkan -->
+        <div v-if="pendingItems.length > 0" class="premium-card bg-white mt-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-display font-bold text-primary">Perlu Disiapkan</h2>
+            <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg">{{ pendingInvoiceCount }} invoice belum dikirim</span>
+          </div>
+          <div class="space-y-2">
+            <div v-for="item in pendingItems" :key="item.item_name" class="border border-slate-100 rounded-xl px-4 py-3">
+              <div class="flex items-center justify-between gap-3 mb-1.5">
+                <p class="text-sm font-bold text-slate-700 truncate">{{ item.item_name }}</p>
+                <span class="shrink-0 text-sm font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg">{{ item.total_qty }} unit</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                <span v-for="inv in item.invoices" :key="inv.invoice_number" class="text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md">
+                  {{ inv.invoice_number }} &middot; {{ inv.recipient_name }} &middot; {{ inv.qty }} unit
+                </span>
               </div>
             </div>
           </div>

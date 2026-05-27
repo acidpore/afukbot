@@ -133,6 +133,11 @@ class SalesController extends Controller
         return $this->sendResponse($sale, 'Lampiran berhasil dihapus');
     }
 
+    public function pendingItems()
+    {
+        return $this->sendResponse($this->salesService->getPendingItems(), 'Pending items retrieved');
+    }
+
     public function destroy($id)
     {
         try {

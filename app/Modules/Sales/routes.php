@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('sales')->group(function () {
     Route::get('/',             [SalesController::class, 'index']);
+    Route::get('/pending-items', [SalesController::class, 'pendingItems']);
     Route::post('/',            [SalesController::class, 'store']);
     Route::get('/{id}',         [SalesController::class, 'show']);
     Route::put('/{id}',         [SalesController::class, 'update']);

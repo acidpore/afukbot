@@ -7,7 +7,8 @@ const api = axios.create({
 });
 
 export const salesApi = {
-    getAll:  ()              => api.get<ApiResponse<Sale[]>>('/sales'),
+    getAll:         ()       => api.get<ApiResponse<Sale[]>>('/sales'),
+    getPendingItems: ()      => api.get<ApiResponse<{ items: { item_name: string; total_qty: number; invoices: { invoice_number: string; recipient_name: string; qty: number }[] }[]; total_invoices: number }>>('/sales/pending-items'),
     getById: (id: number)   => api.get<ApiResponse<Sale>>(`/sales/${id}`),
     create:  (data: object) => api.post<ApiResponse<Sale>>('/sales', data),
     update:  (id: number, data: object)   => api.put<ApiResponse<Sale>>(`/sales/${id}`, data),

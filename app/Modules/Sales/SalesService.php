@@ -282,6 +282,41 @@ class SalesService
         return $item->id;
     }
 
+    public function getPendingItems(): array
+    {
+        $sales = Sale::with('items')
+            ->where('status', 'belum_dikirim')
+            ->orderBy('invoice_date')
+            ->get();
+
+        $itemMap = [];
+        foreach ($sales as $sale) {
+            foreach ($sale->items as $item) {
+                $key = strtolower(trim($item->item_name));
+                if (!isset($itemMap[$key])) {
+                    $itemMap[$key] = [
+                        'item_name' => $item->item_name,
+                        'total_qty' => 0,
+                        'invoices'  => [],
+                    ];
+                }
+                $itemMap[$key]['total_qty'] += $item->qty;
+                $itemMap[$key]['invoices'][] = [
+                    'invoice_number' => $sale->invoice_number,
+                    'recipient_name' => $sale->recipient_name,
+                    'qty'            => $item->qty,
+                ];
+            }
+        }
+
+        usort($itemMap, fn($a, $b) => $b['total_qty'] - $a['total_qty']);
+
+        return [
+            'items'         => array_values($itemMap),
+            'total_invoices' => $sales->count(),
+        ];
+    }
+
     private function generateInvoiceNumber(): string
     {
         $today  = now()->format('dmy');
