@@ -49,6 +49,18 @@ const editSubmitting      = ref(false);
 const editReceiptFile     = ref<File | null>(null);
 const receiptPreviewModal = ref<string | null>(null);
 
+// ── Confirm modal & toast ──────────────────────────────────
+const confirmModal = ref<{ open: boolean; message: string; action: () => void }>({ open: false, message: '', action: () => {} });
+const toast        = ref<{ show: boolean; message: string; type: string }>({ show: false, message: '', type: 'success' });
+
+function showConfirm(message: string, action: () => void) {
+    confirmModal.value = { open: true, message, action };
+}
+function showToast(message: string, type = 'success') {
+    toast.value = { show: true, message, type };
+    setTimeout(() => (toast.value.show = false), 3500);
+}
+
 // ── Computed ───────────────────────────────────────────────
 const filtered = computed(() => {
     return expenses.value.filter(e => {
@@ -240,34 +252,38 @@ async function submitEdit() {
         if (idx !== -1) expenses.value[idx] = updated;
         editModal.value.open = false;
     } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal menyimpan perubahan.');
+        showToast(e?.response?.data?.message || 'Gagal menyimpan perubahan.', 'error');
     } finally {
         editSubmitting.value = false;
     }
 }
 
 async function removeReceipt(expense: Expense) {
-    if (!confirm('Hapus bukti struk ini?')) return;
-    try {
-        const res = await expenseApi.deleteReceipt(expense.id);
-        const idx = expenses.value.findIndex(e => e.id === expense.id);
-        if (idx !== -1) expenses.value[idx] = res.data.data;
-        if (editModal.value.expense?.id === expense.id) {
-            editModal.value.expense = res.data.data;
+    showConfirm('Hapus bukti struk ini?', async () => {
+        try {
+            const res = await expenseApi.deleteReceipt(expense.id);
+            const idx = expenses.value.findIndex(e => e.id === expense.id);
+            if (idx !== -1) expenses.value[idx] = res.data.data;
+            if (editModal.value.expense?.id === expense.id) {
+                editModal.value.expense = res.data.data;
+            }
+            showToast('Bukti struk berhasil dihapus');
+        } catch (e: any) {
+            showToast(e?.response?.data?.message || 'Gagal menghapus struk.', 'error');
         }
-    } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal menghapus struk.');
-    }
+    });
 }
 
 async function deleteExpense(id: number) {
-    if (!confirm('Hapus catatan pengeluaran ini?')) return;
-    try {
-        await expenseApi.remove(id);
-        expenses.value = expenses.value.filter(e => e.id !== id);
-    } catch (e: any) {
-        alert(e?.response?.data?.message || 'Gagal menghapus.');
-    }
+    showConfirm('Hapus catatan pengeluaran ini?', async () => {
+        try {
+            await expenseApi.remove(id);
+            expenses.value = expenses.value.filter(e => e.id !== id);
+            showToast('Pengeluaran berhasil dihapus');
+        } catch (e: any) {
+            showToast(e?.response?.data?.message || 'Gagal menghapus.', 'error');
+        }
+    });
 }
 
 // ── Import CSV ─────────────────────────────────────────────
@@ -1104,4 +1120,49 @@ onMounted(loadExpenses);
             </div>
         </div>
     </div>
+
+    <!-- Confirm Modal -->
+    <Teleport to="body">
+        <div v-if="confirmModal.open" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+                <div class="bg-gradient-to-br from-red-500 to-red-600 px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                            <i class="pi pi-exclamation-triangle text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-white font-bold text-base">Konfirmasi</h3>
+                    </div>
+                </div>
+                <div class="px-6 py-5">
+                    <p class="text-gray-700 text-sm">{{ confirmModal.message }}</p>
+                    <div class="flex gap-3 mt-5">
+                        <button @click="confirmModal.open = false"
+                            class="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                            Batal
+                        </button>
+                        <button @click="() => { confirmModal.action(); confirmModal.open = false; }"
+                            class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors">
+                            Hapus
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <!-- Toast -->
+    <Teleport to="body">
+        <Transition name="toast">
+            <div v-if="toast.show"
+                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white whitespace-nowrap"
+                :class="toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'">
+                {{ toast.message }}
+            </div>
+        </Transition>
+    </Teleport>
 </template>
+
+<style scoped>
+.toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 1rem); }
+</style>

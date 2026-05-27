@@ -312,10 +312,10 @@ onUnmounted(() => {
             <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-3">Valuasi Stok + Piutang</p>
             <div class="flex items-end justify-between">
               <div class="space-y-1.5">
-                <h3 class="text-2xl font-display font-bold text-white leading-tight">{{ formatRupiah(valuasi.total_valuasi + totalKekurangan) }}</h3>
+                <h3 class="text-2xl font-display font-bold text-white leading-tight">{{ formatRupiah(valuasi.total_valuasi + totalAllPiutang) }}</h3>
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] text-white/60 font-bold uppercase">Stok {{ formatRupiah(valuasi.total_valuasi) }}</span>
-                  <span v-if="totalKekurangan > 0" class="text-[10px] text-amber-300 font-bold">+ Piutang {{ formatRupiah(totalKekurangan) }}</span>
+                  <span v-if="totalAllPiutang > 0" class="text-[10px] text-amber-300 font-bold">+ Piutang {{ formatRupiah(totalAllPiutang) }}</span>
                 </div>
               </div>
               <i class="pi pi-box text-3xl text-white/20"></i>

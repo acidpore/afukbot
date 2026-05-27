@@ -61,7 +61,7 @@ class ExpenseController extends Controller
 
     public function uploadReceipt(Request $request, $id)
     {
-        $request->validate(['receipt' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120']);
+        $request->validate(['receipt' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:10240']);
         $expense = $this->expenseService->uploadReceipt((int) $id, $request->file('receipt'));
         return $this->sendResponse($expense, 'Bukti struk berhasil diunggah');
     }
