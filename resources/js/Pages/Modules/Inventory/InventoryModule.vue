@@ -667,11 +667,12 @@ const handleSaveCategory = async () => {
                         <i :class="t.type === 'IN' ? 'pi pi-arrow-down-left' : 'pi pi-arrow-up-right'" class="text-[10px]"></i>
                         {{ t.type === 'IN' ? 'Masuk' : 'Keluar' }}
                       </span>
-                      <span class="text-[10px] font-bold text-slate-400">{{ t.date }}</span>
+                      <span class="text-[10px] font-bold text-slate-400">{{ t.date }} {{ t.created_at ? new Date(t.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '' }}</span>
                     </div>
                     <p class="text-sm font-bold text-slate-900">{{ t.item?.name }}</p>
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{{ t.item?.category?.name }}</p>
                     <p v-if="t.notes" class="text-xs text-slate-400 mt-0.5 truncate">{{ t.notes }}</p>
+                    <p v-if="t.recorded_by" class="text-[10px] text-slate-400 mt-0.5">{{ t.recorded_by.name }}</p>
                   </div>
                   <div class="flex-shrink-0 text-right">
                     <span :class="t.type === 'IN' ? 'text-emerald-600' : 'text-red-500'" class="text-lg font-bold">
@@ -693,17 +694,21 @@ const handleSaveCategory = async () => {
               <table class="w-full text-left border-collapse">
                 <thead>
                   <tr class="bg-slate-50/50 border-b border-slate-100">
-                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tanggal & Jam</th>
                     <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Barang</th>
                     <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tipe</th>
                     <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Jumlah</th>
                     <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Stok</th>
                     <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catatan</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Akun</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
                   <tr v-for="t in filteredTransactions" :key="t.id" class="hover:bg-slate-50/40 transition-colors group">
-                    <td class="px-6 py-4 text-xs font-bold text-slate-500 whitespace-nowrap">{{ t.date }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <p class="text-xs font-bold text-slate-500">{{ t.date }}</p>
+                      <p v-if="t.created_at" class="text-[10px] text-slate-400">{{ new Date(t.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}</p>
+                    </td>
                     <td class="px-6 py-4">
                       <p class="text-sm font-bold text-slate-900">{{ t.item?.name }}</p>
                       <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ t.item?.category?.name }}</p>
@@ -733,6 +738,7 @@ const handleSaveCategory = async () => {
                       </div>
                     </td>
                     <td class="px-6 py-4 text-xs text-slate-400 max-w-[180px] truncate">{{ t.notes || '—' }}</td>
+                    <td class="px-6 py-4 text-xs text-slate-500">{{ t.recorded_by?.name || '—' }}</td>
                   </tr>
                 </tbody>
               </table>
