@@ -309,10 +309,18 @@ class SalesService
             }
         }
 
+        $inventoryStock = Item::all()->keyBy(fn($i) => strtolower(trim($i->item_name)));
+
+        foreach ($itemMap as &$entry) {
+            $key = strtolower(trim($entry['item_name']));
+            $entry['stok'] = isset($inventoryStock[$key]) ? (int) $inventoryStock[$key]->quantity : null;
+        }
+        unset($entry);
+
         usort($itemMap, fn($a, $b) => $b['total_qty'] - $a['total_qty']);
 
         return [
-            'items'         => array_values($itemMap),
+            'items'          => array_values($itemMap),
             'total_invoices' => $sales->count(),
         ];
     }

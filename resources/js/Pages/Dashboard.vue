@@ -34,7 +34,7 @@ const totalKekurangan = computed(() => kekurangan.value.reduce((s, k) => s + k.s
 
 const top10Items = ref<{ item_name: string; total_qty: number; total_revenue: number }[]>([]);
 
-const pendingItems = ref<{ item_name: string; total_qty: number; invoices: { invoice_number: string; recipient_name: string; qty: number }[] }[]>([]);
+const pendingItems = ref<{ item_name: string; total_qty: number; stok: number | null; invoices: { invoice_number: string; recipient_name: string; qty: number }[] }[]>([]);
 const pendingInvoiceCount = ref(0);
 
 const manualPiutang    = ref<ManualPiutang[]>([]);
@@ -440,7 +440,11 @@ onUnmounted(() => {
             <div v-for="item in pendingItems" :key="item.item_name" class="border border-slate-100 rounded-xl px-4 py-3">
               <div class="flex items-center justify-between gap-3 mb-1.5">
                 <p class="text-sm font-bold text-slate-700 truncate">{{ item.item_name }}</p>
-                <span class="shrink-0 text-sm font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg">{{ item.total_qty }} unit</span>
+                <span
+                  :class="item.stok !== null && item.stok >= item.total_qty ? 'text-emerald-600' : 'text-orange-600'"
+                  class="shrink-0 text-sm font-bold">
+                  {{ item.total_qty }} unit
+                </span>
               </div>
               <div class="flex flex-wrap gap-1.5">
                 <span v-for="inv in item.invoices" :key="inv.invoice_number" class="text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md">
