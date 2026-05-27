@@ -270,20 +270,7 @@ onUnmounted(() => clearInterval(pollInterval));
 const historyFilter = ref<'all' | 'IN' | 'OUT'>('all');
 const historySearch = ref('');
 
-const today = new Date().toISOString().slice(0, 10);
-const thisMonth = today.slice(0, 7);
 
-const cashflowToday = computed(() =>
-  transactions.value
-    .filter(t => t.type === 'OUT' && t.date === today)
-    .reduce((sum, t) => sum + t.quantity * (t.item?.harga_jual ?? 0), 0)
-);
-
-const cashflowMonth = computed(() =>
-  transactions.value
-    .filter(t => t.type === 'OUT' && t.date?.startsWith(thisMonth))
-    .reduce((sum, t) => sum + t.quantity * (t.item?.harga_jual ?? 0), 0)
-);
 
 const filteredTransactions = computed(() => {
   const type = historyFilter.value;
@@ -560,43 +547,6 @@ const handleSaveCategory = async () => {
       <LoadingState v-if="isLoading" label="Memuat mutasi stok..." />
       <template v-else>
 
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div class="premium-card bg-white relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-20 h-20 bg-accent/10 rounded-full blur-2xl"></div>
-            <div class="flex items-center justify-between mb-3">
-              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cashflow Hari Ini</p>
-              <span class="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full uppercase">{{ today }}</span>
-            </div>
-            <p class="text-2xl font-display font-bold text-primary">
-              {{ cashflowToday > 0 ? 'Rp ' + cashflowToday.toLocaleString('id-ID') : '—' }}
-            </p>
-            <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">
-              {{ transactions.filter(t => t.type === 'OUT' && t.date === today).length }} transaksi keluar
-            </p>
-          </div>
-          <div class="premium-card bg-gradient-to-br from-primary to-primary-light text-white relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
-            <div class="flex items-center justify-between mb-3">
-              <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest">Cashflow Bulan Ini</p>
-              <span class="text-[9px] font-bold text-white/50 bg-white/10 px-2 py-0.5 rounded-full uppercase">{{ thisMonth }}</span>
-            </div>
-            <p class="text-2xl font-display font-bold text-white">
-              {{ cashflowMonth > 0 ? 'Rp ' + cashflowMonth.toLocaleString('id-ID') : '—' }}
-            </p>
-            <p class="text-[10px] text-white/60 font-bold uppercase mt-1">
-              {{ transactions.filter(t => t.type === 'OUT' && t.date?.startsWith(thisMonth)).length }} transaksi keluar
-            </p>
-          </div>
-          <div class="premium-card bg-white relative overflow-hidden">
-            <div class="absolute -right-4 -top-4 w-20 h-20 bg-slate-100 rounded-full blur-2xl"></div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Total Transaksi</p>
-            <p class="text-2xl font-display font-bold text-primary">{{ transactions.length }}</p>
-            <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">
-              {{ transactions.filter(t => t.type === 'IN').length }} masuk &middot; {{ transactions.filter(t => t.type === 'OUT').length }} keluar
-            </p>
-          </div>
-        </div>
 
         <!-- Toolbar -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-3">
