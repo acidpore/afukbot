@@ -493,16 +493,27 @@
           <!-- Body -->
           <div class="px-6 py-5 space-y-4">
             <div>
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Kategori</label>
+              <div class="relative">
+                <select v-model.number="txModalCatId" @change="txForm.budget_item_id = 0"
+                  class="appearance-none w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-9 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none cursor-pointer">
+                  <option :value="null" disabled>Pilih kategori...</option>
+                  <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                </select>
+                <i class="pi pi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+              </div>
+            </div>
+            <div>
               <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Item Anggaran</label>
-              <select v-model.number="txForm.budget_item_id"
-                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none">
-                <option :value="0" disabled>Pilih item...</option>
-                <template v-for="cat in categories" :key="cat.id">
-                  <optgroup :label="cat.name">
-                    <option v-for="item in cat.items" :key="item.id" :value="item.id">{{ item.name }}</option>
-                  </optgroup>
-                </template>
-              </select>
+              <div class="relative">
+                <select v-model.number="txForm.budget_item_id"
+                  :disabled="!txModalCatId"
+                  class="appearance-none w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-9 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                  <option :value="0" disabled>{{ txModalCatId ? 'Pilih item...' : 'Pilih kategori dulu' }}</option>
+                  <option v-for="item in txModalItems" :key="item.id" :value="item.id">{{ item.name }}</option>
+                </select>
+                <i class="pi pi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+              </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -609,8 +620,13 @@ const catForm  = ref({ name: '' })
 const itemModal = ref({ open: false, id: null as number | null, categoryId: 0 })
 const itemForm  = ref({ name: '', unit_cost: '0', rate: 'bulanan', multiplier: 1, is_active: true })
 
-const txModal = ref({ open: false, id: null as number | null })
-const txForm  = ref({ budget_item_id: 0, amount: '0', transaction_date: today(), note: '' })
+const txModal      = ref({ open: false, id: null as number | null })
+const txForm       = ref({ budget_item_id: 0, amount: '0', transaction_date: today(), note: '' })
+const txModalCatId = ref<number | null>(null)
+const txModalItems = computed(() => {
+  if (!txModalCatId.value) return []
+  return categories.value.find(c => c.id === txModalCatId.value)?.items ?? []
+})
 
 const confirmModal = ref({ open: false, message: '', action: () => {} })
 const toast        = ref({ show: false, message: '', type: 'success' })
@@ -809,8 +825,9 @@ async function deleteItem(id: number) {
 // ── Transaction CRUD ───────────────────────────────────────────
 
 function openAddTransaction() {
-  txModal.value = { open: true, id: null }
-  txForm.value  = { budget_item_id: 0, amount: '0', transaction_date: today(), note: '' }
+  txModal.value  = { open: true, id: null }
+  txForm.value   = { budget_item_id: 0, amount: '0', transaction_date: today(), note: '' }
+  txModalCatId.value = null
 }
 
 function openEditTransaction(tx: any) {
@@ -821,6 +838,9 @@ function openEditTransaction(tx: any) {
     transaction_date: tx.transaction_date,
     note: tx.note ?? '',
   }
+  txModalCatId.value = categories.value.find(c =>
+    c.items?.some((i: any) => i.id === tx.budget_item_id)
+  )?.id ?? null
 }
 
 async function saveTransaction() {
