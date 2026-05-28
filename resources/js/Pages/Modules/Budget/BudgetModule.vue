@@ -877,7 +877,7 @@ async function saveTransaction() {
       savedId = txModal.value.id
     } else {
       const res = await budgetApi.createTransaction(payload)
-      savedId = res.data.data?.id
+      savedId = res.data?.id
     }
     if (txReceiptFile.value && savedId) {
       try {
