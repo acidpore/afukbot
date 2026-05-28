@@ -18,12 +18,29 @@ class InventoryService
 
     public function getValuasi(): array
     {
-        $items = Item::all();
-        $total = $items->sum(fn($item) => $item->quantity * $item->harga_jual);
+        $items = Item::all()->keyBy('id');
+
+        $totalValuasi = $items->sum(fn($item) => $item->quantity * $item->harga_jual);
+
+        // Kurangi nilai modal barang yang terikat di invoice belum dikirim
+        $pendingSaleItems = \App\Models\SaleItem::whereHas('sale', fn($q) => $q->where('status', 'belum_dikirim'))
+            ->whereNotNull('inventory_item_ids')
+            ->get();
+
+        $modalTerikat = 0;
+        foreach ($pendingSaleItems as $saleItem) {
+            foreach ($saleItem->inventory_item_ids as $itemId) {
+                $item = $items->get($itemId);
+                if ($item) {
+                    $modalTerikat += $saleItem->qty * $item->harga_jual;
+                }
+            }
+        }
+
         return [
-            'total_valuasi'  => $total,
+            'total_valuasi'    => $totalValuasi - $modalTerikat,
             'total_item_jenis' => $items->count(),
-            'total_stok'     => $items->sum('quantity'),
+            'total_stok'       => $items->sum('quantity'),
         ];
     }
 
