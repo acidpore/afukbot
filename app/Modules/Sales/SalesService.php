@@ -31,7 +31,7 @@ class SalesService
                 $data['items']
             ));
 
-            $paidAmount = isset($data['paid_amount']) ? min((int) $data['paid_amount'], $grandTotal) : 0;
+            $paidAmount = isset($data['paid_amount']) ? (int) $data['paid_amount'] : 0;
 
             $sale = Sale::create([
                 'invoice_number'    => $invoiceNumber,
@@ -138,7 +138,7 @@ class SalesService
             ];
             if (array_key_exists('paid_amount', $data)) {
                 $currentGrandTotal = $sale->grand_total;
-                $updatePayload['paid_amount'] = min((int) $data['paid_amount'], $currentGrandTotal);
+                $updatePayload['paid_amount'] = (int) $data['paid_amount'];
             }
             $sale->update($updatePayload);
 
@@ -170,14 +170,14 @@ class SalesService
     public function recordPayment(int $id, int $amount): Sale
     {
         $sale = Sale::findOrFail($id);
-        $sale->update(['paid_amount' => min($sale->paid_amount + $amount, $sale->grand_total)]);
+        $sale->update(['paid_amount' => $sale->paid_amount + $amount]);
         return $sale->fresh('items');
     }
 
     public function setPayment(int $id, int $amount): Sale
     {
         $sale = Sale::findOrFail($id);
-        $sale->update(['paid_amount' => min($amount, $sale->grand_total)]);
+        $sale->update(['paid_amount' => $amount]);
         return $sale->fresh('items');
     }
 

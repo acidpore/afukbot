@@ -426,6 +426,10 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
+              <div v-if="manualPiutang.length > 0" class="flex items-center justify-between pt-2 mt-1 border-t border-slate-100">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</p>
+                <p class="text-xs font-bold text-amber-600">{{ formatRupiah(totalManualPiutang) }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -550,6 +554,10 @@ onUnmounted(() => {
                     </button>
                   </div>
                 </div>
+              </div>
+              <div v-if="manualPiutang.length > 0" class="flex items-center justify-between pt-2 mt-1 border-t border-amber-100">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total</p>
+                <p class="text-xs font-bold text-amber-600">{{ formatRupiah(totalManualPiutang) }}</p>
               </div>
             </div>
           </div>

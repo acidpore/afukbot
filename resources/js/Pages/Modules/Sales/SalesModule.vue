@@ -1168,7 +1168,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- Header kolom -->
-                <div class="hidden md:grid grid-cols-[2rem_2fr_1fr_9rem_11rem_10rem_2.5rem] gap-3 px-3 mb-2">
+                <div class="hidden md:grid grid-cols-[2rem_3fr_1fr_7rem_11rem_10rem_2.5rem] gap-3 px-3 mb-2">
                     <div></div>
                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Nama Barang</div>
                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Keterangan</div>
@@ -1195,7 +1195,7 @@ onMounted(async () => {
                             ><i class="pi pi-trash text-sm"></i></button>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-[2rem_2fr_1fr_9rem_11rem_10rem_2.5rem] gap-3 items-center">
+                        <div class="grid grid-cols-1 md:grid-cols-[2rem_3fr_1fr_7rem_11rem_10rem_2.5rem] gap-3 items-center">
 
                         <!-- Nomor -->
                         <div class="hidden md:flex items-center justify-center w-7 h-7 rounded-full bg-slate-200 text-slate-500 text-xs font-bold flex-shrink-0">
@@ -1708,7 +1708,7 @@ onMounted(async () => {
                             </button>
                         </div>
 
-                        <div class="hidden md:grid grid-cols-[2fr_1fr_8rem_10rem_9rem_2rem] gap-2 px-1 mb-1">
+                        <div class="hidden md:grid grid-cols-[3fr_1fr_7rem_10rem_9rem_2rem] gap-2 px-1 mb-1">
                             <div class="text-[10px] font-bold text-slate-400 uppercase">Nama Barang</div>
                             <div class="text-[10px] font-bold text-slate-400 uppercase">Keterangan</div>
                             <div class="text-[10px] font-bold text-slate-400 uppercase text-right">Qty</div>
@@ -1729,7 +1729,7 @@ onMounted(async () => {
                                     ><i class="pi pi-trash text-sm"></i></button>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr_8rem_10rem_9rem_2rem] gap-2 items-center">
+                                <div class="grid grid-cols-1 md:grid-cols-[3fr_1fr_7rem_10rem_9rem_2rem] gap-2 items-center">
                                 <!-- Nama Barang -->
                                 <div class="relative">
                                     <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Barang</label>
