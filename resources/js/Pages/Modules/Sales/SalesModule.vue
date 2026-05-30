@@ -1701,14 +1701,11 @@ onMounted(async () => {
 
                     <!-- Item (hanya belum dikirim) -->
                     <div v-if="editModal.sale?.status === 'belum_dikirim'">
-                        <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center mb-3">
                             <p class="text-sm font-bold text-slate-700">Daftar Item</p>
-                            <button @click="addEditItem" class="flex items-center gap-1.5 bg-[#1D3557] text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-[#162840] transition-colors">
-                                <i class="pi pi-plus text-xs"></i> Tambah
-                            </button>
                         </div>
 
-                        <div class="hidden md:grid grid-cols-[3fr_1fr_7rem_10rem_9rem_2rem] gap-2 px-1 mb-1">
+                        <div class="hidden md:grid grid-cols-[2fr_1fr_6rem_11rem_10rem_2rem] gap-2 px-1 mb-1">
                             <div class="text-[10px] font-bold text-slate-400 uppercase">Nama Barang</div>
                             <div class="text-[10px] font-bold text-slate-400 uppercase">Keterangan</div>
                             <div class="text-[10px] font-bold text-slate-400 uppercase text-right">Qty</div>
@@ -1729,7 +1726,7 @@ onMounted(async () => {
                                     ><i class="pi pi-trash text-sm"></i></button>
                                 </div>
 
-                                <div class="grid grid-cols-1 md:grid-cols-[3fr_1fr_7rem_10rem_9rem_2rem] gap-2 items-center">
+                                <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr_6rem_11rem_10rem_2rem] gap-2 items-center">
                                 <!-- Nama Barang -->
                                 <div class="relative">
                                     <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Barang</label>
@@ -1809,6 +1806,12 @@ onMounted(async () => {
                                 ><i class="pi pi-trash text-sm"></i></button>
                                 </div><!-- end grid -->
                             </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <button @click="addEditItem" class="w-full flex items-center justify-center gap-1.5 border border-dashed border-slate-300 text-slate-500 hover:border-[#1D3557] hover:text-[#1D3557] text-xs font-bold px-3 py-2.5 rounded-xl transition-colors">
+                                <i class="pi pi-plus text-xs"></i> Tambah Item
+                            </button>
                         </div>
 
                         <div class="flex justify-end mt-3 pt-3 border-t border-slate-100">
