@@ -9,8 +9,8 @@ import { PDFDocument } from 'pdf-lib';
 import * as XLSX from 'xlsx';
 
 // ── State ──────────────────────────────────────────────────
-const activeTab        = ref<'new' | 'belum_dikirim' | 'sudah_dikirim'>('new');
-const historySubTab    = ref<'belum_dikirim' | 'sudah_dikirim'>('belum_dikirim');
+const activeTab        = ref<'new' | 'rencana' | 'proses' | 'sudah_dikirim'>('new');
+const historySubTab    = ref<'rencana' | 'proses' | 'sudah_dikirim'>('rencana'); // rencana/proses adalah view filter, bukan status DB
 const sales       = ref<Sale[]>([]);
 const loading     = ref(false);
 const submitting  = ref(false);
@@ -106,7 +106,7 @@ const itemsValid = computed(() =>
 const parsedPayment = computed(() => parsePaymentFromNotes(form.value.notes, grandTotal.value))
 const editParsedPayment = computed(() => {
     if (!editModal.value.sale) return 0;
-    const total = editModal.value.sale.status === 'belum_dikirim'
+    const total = editModal.value.sale.status === 'rencana'
         ? editItems.value.reduce((s, i) => s + Number(i.qty) * Number(i.unit_price), 0)
         : editModal.value.sale.grand_total;
     return parsePaymentFromNotes(editForm.value.notes, total);
@@ -116,7 +116,8 @@ const formValid = computed(() =>
     form.value.recipient_name.trim() && form.value.invoice_date && itemsValid.value
 );
 
-const salesBelumDikirim = computed(() => sales.value.filter(s => s.status === 'belum_dikirim'));
+const salesRencana      = computed(() => sales.value.filter(s => s.status === 'rencana' && s.paid_amount === 0));
+const salesProses       = computed(() => sales.value.filter(s => s.status === 'rencana' && s.paid_amount > 0));
 const salesSudahDikirim = computed(() => sales.value.filter(s => s.status === 'sudah_dikirim'));
 
 // ── Modal Edit ────────────────────────────────────────────
@@ -219,7 +220,7 @@ async function submitEdit() {
             ...editForm.value,
             paid_amount: editParsedPayment.value,
         };
-        if (editModal.value.sale?.status === 'belum_dikirim') {
+        if (editModal.value.sale?.status === 'rencana') {
             payload.items = editItems.value.map(i => ({ ...i, total_price: Number(i.qty) * Number(i.unit_price) }));
         }
         const res = await salesApi.update(editModal.value.sale!.id, payload);
@@ -1049,20 +1050,33 @@ onMounted(async () => {
             >
                 Buat Invoice
             </button>
-            <!-- Belum + Sudah: berdampingan di mobile -->
-            <div class="grid grid-cols-2 sm:contents gap-2">
+            <!-- Rencana + Proses + Sudah: berdampingan di mobile -->
+            <div class="grid grid-cols-3 sm:contents gap-2">
                 <button
-                    @click="activeTab = 'belum_dikirim'; historySubTab = 'belum_dikirim'"
-                    :class="activeTab === 'belum_dikirim'
+                    @click="activeTab = 'rencana'; historySubTab = 'rencana'"
+                    :class="activeTab === 'rencana'
                         ? 'bg-amber-500 text-white shadow-lg'
                         : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
                     class="py-2.5 sm:px-5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5"
                 >
-                    Belum Kirim
-                    <span v-if="salesBelumDikirim.length"
-                        :class="activeTab === 'belum_dikirim' ? 'bg-white/30 text-white' : 'bg-amber-100 text-amber-700'"
+                    Rencana
+                    <span v-if="salesRencana.length"
+                        :class="activeTab === 'rencana' ? 'bg-white/30 text-white' : 'bg-amber-100 text-amber-700'"
                         class="text-xs font-bold px-1.5 py-0.5 rounded-full"
-                    >{{ salesBelumDikirim.length }}</span>
+                    >{{ salesRencana.length }}</span>
+                </button>
+                <button
+                    @click="activeTab = 'proses'; historySubTab = 'proses'"
+                    :class="activeTab === 'proses'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
+                    class="py-2.5 sm:px-5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5"
+                >
+                    Proses
+                    <span v-if="salesProses.length"
+                        :class="activeTab === 'proses' ? 'bg-white/30 text-white' : 'bg-blue-100 text-blue-700'"
+                        class="text-xs font-bold px-1.5 py-0.5 rounded-full"
+                    >{{ salesProses.length }}</span>
                 </button>
                 <button
                     @click="activeTab = 'sudah_dikirim'; historySubTab = 'sudah_dikirim'"
@@ -1361,14 +1375,15 @@ onMounted(async () => {
             </div>
         </div>
 
-        <!-- ─── TAB: Belum Dikirim / Sudah Dikirim ─── -->
+        <!-- ─── TAB: Rencana / Proses / Sudah Dikirim ─── -->
         <div v-else class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h2 class="text-base font-bold text-slate-700">
-                        {{ activeTab === 'belum_dikirim' ? 'Invoice Belum Dikirim' : 'Invoice Sudah Dikirim' }}
+                        {{ activeTab === 'rencana' ? 'Invoice Rencana' : activeTab === 'proses' ? 'Invoice Proses' : 'Invoice Sudah Dikirim' }}
                     </h2>
-                    <p v-if="activeTab === 'belum_dikirim'" class="text-xs text-amber-600 mt-0.5">Stok belum dipotong. Tandai terkirim untuk memotong stok.</p>
+                    <p v-if="activeTab === 'rencana'" class="text-xs text-amber-600 mt-0.5">Stok belum dipotong. Tandai terkirim untuk memotong stok.</p>
+                    <p v-else-if="activeTab === 'proses'" class="text-xs text-blue-600 mt-0.5">Sedang dalam proses. Tandai terkirim untuk memotong stok.</p>
                     <p v-else class="text-xs text-emerald-600 mt-0.5">Stok sudah dipotong saat status diubah menjadi terkirim.</p>
                 </div>
             </div>
@@ -1378,16 +1393,16 @@ onMounted(async () => {
             </div>
 
             <template v-else>
-                <!-- Belum Dikirim -->
-                <div v-if="activeTab === 'belum_dikirim'">
-                    <div v-if="salesBelumDikirim.length === 0" class="flex flex-col items-center justify-center py-16 text-slate-400">
+                <!-- Rencana / Proses -->
+                <div v-if="activeTab === 'rencana' || activeTab === 'proses'">
+                    <div v-if="(activeTab === 'rencana' ? salesRencana : salesProses).length === 0" class="flex flex-col items-center justify-center py-16 text-slate-400">
                         <i class="pi pi-inbox text-3xl mb-2"></i>
-                        <p class="text-sm">Tidak ada invoice yang menunggu pengiriman</p>
+                        <p class="text-sm">Tidak ada invoice di sini</p>
                     </div>
                     <div v-else>
                         <!-- Mobile cards -->
                         <div class="md:hidden divide-y divide-slate-100">
-                            <div v-for="sale in salesBelumDikirim" :key="sale.id" class="p-4 hover:bg-amber-50/30 transition-colors">
+                            <div v-for="sale in (activeTab === 'rencana' ? salesRencana : salesProses)" :key="sale.id" class="p-4 hover:bg-amber-50/30 transition-colors">
                                 <div class="flex items-start justify-between gap-3 mb-2">
                                     <div class="min-w-0">
                                         <p class="font-mono text-xs font-bold text-[#1D3557]">{{ sale.invoice_number }}</p>
@@ -1434,7 +1449,7 @@ onMounted(async () => {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <tr v-for="sale in salesBelumDikirim" :key="sale.id" class="hover:bg-amber-50/40 transition-colors">
+                                <tr v-for="sale in (activeTab === 'rencana' ? salesRencana : salesProses)" :key="sale.id" class="hover:bg-amber-50/40 transition-colors">
                                     <td class="px-4 py-3 font-mono text-xs font-semibold text-[#1D3557]">{{ sale.invoice_number }}</td>
                                     <td class="px-4 py-3">
                                         <div class="font-semibold text-slate-700">{{ sale.recipient_name }}</div>
@@ -1646,7 +1661,7 @@ onMounted(async () => {
                                 <p v-if="editParsedPayment > 0" class="mt-1.5 text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
                                     <i class="pi pi-check-circle text-[11px]"></i>
                                     Terdeteksi pembayaran: {{ fmt(editParsedPayment) }}
-                                    <span v-if="editModal.sale" class="text-slate-400 font-normal">· sisa {{ fmt((editModal.sale.status === 'belum_dikirim' ? editItems.reduce((s,i) => s + Number(i.qty)*Number(i.unit_price), 0) : editModal.sale.grand_total) - editParsedPayment) }}</span>
+                                    <span v-if="editModal.sale" class="text-slate-400 font-normal">· sisa {{ fmt((editModal.sale.status === 'rencana' ? editItems.reduce((s,i) => s + Number(i.qty)*Number(i.unit_price), 0) : editModal.sale.grand_total) - editParsedPayment) }}</span>
                                 </p>
                             </div>
                         </div>
@@ -1701,7 +1716,7 @@ onMounted(async () => {
                     </div>
 
                     <!-- Item (hanya belum dikirim) -->
-                    <div v-if="editModal.sale?.status === 'belum_dikirim'">
+                    <div v-if="editModal.sale?.status === 'rencana'">
                         <div class="flex items-center mb-3">
                             <p class="text-sm font-bold text-slate-700">Daftar Item</p>
                         </div>

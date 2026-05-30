@@ -42,7 +42,7 @@ class SalesService
                 'notes'             => $data['notes'] ?? null,
                 'grand_total'       => $grandTotal,
                 'paid_amount'       => $paidAmount,
-                'status'            => 'belum_dikirim',
+                'status'            => 'rencana',
             ]);
 
             foreach ($data['items'] as $item) {
@@ -142,8 +142,8 @@ class SalesService
             }
             $sale->update($updatePayload);
 
-            // Update items hanya kalau belum dikirim
-            if ($sale->status === 'belum_dikirim' && !empty($data['items'])) {
+            // Update items hanya kalau stok belum dipotong
+            if ($sale->status === 'rencana' && !empty($data['items'])) {
                 $sale->items()->delete();
 
                 $grandTotal = 0;
@@ -212,7 +212,7 @@ class SalesService
                 }
             }
 
-            $sale->update(['status' => 'belum_dikirim', 'shipped_at' => null]);
+            $sale->update(['status' => 'rencana', 'shipped_at' => null]);
 
             return $sale->fresh('items');
         });
@@ -285,7 +285,7 @@ class SalesService
     public function getPendingItems(): array
     {
         $sales = Sale::with('items')
-            ->where('status', 'belum_dikirim')
+            ->where('status', 'rencana')
             ->orderBy('invoice_date')
             ->get();
 

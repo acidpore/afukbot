@@ -124,13 +124,16 @@ const keuanganExpanded = computed(() =>
 
 function processSales(sales: any[]) {
   stats.value.totalInvoice   = sales.length;
-  stats.value.invoicePending = sales.filter((s: any) => s.status === 'belum_dikirim').length;
+  stats.value.invoicePending = sales.filter((s: any) => s.status === 'rencana').length;
   stats.value.totalOmzet     = sales
     .filter((s: any) => s.status === 'sudah_dikirim')
     .reduce((sum: number, s: any) => sum + s.grand_total, 0);
 
   kekurangan.value = sales
-    .filter((s: any) => (s.grand_total - (s.paid_amount ?? 0)) > 0)
+    .filter((s: any) => {
+      if (s.status !== 'sudah_dikirim' && (s.paid_amount ?? 0) === 0) return false;
+      return (s.grand_total - (s.paid_amount ?? 0)) > 0;
+    })
     .map((s: any) => ({
       invoice_number: s.invoice_number,
       recipient_name: s.recipient_name,
