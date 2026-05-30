@@ -351,8 +351,9 @@ const pairSets = computed(() => {
 });
 
 // Filtered suggestions per baris — set ditampilkan di atas dengan tag "Set"
-function suggestions(idx: number): { type: 'set' | 'item' | 'new'; label: string; unit_price: number; inventory_item_ids: number[]; data?: any }[] {
-    const q = (itemSearchQueries.value[idx] ?? '').toLowerCase();
+function suggestions(idx: number, source: 'add' | 'edit' = 'add'): { type: 'set' | 'item' | 'new'; label: string; unit_price: number; inventory_item_ids: number[]; data?: any }[] {
+    const queries = source === 'edit' ? editSearchQueries : itemSearchQueries;
+    const q = (queries.value[idx] ?? '').toLowerCase();
 
     const matchedSets = pairSets.value
         .filter(s => !q || s.label.toLowerCase().includes(q))
@@ -371,7 +372,7 @@ function suggestions(idx: number): { type: 'set' | 'item' | 'new'; label: string
         [...matchedSets, ...matchedItems].slice(0, 10);
 
     if (q.trim() && !matchedItems.some(i => i.label.toLowerCase() === q)) {
-        results.push({ type: 'new', label: (itemSearchQueries.value[idx] ?? '').trim(), unit_price: 0, inventory_item_ids: [] });
+        results.push({ type: 'new', label: (queries.value[idx] ?? '').trim(), unit_price: 0, inventory_item_ids: [] });
     }
 
     return results;
@@ -1730,24 +1731,24 @@ onMounted(async () => {
                                 <!-- Nama Barang -->
                                 <div class="relative">
                                     <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Barang</label>
-                                    <div class="flex items-center border rounded-lg px-3 py-2.5 gap-2 bg-white focus-within:ring-1 focus-within:ring-[#1D3557]/30 focus-within:border-[#1D3557]"
+                                    <div class="flex items-center border rounded-lg px-3 py-2 gap-2 bg-white focus-within:ring-1 focus-within:ring-[#1D3557]/30 focus-within:border-[#1D3557]"
                                         :class="item.item_name ? 'border-[#1D3557]/40' : 'border-slate-200'"
                                     >
-                                        <i class="pi pi-search text-slate-400 text-sm flex-shrink-0"></i>
+                                        <i class="pi pi-search text-slate-400 text-xs flex-shrink-0"></i>
                                         <input
                                             v-model="editSearchQueries[idx]"
                                             @input="onEditSearchInput(idx)"
                                             @focus="editDropdownOpen[idx] = true"
                                             @blur="closeEditDropdown(idx)"
                                             type="text" placeholder="Cari barang..."
-                                            class="w-full text-base bg-transparent focus:outline-none min-w-0"
+                                            class="w-full text-sm bg-transparent focus:outline-none min-w-0"
                                         />
                                         <i v-if="item.item_name" class="pi pi-check-circle text-emerald-500 text-xs flex-shrink-0"></i>
                                     </div>
-                                    <div v-if="editDropdownOpen[idx] && suggestions(idx).length > 0"
+                                    <div v-if="editDropdownOpen[idx] && suggestions(idx, 'edit').length > 0"
                                         class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-y-auto max-h-44"
                                     >
-                                        <div v-for="(sug, si) in suggestions(idx)" :key="si"
+                                        <div v-for="(sug, si) in suggestions(idx, 'edit')" :key="si"
                                             @mousedown.prevent="selectEditSuggestion(idx, sug)"
                                             class="flex items-center justify-between px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
                                         >
@@ -1764,7 +1765,7 @@ onMounted(async () => {
                                 <div>
                                     <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Keterangan</label>
                                     <input v-model="item.description" type="text" placeholder="Keterangan"
-                                        class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                        class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                                     />
                                 </div>
 
@@ -1773,7 +1774,7 @@ onMounted(async () => {
                                     <div>
                                         <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Qty</label>
                                         <input v-model.number="item.qty" type="number" min="1" placeholder="0"
-                                            class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2.5 text-base text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                            class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                                         />
                                     </div>
                                     <div>
@@ -1786,7 +1787,7 @@ onMounted(async () => {
                                                 @focus="onEditPriceFocus(idx, $event)"
                                                 @blur="onEditPriceBlur(idx, $event)"
                                                 type="text" inputmode="numeric" placeholder="0"
-                                                class="w-full border border-slate-200 bg-white rounded-lg pl-8 pr-3 py-2.5 text-base text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
+                                                class="w-full border border-slate-200 bg-white rounded-lg pl-8 pr-3 py-2 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                                             />
                                         </div>
                                     </div>
@@ -1795,7 +1796,7 @@ onMounted(async () => {
                                 <!-- Total -->
                                 <div>
                                     <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Total</label>
-                                    <div class="text-right text-base font-bold text-slate-700 whitespace-nowrap">
+                                    <div class="text-right text-sm font-bold text-slate-700 whitespace-nowrap">
                                         {{ (Number(item.qty) > 0 && Number(item.unit_price) > 0) ? fmt(Number(item.qty) * Number(item.unit_price)) : '—' }}
                                     </div>
                                 </div>
