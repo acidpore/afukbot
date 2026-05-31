@@ -7,6 +7,7 @@ use App\Models\BudgetItem;
 use App\Models\BudgetPeriod;
 use App\Models\ExpenseTransaction;
 use Illuminate\Support\Facades\DB;
+use App\Models\BudgetPeriodSetting;
 use Illuminate\Support\Facades\Storage;
 
 class BudgetService
@@ -56,10 +57,32 @@ class BudgetService
 
     // ── Transactions ──────────────────────────────────────────
 
-    public function getTransactions(?string $month = null, ?int $budgetItemId = null)
+    public function getPeriodSetting(): array
     {
+        $period = DB::table('budget_period_setting')->first();
+        return [
+            'start_date' => $period->start_date ?? now()->startOfMonth()->toDateString(),
+            'end_date'   => $period->end_date   ?? now()->endOfMonth()->toDateString(),
+        ];
+    }
+
+    public function setPeriodSetting(string $startDate, string $endDate): array
+    {
+        DB::table('budget_period_setting')->updateOrInsert(
+            ['id' => 1],
+            ['start_date' => $startDate, 'end_date' => $endDate, 'updated_at' => now()]
+        );
+        return $this->getPeriodSetting();
+    }
+
+    public function getTransactions(?string $month = null, ?int $budgetItemId = null, ?string $date = null)
+    {
+        $period = $this->getPeriodSetting();
+
         return ExpenseTransaction::with('budgetItem.category')
-            ->when($month, fn($q) => $q->whereRaw("DATE_FORMAT(transaction_date, '%Y-%m') = ?", [$month]))
+            ->when($date, fn($q) => $q->whereDate('transaction_date', $date))
+            ->when(!$date && $month, fn($q) => $q->whereRaw("DATE_FORMAT(transaction_date, '%Y-%m') = ?", [$month]))
+            ->when(!$date && !$month, fn($q) => $q->whereBetween('transaction_date', [$period['start_date'], $period['end_date']]))
             ->when($budgetItemId, fn($q) => $q->where('budget_item_id', $budgetItemId))
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
@@ -109,8 +132,12 @@ class BudgetService
 
     // ── Summary / Dashboard ───────────────────────────────────
 
-    public function getSummary(string $month): array
+    public function getSummary(): array
     {
+        $period     = $this->getPeriodSetting();
+        $startDate  = $period['start_date'];
+        $endDate    = $period['end_date'];
+
         $categories = BudgetCategory::with(['items' => fn($q) => $q->where('is_active', true)])->get();
 
         $result = [];
@@ -121,17 +148,16 @@ class BudgetService
             $planned = $cat->items->sum('total_monthly_budget');
 
             $actual = ExpenseTransaction::whereHas('budgetItem', fn($q) => $q->where('category_id', $cat->id))
-                ->whereRaw("DATE_FORMAT(transaction_date, '%Y-%m') = ?", [$month])
+                ->whereBetween('transaction_date', [$startDate, $endDate])
                 ->sum('amount');
 
             $pct    = $planned > 0 ? round(($actual / $planned) * 100, 1) : 0;
             $status = $pct > 100 ? 'over_budget' : ($pct >= 80 ? 'warning' : 'on_track');
 
-            // Item yang belum/kurang bayar bulan ini
             $unpaid = [];
             foreach ($cat->items as $item) {
                 $paid = ExpenseTransaction::where('budget_item_id', $item->id)
-                    ->whereRaw("DATE_FORMAT(transaction_date, '%Y-%m') = ?", [$month])
+                    ->whereBetween('transaction_date', [$startDate, $endDate])
                     ->sum('amount');
                 $needed = $item->total_monthly_budget;
                 if ($paid < $needed) {
@@ -146,13 +172,13 @@ class BudgetService
             }
 
             $result[] = [
-                'category'   => $cat->name,
-                'category_id'=> $cat->id,
-                'planned'    => $planned,
-                'actual'     => $actual,
-                'pct'        => $pct,
-                'status'     => $status,
-                'unpaid'     => $unpaid,
+                'category'    => $cat->name,
+                'category_id' => $cat->id,
+                'planned'     => $planned,
+                'actual'      => $actual,
+                'pct'         => $pct,
+                'status'      => $status,
+                'unpaid'      => $unpaid,
             ];
 
             $totalPlanned += $planned;
@@ -160,7 +186,8 @@ class BudgetService
         }
 
         return [
-            'month'         => $month,
+            'start_date'    => $startDate,
+            'end_date'      => $endDate,
             'total_planned' => $totalPlanned,
             'total_actual'  => $totalActual,
             'total_sisa'    => $totalPlanned - $totalActual,

@@ -96,7 +96,8 @@ class BudgetController extends Controller
     {
         $data = $this->service->getTransactions(
             $request->query('month'),
-            $request->query('budget_item_id') ? (int) $request->query('budget_item_id') : null
+            $request->query('budget_item_id') ? (int) $request->query('budget_item_id') : null,
+            $request->query('date')
         );
         return response()->json($data);
     }
@@ -139,8 +140,21 @@ class BudgetController extends Controller
 
     public function summary(Request $request)
     {
-        $month = $request->query('month', now()->format('Y-m'));
-        return response()->json($this->service->getSummary($month));
+        return response()->json($this->service->getSummary());
+    }
+
+    public function getPeriodSetting()
+    {
+        return response()->json($this->service->getPeriodSetting());
+    }
+
+    public function setPeriodSetting(Request $request)
+    {
+        $data = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+        return response()->json($this->service->setPeriodSetting($data['start_date'], $data['end_date']));
     }
 
     public function trend(Request $request)

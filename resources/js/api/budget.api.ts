@@ -30,6 +30,11 @@ export const budgetApi = {
     },
 
     // Dashboard
-    getSummary: (month: string) => api.get('/budget/summary', { params: { month } }),
+    getSummary: () => api.get('/budget/summary'),
     getTrend: (months = 6) => api.get('/budget/trend', { params: { months } }),
+
+    // Period setting
+    getPeriodSetting: () => api.get('/budget/period-setting'),
+    setPeriodSetting: (data: { start_date: string; end_date: string }) =>
+        api.put('/budget/period-setting', data),
 }

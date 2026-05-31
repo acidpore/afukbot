@@ -25,3 +25,7 @@ Route::post('/budget/transactions/{id}/receipt', [BudgetController::class, 'uplo
 // Dashboard
 Route::get('/budget/summary', [BudgetController::class, 'summary']);
 Route::get('/budget/trend', [BudgetController::class, 'trend']);
+
+// Period setting
+Route::get('/budget/period-setting', [BudgetController::class, 'getPeriodSetting']);
+Route::put('/budget/period-setting', [BudgetController::class, 'setPeriodSetting']);

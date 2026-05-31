@@ -22,11 +22,36 @@
 
     <!-- Tab: Dashboard -->
     <div v-if="activeTab === 'dashboard'" class="space-y-6">
-      <!-- Month Picker -->
-      <div class="flex items-center gap-3">
-        <label class="text-sm text-gray-600 font-medium">Bulan:</label>
-        <input type="month" v-model="selectedMonth" @change="loadSummary"
-          class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+      <!-- Period Setting -->
+      <div class="bg-amber-50 border border-amber-100 rounded-2xl px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0.5">Periode Aktif</p>
+          <p class="text-sm font-semibold text-gray-800">
+            {{ period.start_date ? fmtDate(period.start_date) : '—' }}
+            &nbsp;–&nbsp;
+            {{ period.end_date ? fmtDate(period.end_date) : '—' }}
+          </p>
+        </div>
+        <button @click="periodEdit = !periodEdit"
+          class="text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors">
+          {{ periodEdit ? 'Batal' : 'Ubah Periode' }}
+        </button>
+      </div>
+      <div v-if="periodEdit" class="flex flex-wrap gap-3 items-end bg-white border border-amber-100 rounded-2xl px-5 py-4">
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Mulai</label>
+          <input type="date" v-model="periodForm.start_date"
+            class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Sampai</label>
+          <input type="date" v-model="periodForm.end_date"
+            class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+        </div>
+        <button @click="savePeriodSetting"
+          class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
+          Simpan
+        </button>
       </div>
 
       <!-- Summary Cards -->
@@ -224,9 +249,15 @@
       <!-- Filters -->
       <div class="flex flex-wrap gap-3 items-end">
         <div>
-          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Bulan</label>
-          <input type="month" v-model="txMonth" @change="loadTransactions"
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Tanggal</label>
+          <input type="date" v-model="txDate" @change="loadTransactions"
             class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white" />
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Bulan</label>
+          <input type="month" v-model="txMonth" @change="txDate = ''; loadTransactions()"
+            :disabled="!!txDate"
+            class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white disabled:opacity-40" />
         </div>
         <div>
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Kategori</label>
@@ -619,8 +650,11 @@ const trend        = ref<any[]>([])
 const transactions = ref<any[]>([])
 const saving       = ref(false)
 
-const selectedMonth = ref(new Date().toISOString().slice(0, 7))
-const txMonth       = ref(new Date().toISOString().slice(0, 7))
+const period        = ref({ start_date: '', end_date: '' })
+const periodForm    = ref({ start_date: '', end_date: '' })
+const periodEdit    = ref(false)
+const txMonth       = ref('')
+const txDate        = ref('')
 const txCatId       = ref<number | null>(null)
 const txItemId      = ref<number | null>(null)
 
@@ -656,6 +690,10 @@ function today() {
 
 function fmt(n: number | string) {
   return 'Rp ' + Number(n).toLocaleString('id-ID')
+}
+
+function fmtDate(d: string) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function rateLabel(r: string) {
@@ -698,6 +736,7 @@ function onAmountInput(e: Event) {
 // ── Load ───────────────────────────────────────────────────────
 
 async function loadAll() {
+  await loadPeriodSetting()
   await loadCategories()
   await loadSummary()
   await loadTrend()
@@ -709,8 +748,22 @@ async function loadCategories() {
   categories.value = res.data
 }
 
+async function loadPeriodSetting() {
+  const res = await budgetApi.getPeriodSetting()
+  period.value     = res.data
+  periodForm.value = { ...res.data }
+}
+
+async function savePeriodSetting() {
+  await budgetApi.setPeriodSetting(periodForm.value)
+  period.value  = { ...periodForm.value }
+  periodEdit.value = false
+  await Promise.all([loadSummary(), loadTransactions()])
+  showToast('Periode berhasil diubah')
+}
+
 async function loadSummary() {
-  const res = await budgetApi.getSummary(selectedMonth.value)
+  const res = await budgetApi.getSummary()
   summary.value = res.data
 }
 
@@ -721,7 +774,8 @@ async function loadTrend() {
 
 async function loadTransactions() {
   const res = await budgetApi.getTransactions({
-    month: txMonth.value || undefined,
+    date:           txDate.value || undefined,
+    month:          txDate.value ? undefined : (txMonth.value || undefined),
     budget_item_id: txItemId.value ?? undefined,
   })
   transactions.value = res.data
@@ -853,7 +907,7 @@ function openEditTransaction(tx: any) {
   txForm.value  = {
     budget_item_id: tx.budget_item_id,
     amount: Number(tx.amount).toLocaleString('id-ID'),
-    transaction_date: tx.transaction_date,
+    transaction_date: tx.transaction_date?.slice(0, 10) ?? today(),
     note: tx.note ?? '',
   }
   txModalCatId.value = categories.value.find(c =>
