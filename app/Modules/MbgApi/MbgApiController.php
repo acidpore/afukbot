@@ -18,13 +18,15 @@ class MbgApiController
             $data = $call();
             return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
         } catch (ConnectionException $e) {
-            return response()->json(['success' => false, 'message' => 'Tidak dapat terhubung ke server MBG.'], 502);
+            Log::error('MBG ConnectionException: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Tidak dapat terhubung ke server MBG: ' . $e->getMessage()], 502);
         } catch (RequestException $e) {
+            Log::error('MBG RequestException: ' . $e->getMessage());
             $body = $e->response->json() ?? [];
             $msg  = $body['meta']['message'] ?? $e->getMessage();
             return response()->json(['success' => false, 'message' => $msg], $e->response->status());
         } catch (\Throwable $e) {
-            Log::error('MBG API error: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('MBG Throwable: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
