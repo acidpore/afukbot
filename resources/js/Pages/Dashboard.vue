@@ -13,6 +13,7 @@ import ExpenseModule from './Modules/Expense/ExpenseModule.vue';
 import IncomeModule from './Modules/Income/IncomeModule.vue';
 import BudgetModule from './Modules/Budget/BudgetModule.vue';
 import SettingsModule from './Modules/Settings/SettingsModule.vue';
+import MbgModule from './Modules/MbgApi/MbgModule.vue';
 
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = ref(urlParams.get('tab') || 'overview');
@@ -111,6 +112,7 @@ const menuItems = [
       { id: 'rab',      name: 'RAB Tracking', icon: 'pi pi-chart-bar' },
     ],
   },
+  { id: 'mbg', name: 'MBG Admin', icon: 'pi pi-globe' },
   { id: 'settings', name: 'Pengaturan', icon: 'pi pi-cog' },
 ];
 
@@ -581,6 +583,11 @@ onUnmounted(() => {
       <!-- Module: RAB Budget -->
       <div v-else-if="activeTab === 'rab'">
         <BudgetModule />
+      </div>
+
+      <!-- Module: MBG Admin -->
+      <div v-else-if="activeTab === 'mbg'">
+        <MbgModule />
       </div>
 
       <!-- Module: Settings -->

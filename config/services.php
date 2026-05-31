@@ -37,6 +37,11 @@ return [
         'key' => env('GROQ_API_KEY'),
     ],
 
+    'mbg' => [
+        'url'   => env('MBG_API_URL'),
+        'token' => env('MBG_SERVICE_TOKEN'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
