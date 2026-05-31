@@ -12,8 +12,9 @@ class MbgApiService
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(config('services.mbg.url'), '/');
-        $this->token   = config('services.mbg.token');
+        $url = config('services.mbg.url') ?? env('MBG_API_URL', '');
+        $this->baseUrl = rtrim($url, '/');
+        $this->token   = config('services.mbg.token') ?? env('MBG_SERVICE_TOKEN', '');
     }
 
     private function get(string $path, array $query = []): array

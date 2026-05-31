@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Log;
 
 class MbgApiController
 {
@@ -23,6 +24,7 @@ class MbgApiController
             $msg  = $body['meta']['message'] ?? $e->getMessage();
             return response()->json(['success' => false, 'message' => $msg], $e->response->status());
         } catch (\Throwable $e) {
+            Log::error('MBG API error: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
