@@ -892,8 +892,7 @@ async function printInvoice(sale: Sale) {
     drawHR(y, noteW - 4);
 
     // ── Summary box (kanan) ────────────────────────────────
-    // Hitung posisi Y awal summary (sejajar dengan notes)
-    const summaryStartY = (doc as any).lastAutoTable.finalY + 6;
+    const summaryStartY = y;
     const subTotal = sale.grand_total;
     const summaryRows = [
         ['Sub Total', 'IDR ' + subTotal.toLocaleString('id-ID')],
