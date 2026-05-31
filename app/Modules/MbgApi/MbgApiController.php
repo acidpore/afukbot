@@ -4,98 +4,101 @@ namespace App\Modules\MbgApi;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\ConnectionException;
 
 class MbgApiController
 {
     public function __construct(private MbgApiService $service) {}
 
+    private function proxy(callable $call): JsonResponse
+    {
+        try {
+            $data = $call();
+            return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        } catch (ConnectionException $e) {
+            return response()->json(['success' => false, 'message' => 'Tidak dapat terhubung ke server MBG.'], 502);
+        } catch (RequestException $e) {
+            $body = $e->response->json() ?? [];
+            $msg  = $body['meta']['message'] ?? $e->getMessage();
+            return response()->json(['success' => false, 'message' => $msg], $e->response->status());
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function dashboardOverview(Request $request): JsonResponse
     {
-        $data = $this->service->getDashboardOverview($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getDashboardOverview($request->query()));
     }
 
     public function users(Request $request): JsonResponse
     {
-        $data = $this->service->getUsers($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getUsers($request->query()));
     }
 
     public function organizations(Request $request): JsonResponse
     {
-        $data = $this->service->getOrganizations($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getOrganizations($request->query()));
     }
 
     public function subscriptions(Request $request): JsonResponse
     {
-        $data = $this->service->getSubscriptions($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getSubscriptions($request->query()));
     }
 
     public function plans(Request $request): JsonResponse
     {
-        $data = $this->service->getPlans($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getPlans($request->query()));
     }
 
     public function roles(Request $request): JsonResponse
     {
-        $data = $this->service->getRoles($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getRoles($request->query()));
     }
 
     public function vendors(Request $request): JsonResponse
     {
-        $data = $this->service->getVendors($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getVendors($request->query()));
     }
 
     public function sales(Request $request): JsonResponse
     {
-        $data = $this->service->getSales($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getSales($request->query()));
     }
 
     public function foundations(Request $request): JsonResponse
     {
-        $data = $this->service->getFoundations($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getFoundations($request->query()));
     }
 
     public function auditLogs(Request $request): JsonResponse
     {
-        $data = $this->service->getAuditLogs($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getAuditLogs($request->query()));
     }
 
     public function systemSettings(Request $request): JsonResponse
     {
-        $data = $this->service->getSystemSettings($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getSystemSettings($request->query()));
     }
 
     public function notifications(Request $request): JsonResponse
     {
-        $data = $this->service->getNotifications($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getNotifications($request->query()));
     }
 
     public function kitchenEquipment(Request $request): JsonResponse
     {
-        $data = $this->service->getKitchenEquipment($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getKitchenEquipment($request->query()));
     }
 
     public function marketplaceSettings(Request $request): JsonResponse
     {
-        $data = $this->service->getMarketplaceSettings($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getMarketplaceSettings($request->query()));
     }
 
     public function salesPayrolls(Request $request): JsonResponse
     {
-        $data = $this->service->getSalesPayrolls($request->query());
-        return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
+        return $this->proxy(fn() => $this->service->getSalesPayrolls($request->query()));
     }
 }
