@@ -855,9 +855,9 @@ async function printInvoice(sale: Sale) {
     const noteW    = CW * 0.52;
     const summaryW = CW * 0.48;
     const summaryX = LM + noteW;
+    const sectionStartY = y;   // simpan Y awal — dipakai oleh summary kanan
 
     // ── Notes / bank info (kiri) ───────────────────────────
-    doc.setFontSize(8);
     doc.setFontSize(9);
     doc.setFont('times', 'normal');
     doc.setTextColor(0, 0, 0);
@@ -892,7 +892,7 @@ async function printInvoice(sale: Sale) {
     drawHR(y, noteW - 4);
 
     // ── Summary box (kanan) ────────────────────────────────
-    const summaryStartY = y;
+    const summaryStartY = sectionStartY;
     const subTotal = sale.grand_total;
     const summaryRows = [
         ['Sub Total', 'IDR ' + subTotal.toLocaleString('id-ID')],
