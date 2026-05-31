@@ -12,7 +12,7 @@ class ExpenseTransaction extends Model
 
     protected $fillable = ['budget_item_id', 'amount', 'transaction_date', 'note', 'receipt_path'];
 
-    protected $casts = ['transaction_date' => 'date'];
+    protected $casts = ['transaction_date' => 'date:Y-m-d'];
 
     public function budgetItem(): BelongsTo
     {
