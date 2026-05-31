@@ -844,6 +844,14 @@ async function printInvoice(sale: Sale) {
     y = (doc as any).lastAutoTable.finalY + 6;
 
     // ── 4. BOTTOM: NOTES kiri | SUMMARY kanan ──────────────
+    // Section bawah butuh sekitar 90mm — kalau tidak muat, tambah halaman baru
+    const pageH       = 297;
+    const bottomMargin = 15;
+    const sectionNeeded = 90;
+    if (y + sectionNeeded > pageH - bottomMargin) {
+        doc.addPage();
+        y = 20;
+    }
     const noteW    = CW * 0.52;
     const summaryW = CW * 0.48;
     const summaryX = LM + noteW;
