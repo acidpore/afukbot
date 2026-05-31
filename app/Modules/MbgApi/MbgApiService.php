@@ -19,10 +19,12 @@ class MbgApiService
 
     private function get(string $path, array $query = []): array
     {
-        $response = Http::withHeaders([
-            'X-Service-Token' => $this->token,
-            'Accept'          => 'application/json',
-        ])->get($this->baseUrl . $path, $query);
+        $response = Http::withoutVerifying()
+            ->timeout(15)
+            ->withHeaders([
+                'X-Service-Token' => $this->token,
+                'Accept'          => 'application/json',
+            ])->get($this->baseUrl . $path, $query);
 
         $response->throw();
 
