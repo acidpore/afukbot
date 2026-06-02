@@ -416,107 +416,152 @@ const handleSaveCategory = async () => {
           {{ view === 'history' ? 'Riwayat seluruh transaksi keluar masuk barang.' : 'Manajemen stok barang di lokasi ' + (view === 'ruko' ? 'Ruko' : 'Margomulyo') + '.' }}
         </p>
       </div>
-      <div v-if="view !== 'history'" class="flex items-center gap-2">
-        <div class="relative">
+      <div v-if="view !== 'history'" class="flex flex-col gap-2">
+        <!-- Search -->
+        <div class="relative w-full">
           <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
           <input
             v-model="searchQuery"
             type="text"
             placeholder="Cari barang..."
-            class="bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent shadow-sm w-52"
+            class="bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent shadow-sm w-full sm:w-52"
           >
         </div>
-        <button @click="exportItemsCsv" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
-          <i class="pi pi-download text-xs"></i>
-          Export
-        </button>
-        <button @click="isBulkModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
-          <i class="pi pi-upload text-xs"></i>
-          Import
-        </button>
-        <button @click="isCategoryModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
-          <i class="pi pi-tag text-xs"></i>
-          Kategori
-        </button>
-        <button @click="openItemModal()" class="h-10 px-5 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-primary-light transition-all shadow-lg shadow-primary/20">
-          <i class="pi pi-plus text-xs"></i>
-          Tambah
-        </button>
+        <!-- Action buttons -->
+        <div class="grid grid-cols-2 sm:flex sm:items-center gap-2">
+          <button @click="exportItemsCsv" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+            <i class="pi pi-download text-xs"></i>
+            Export
+          </button>
+          <button @click="isBulkModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+            <i class="pi pi-upload text-xs"></i>
+            Import
+          </button>
+          <button @click="isCategoryModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+            <i class="pi pi-tag text-xs"></i>
+            Kategori
+          </button>
+          <button @click="openItemModal()" class="h-10 px-5 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary-light transition-all shadow-lg shadow-primary/20">
+            <i class="pi pi-plus text-xs"></i>
+            Tambah
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Main Content -->
     <div v-if="view !== 'history'" class="premium-card bg-white p-0 overflow-hidden shadow-2xl shadow-primary/5">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-50/50 border-b border-slate-100">
-              <th @click="toggleSort('name')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary select-none">
-                Nama Barang <i :class="sortKey === 'name' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
-              </th>
-              <th @click="toggleSort('category')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary select-none">
-                Kategori <i :class="sortKey === 'category' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
-              </th>
-              <th @click="toggleSort('quantity')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center cursor-pointer hover:text-primary select-none">
-                Stok <i :class="sortKey === 'quantity' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
-              </th>
-              <th @click="toggleSort('unit')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center cursor-pointer hover:text-primary select-none">
-                Satuan <i :class="sortKey === 'unit' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
-              </th>
-              <th @click="toggleSort('harga_jual')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right cursor-pointer hover:text-primary select-none">
-                Harga Jual <i :class="sortKey === 'harga_jual' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
-              </th>
-              <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-50">
-            <tr v-if="isLoading">
-              <td colspan="6">
-                <LoadingState label="Memuat stok barang..." />
-              </td>
-            </tr>
 
-            <tr v-else v-for="item in paginatedItems" :key="item.id" class="hover:bg-slate-50/30 transition-colors group">
-              <td class="px-6 py-5">
+      <!-- Loading -->
+      <LoadingState v-if="isLoading" label="Memuat stok barang..." />
+
+      <template v-else>
+        <!-- Mobile cards -->
+        <div class="md:hidden divide-y divide-slate-100">
+          <div v-if="paginatedItems.length === 0" class="px-6 py-16 text-center text-sm text-slate-400 font-bold">
+            Tidak ada barang ditemukan.
+          </div>
+          <div v-for="item in paginatedItems" :key="item.id" class="px-4 py-3.5 hover:bg-slate-50/40 transition-colors">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                  <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                    {{ item.category?.name }}
+                  </span>
+                </div>
                 <p class="text-sm font-bold text-slate-900">{{ item.name }}</p>
-                <p class="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{{ item.description || 'Tidak ada deskripsi' }}</p>
-              </td>
-              <td class="px-6 py-5 text-center">
-                <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider">
-                  {{ item.category?.name }}
-                </span>
-              </td>
-              <td class="px-6 py-5 text-center">
-                <span 
-                  :class="item.quantity <= 5 ? 'text-red-600' : 'text-primary'"
-                  class="text-lg font-display font-bold"
-                >
+                <p class="text-[10px] text-slate-400 mt-0.5 truncate">{{ item.description || 'Tidak ada deskripsi' }}</p>
+                <p class="text-xs font-bold text-slate-500 mt-1">
+                  {{ item.harga_jual ? 'Rp ' + item.harga_jual.toLocaleString('id-ID') : '-' }}
+                </p>
+              </div>
+              <div class="flex-shrink-0 text-right">
+                <span :class="item.quantity <= 5 ? 'text-red-600' : 'text-primary'" class="text-2xl font-display font-bold">
                   {{ item.quantity }}
                 </span>
-              </td>
-              <td class="px-6 py-5 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
-                {{ item.unit }}
-              </td>
-              <td class="px-6 py-5 text-center text-sm font-bold text-slate-700">
-                {{ item.harga_jual ? 'Rp ' + item.harga_jual.toLocaleString('id-ID') : '-' }}
-              </td>
-              <td class="px-6 py-5 text-right">
-                <div class="flex items-center justify-end gap-2">
-                  <button @click="openAdjustModal(item)" class="h-8 px-3 rounded-lg border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
-                    Update Stok
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ item.unit }}</p>
+                <div class="flex items-center justify-end gap-1.5 mt-2">
+                  <button @click="openAdjustModal(item)" class="h-7 px-2.5 rounded-lg border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
+                    Stok
                   </button>
-                  <button @click="openItemModal(item)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
-                    <i class="pi pi-pencil text-xs"></i>
+                  <button @click="openItemModal(item)" class="w-7 h-7 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
+                    <i class="pi pi-pencil text-[10px]"></i>
                   </button>
-                  <button @click="handleDeleteItem(item.id)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
-                    <i class="pi pi-trash text-xs"></i>
+                  <button @click="handleDeleteItem(item.id)" class="w-7 h-7 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
+                    <i class="pi pi-trash text-[10px]"></i>
                   </button>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop table -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/50 border-b border-slate-100">
+                <th @click="toggleSort('name')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary select-none">
+                  Nama Barang <i :class="sortKey === 'name' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
+                </th>
+                <th @click="toggleSort('category')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary select-none">
+                  Kategori <i :class="sortKey === 'category' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
+                </th>
+                <th @click="toggleSort('quantity')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center cursor-pointer hover:text-primary select-none">
+                  Stok <i :class="sortKey === 'quantity' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
+                </th>
+                <th @click="toggleSort('unit')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center cursor-pointer hover:text-primary select-none">
+                  Satuan <i :class="sortKey === 'unit' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
+                </th>
+                <th @click="toggleSort('harga_jual')" class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right cursor-pointer hover:text-primary select-none">
+                  Harga Jual <i :class="sortKey === 'harga_jual' ? (sortDir === 'asc' ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down') : 'pi pi-sort-alt'" class="ml-1 opacity-40"></i>
+                </th>
+                <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-slate-50/30 transition-colors group">
+                <td class="px-6 py-5">
+                  <p class="text-sm font-bold text-slate-900">{{ item.name }}</p>
+                  <p class="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{{ item.description || 'Tidak ada deskripsi' }}</p>
+                </td>
+                <td class="px-6 py-5 text-center">
+                  <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                    {{ item.category?.name }}
+                  </span>
+                </td>
+                <td class="px-6 py-5 text-center">
+                  <span
+                    :class="item.quantity <= 5 ? 'text-red-600' : 'text-primary'"
+                    class="text-lg font-display font-bold"
+                  >
+                    {{ item.quantity }}
+                  </span>
+                </td>
+                <td class="px-6 py-5 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  {{ item.unit }}
+                </td>
+                <td class="px-6 py-5 text-center text-sm font-bold text-slate-700">
+                  {{ item.harga_jual ? 'Rp ' + item.harga_jual.toLocaleString('id-ID') : '-' }}
+                </td>
+                <td class="px-6 py-5 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <button @click="openAdjustModal(item)" class="h-8 px-3 rounded-lg border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
+                      Update Stok
+                    </button>
+                    <button @click="openItemModal(item)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
+                      <i class="pi pi-pencil text-xs"></i>
+                    </button>
+                    <button @click="handleDeleteItem(item.id)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
+                      <i class="pi pi-trash text-xs"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
       <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-slate-100">
         <p class="text-xs text-slate-400">
           Menampilkan {{ (currentPage - 1) * perPage + 1 }}–{{ Math.min(currentPage * perPage, filteredItems.length) }} dari {{ filteredItems.length }} barang

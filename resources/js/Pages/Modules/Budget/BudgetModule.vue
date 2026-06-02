@@ -9,8 +9,8 @@
     </div>
 
     <!-- Sub-tabs -->
-    <div class="border-b border-gray-200">
-      <nav class="flex gap-6">
+    <div class="border-b border-gray-200 overflow-x-auto">
+      <nav class="flex gap-6 min-w-max">
         <button v-for="t in tabs" :key="t.id" @click="activeTab = t.id"
           :class="['pb-3 text-sm font-medium border-b-2 transition-colors', activeTab === t.id
             ? 'border-amber-500 text-amber-600'
@@ -247,43 +247,45 @@
     <!-- Tab: Realisasi -->
     <div v-if="activeTab === 'realisasi'" class="space-y-4">
       <!-- Filters -->
-      <div class="flex flex-wrap gap-3 items-end">
-        <div>
-          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Tanggal</label>
-          <input type="date" v-model="txDate" @change="loadTransactions"
-            class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white" />
-        </div>
-        <div>
-          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Bulan</label>
-          <input type="month" v-model="txMonth" @change="txDate = ''; loadTransactions()"
-            :disabled="!!txDate"
-            class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white disabled:opacity-40" />
-        </div>
-        <div>
-          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Kategori</label>
-          <div class="relative">
-            <select v-model="txCatId" @change="txItemId = null; loadTransactions()"
-              class="appearance-none border border-slate-200 rounded-xl px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white cursor-pointer">
-              <option :value="null">Semua Kategori</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-            </select>
-            <i class="pi pi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+      <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 items-end">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Tanggal</label>
+            <input type="date" v-model="txDate" @change="loadTransactions"
+              class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white" />
           </div>
-        </div>
-        <div>
-          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Item</label>
-          <div class="relative">
-            <select v-model="txItemId" @change="loadTransactions"
-              class="appearance-none border border-slate-200 rounded-xl px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              :disabled="!txCatId">
-              <option :value="null">Semua Item</option>
-              <option v-for="item in filteredTxItems" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <i class="pi pi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Bulan</label>
+            <input type="month" v-model="txMonth" @change="txDate = ''; loadTransactions()"
+              :disabled="!!txDate"
+              class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white disabled:opacity-40" />
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Kategori</label>
+            <div class="relative">
+              <select v-model="txCatId" @change="txItemId = null; loadTransactions()"
+                class="appearance-none w-full border border-slate-200 rounded-xl px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white cursor-pointer">
+                <option :value="null">Semua Kategori</option>
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+              </select>
+              <i class="pi pi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Item</label>
+            <div class="relative">
+              <select v-model="txItemId" @change="loadTransactions"
+                class="appearance-none w-full border border-slate-200 rounded-xl px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 bg-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                :disabled="!txCatId">
+                <option :value="null">Semua Item</option>
+                <option v-for="item in filteredTxItems" :key="item.id" :value="item.id">{{ item.name }}</option>
+              </select>
+              <i class="pi pi-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+            </div>
           </div>
         </div>
         <button @click="openAddTransaction"
-          class="flex items-center gap-2 bg-primary hover:bg-primary-light text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
+          class="flex items-center justify-center gap-2 bg-primary hover:bg-primary-light text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors sm:self-start">
           <i class="pi pi-plus text-[10px]"></i>
           Transaksi
         </button>
@@ -291,52 +293,104 @@
 
       <!-- Transactions table -->
       <div class="bg-white rounded-2xl shadow overflow-hidden">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
-            <tr>
-              <th class="px-4 py-2 text-left">Tanggal</th>
-              <th class="px-4 py-2 text-left">Item</th>
-              <th class="px-4 py-2 text-left">Kategori</th>
-              <th class="px-4 py-2 text-right">Jumlah</th>
-              <th class="px-4 py-2 text-left">Keterangan</th>
-              <th class="px-4 py-2 text-center">Bukti</th>
-              <th class="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-            <tr v-for="tx in transactions" :key="tx.id" class="hover:bg-gray-50">
-              <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ tx.transaction_date?.slice(0, 10).split('-').reverse().join('/') }}</td>
-              <td class="px-4 py-3 font-medium text-gray-800">{{ tx.budget_item?.name }}</td>
-              <td class="px-4 py-3 text-gray-500 text-xs">{{ tx.budget_item?.category?.name }}</td>
-              <td class="px-4 py-3 text-right font-semibold text-gray-800">{{ fmt(tx.amount) }}</td>
-              <td class="px-4 py-3 text-gray-500 text-xs max-w-[180px] truncate">{{ tx.note }}</td>
-              <td class="px-4 py-3 text-center">
-                <label v-if="!tx.receipt_path" :for="'receipt-' + tx.id"
-                  class="cursor-pointer text-xs text-amber-600 hover:text-amber-800">Upload</label>
-                <a v-else :href="'/storage/' + tx.receipt_path" target="_blank"
-                  class="text-xs text-blue-600 hover:underline">Lihat</a>
-                <input :id="'receipt-' + tx.id" type="file" class="hidden" accept="image/*,application/pdf"
-                  @change="(e) => uploadReceipt(tx.id, e)" />
-              </td>
-              <td class="px-4 py-3 text-right">
-                <div class="flex justify-end gap-2">
-                  <button @click="openEditTransaction(tx)"
-                    class="text-xs text-blue-600 hover:text-blue-800">Edit</button>
-                  <button @click="confirmDeleteTransaction(tx.id)"
-                    class="text-xs text-red-500 hover:text-red-700">Hapus</button>
+
+        <!-- Empty state -->
+        <div v-if="!transactions.length" class="px-4 py-10 text-center text-gray-400 text-sm">Belum ada transaksi</div>
+
+        <template v-else>
+          <!-- Mobile cards -->
+          <div class="md:hidden divide-y divide-gray-100">
+            <div v-for="tx in transactions" :key="tx.id" class="px-4 py-3.5 hover:bg-gray-50 transition-colors">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2 mb-1 flex-wrap">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                      {{ tx.transaction_date?.slice(0, 10).split('-').reverse().join('/') }}
+                    </span>
+                    <span class="bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wide">
+                      {{ tx.budget_item?.category?.name }}
+                    </span>
+                  </div>
+                  <p class="text-sm font-semibold text-gray-800">{{ tx.budget_item?.name }}</p>
+                  <p v-if="tx.note" class="text-xs text-gray-400 mt-0.5 truncate">{{ tx.note }}</p>
+                  <div class="flex items-center gap-3 mt-2">
+                    <label v-if="!tx.receipt_path" :for="'receipt-m-' + tx.id"
+                      class="cursor-pointer text-xs text-amber-600 hover:text-amber-800 font-bold">
+                      <i class="pi pi-upload text-[10px]"></i> Bukti
+                    </label>
+                    <a v-else :href="'/storage/' + tx.receipt_path" target="_blank"
+                      class="text-xs text-blue-600 hover:underline font-bold">
+                      <i class="pi pi-eye text-[10px]"></i> Lihat Bukti
+                    </a>
+                    <input :id="'receipt-m-' + tx.id" type="file" class="hidden" accept="image/*,application/pdf"
+                      @change="(e) => uploadReceipt(tx.id, e)" />
+                  </div>
                 </div>
-              </td>
-            </tr>
-            <tr v-if="!transactions.length">
-              <td colspan="7" class="px-4 py-10 text-center text-gray-400">Belum ada transaksi</td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="transactions.length" class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
-          <span class="text-sm font-semibold text-gray-700">
-            Total: {{ fmt(transactions.reduce((s: number, t: any) => s + Number(t.amount), 0)) }}
-          </span>
-        </div>
+                <div class="flex-shrink-0 text-right">
+                  <p class="text-base font-bold text-gray-800">{{ fmt(tx.amount) }}</p>
+                  <div class="flex items-center justify-end gap-1.5 mt-2">
+                    <button @click="openEditTransaction(tx)"
+                      class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                      <i class="pi pi-pencil text-[10px]"></i>
+                    </button>
+                    <button @click="confirmDeleteTransaction(tx.id)"
+                      class="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                      <i class="pi pi-trash text-[10px]"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Desktop table -->
+          <div class="hidden md:block overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr>
+                  <th class="px-4 py-2 text-left">Tanggal</th>
+                  <th class="px-4 py-2 text-left">Item</th>
+                  <th class="px-4 py-2 text-left">Kategori</th>
+                  <th class="px-4 py-2 text-right">Jumlah</th>
+                  <th class="px-4 py-2 text-left">Keterangan</th>
+                  <th class="px-4 py-2 text-center">Bukti</th>
+                  <th class="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr v-for="tx in transactions" :key="tx.id" class="hover:bg-gray-50">
+                  <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ tx.transaction_date?.slice(0, 10).split('-').reverse().join('/') }}</td>
+                  <td class="px-4 py-3 font-medium text-gray-800">{{ tx.budget_item?.name }}</td>
+                  <td class="px-4 py-3 text-gray-500 text-xs">{{ tx.budget_item?.category?.name }}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-gray-800">{{ fmt(tx.amount) }}</td>
+                  <td class="px-4 py-3 text-gray-500 text-xs max-w-[180px] truncate">{{ tx.note }}</td>
+                  <td class="px-4 py-3 text-center">
+                    <label v-if="!tx.receipt_path" :for="'receipt-' + tx.id"
+                      class="cursor-pointer text-xs text-amber-600 hover:text-amber-800">Upload</label>
+                    <a v-else :href="'/storage/' + tx.receipt_path" target="_blank"
+                      class="text-xs text-blue-600 hover:underline">Lihat</a>
+                    <input :id="'receipt-' + tx.id" type="file" class="hidden" accept="image/*,application/pdf"
+                      @change="(e) => uploadReceipt(tx.id, e)" />
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-2">
+                      <button @click="openEditTransaction(tx)"
+                        class="text-xs text-blue-600 hover:text-blue-800">Edit</button>
+                      <button @click="confirmDeleteTransaction(tx.id)"
+                        class="text-xs text-red-500 hover:text-red-700">Hapus</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <span class="text-sm font-semibold text-gray-700">
+              Total: {{ fmt(transactions.reduce((s: number, t: any) => s + Number(t.amount), 0)) }}
+            </span>
+          </div>
+        </template>
       </div>
     </div>
 

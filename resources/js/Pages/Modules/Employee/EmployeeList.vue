@@ -161,74 +161,114 @@ const getStatusClass = (status: string) => {
 
     <!-- Table Card -->
     <div class="premium-card bg-white p-0 overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-50/50 border-b border-slate-100">
-              <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Karyawan</th>
-              <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Posisi / Dept</th>
-              <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gaji Pokok</th>
-              <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-              <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-50">
-            <tr v-if="isLoading" v-for="i in 3" :key="i" class="animate-pulse">
-              <td colspan="5" class="px-6 py-8 h-20 bg-slate-50/20"></td>
-            </tr>
-            
-            <tr v-else v-for="emp in employees" :key="emp.id" class="hover:bg-slate-50/50 transition-colors group">
-              <td class="px-6 py-5">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-accent">
-                    {{ emp.first_name[0] }}
-                  </div>
-                  <div>
-                    <p class="text-sm font-bold text-slate-900">{{ emp.first_name }} {{ emp.last_name }}</p>
-                    <p class="text-[10px] text-slate-400 font-medium">{{ emp.employee_id }}</p>
-                  </div>
+
+      <!-- Loading -->
+      <div v-if="isLoading" class="divide-y divide-slate-50">
+        <div v-for="i in 3" :key="i" class="px-4 py-4 animate-pulse h-20 bg-slate-50/20"></div>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else-if="employees.length === 0" class="px-6 py-20 text-center">
+        <div class="text-4xl mb-4 text-slate-200"><i class="pi pi-inbox"></i></div>
+        <p class="text-sm text-slate-400 font-medium">Belum ada data karyawan.</p>
+      </div>
+
+      <template v-else>
+        <!-- Mobile cards -->
+        <div class="md:hidden divide-y divide-slate-100">
+          <div v-for="emp in employees" :key="emp.id" class="px-4 py-4">
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-accent flex-shrink-0">
+                  {{ emp.first_name[0] }}
                 </div>
-              </td>
-              <td class="px-6 py-5">
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-slate-900 truncate">{{ emp.first_name }} {{ emp.last_name }}</p>
+                  <p class="text-[10px] text-slate-400 font-medium">{{ emp.employee_id }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button @click="openDetailModal(emp)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:border-emerald-100 transition-all">
+                  <i class="pi pi-eye text-xs"></i>
+                </button>
+                <button @click="openEditModal(emp)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
+                  <i class="pi pi-pencil text-xs"></i>
+                </button>
+                <button @click="handleDelete(emp.id)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
+                  <i class="pi pi-trash text-xs"></i>
+                </button>
+              </div>
+            </div>
+            <div class="mt-2 flex items-center justify-between">
+              <div>
                 <p class="text-xs font-bold text-slate-700">{{ emp.position?.name || 'Staff' }}</p>
                 <p class="text-[10px] text-slate-400 uppercase tracking-widest">{{ emp.department?.name || 'Umum' }}</p>
-              </td>
-              <td class="px-6 py-5">
-                <p class="text-sm font-bold text-primary">
-                  Rp {{ new Intl.NumberFormat('id-ID').format(emp.base_salary) }}
-                </p>
-              </td>
-              <td class="px-6 py-5">
-                <span :class="getStatusClass(emp.status)" class="text-[9px] font-bold px-2.5 py-1 rounded-full border tracking-widest uppercase">
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-bold text-primary">Rp {{ new Intl.NumberFormat('id-ID').format(emp.base_salary) }}</p>
+                <span :class="getStatusClass(emp.status)" class="text-[9px] font-bold px-2 py-0.5 rounded-full border tracking-widest uppercase">
                   {{ emp.status }}
                 </span>
-              </td>
-              <td class="px-6 py-5">
-                <div class="flex items-center gap-2">
-                  <button @click="openDetailModal(emp)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:border-emerald-100 transition-all">
-                    <i class="pi pi-eye text-xs"></i>
-                  </button>
-                  <button @click="openEditModal(emp)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
-                    <i class="pi pi-pencil text-xs"></i>
-                  </button>
-                  <button @click="handleDelete(emp.id)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
-                    <i class="pi pi-trash text-xs"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <tr v-if="!isLoading && employees.length === 0">
-              <td colspan="5" class="px-6 py-20 text-center">
-                <div class="text-4xl mb-4 text-slate-200">
-                  <i class="pi pi-inbox"></i>
-                </div>
-                <p class="text-sm text-slate-400 font-medium">Belum ada data karyawan.</p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <!-- Desktop table -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/50 border-b border-slate-100">
+                <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Karyawan</th>
+                <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Posisi / Dept</th>
+                <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gaji Pokok</th>
+                <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              <tr v-for="emp in employees" :key="emp.id" class="hover:bg-slate-50/50 transition-colors group">
+                <td class="px-6 py-5">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center font-bold text-accent">
+                      {{ emp.first_name[0] }}
+                    </div>
+                    <div>
+                      <p class="text-sm font-bold text-slate-900">{{ emp.first_name }} {{ emp.last_name }}</p>
+                      <p class="text-[10px] text-slate-400 font-medium">{{ emp.employee_id }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-5">
+                  <p class="text-xs font-bold text-slate-700">{{ emp.position?.name || 'Staff' }}</p>
+                  <p class="text-[10px] text-slate-400 uppercase tracking-widest">{{ emp.department?.name || 'Umum' }}</p>
+                </td>
+                <td class="px-6 py-5">
+                  <p class="text-sm font-bold text-primary">Rp {{ new Intl.NumberFormat('id-ID').format(emp.base_salary) }}</p>
+                </td>
+                <td class="px-6 py-5">
+                  <span :class="getStatusClass(emp.status)" class="text-[9px] font-bold px-2.5 py-1 rounded-full border tracking-widest uppercase">
+                    {{ emp.status }}
+                  </span>
+                </td>
+                <td class="px-6 py-5">
+                  <div class="flex items-center gap-2">
+                    <button @click="openDetailModal(emp)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:border-emerald-100 transition-all">
+                      <i class="pi pi-eye text-xs"></i>
+                    </button>
+                    <button @click="openEditModal(emp)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
+                      <i class="pi pi-pencil text-xs"></i>
+                    </button>
+                    <button @click="handleDelete(emp.id)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
+                      <i class="pi pi-trash text-xs"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </div>
 
     <!-- Modal Form -->
@@ -326,10 +366,10 @@ const getStatusClass = (status: string) => {
     <!-- Detail Modal -->
     <div v-if="isDetailModalOpen && selectedEmployee" class="fixed inset-0 z-[100] flex items-center justify-center p-6">
       <div @click="isDetailModalOpen = false" class="absolute inset-0 bg-primary/40 backdrop-blur-sm"></div>
-      <div class="relative w-full max-w-4xl bg-[#faf9f6] rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
-        <div class="flex h-[600px]">
+      <div class="relative w-full max-w-4xl bg-[#faf9f6] rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 max-h-[90vh] overflow-y-auto">
+        <div class="flex flex-col md:flex-row md:h-[600px]">
           <!-- Left Profile Section -->
-          <div class="w-1/3 bg-white border-r border-slate-100 p-8 flex flex-col items-center text-center">
+          <div class="md:w-1/3 bg-white border-b md:border-b-0 md:border-r border-slate-100 p-6 md:p-8 flex flex-col items-center text-center">
             <div class="w-32 h-32 rounded-3xl bg-primary/5 border border-primary/10 flex items-center justify-center text-5xl font-display font-bold text-primary mb-6 shadow-xl shadow-primary/5">
               {{ selectedEmployee.first_name[0] }}
             </div>
@@ -352,7 +392,7 @@ const getStatusClass = (status: string) => {
           </div>
 
           <!-- Right Content Section -->
-          <div class="flex-1 p-10 overflow-y-auto">
+          <div class="flex-1 p-6 md:p-10 overflow-y-auto">
             <div class="flex justify-between items-center mb-8">
               <h4 class="font-display text-xl font-bold text-primary">Informasi Lengkap</h4>
               <button @click="isDetailModalOpen = false" class="w-10 h-10 rounded-full hover:bg-white flex items-center justify-center text-slate-400 transition-colors">
