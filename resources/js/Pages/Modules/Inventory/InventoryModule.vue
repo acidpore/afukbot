@@ -229,6 +229,15 @@ const adjustForm = ref({
   notes: ''
 });
 
+const adjustMode = ref<'delta' | 'set'>('delta');
+const setStockValue = ref(0);
+
+const setStockDelta = computed(() => {
+  if (!selectedItem.value) return 0;
+  return setStockValue.value - selectedItem.value.quantity;
+});
+const setStockType = computed<'IN' | 'OUT'>(() => setStockDelta.value >= 0 ? 'IN' : 'OUT');
+
 const fetchData = async () => {
   isLoading.value = true;
   try {
@@ -354,6 +363,8 @@ const openItemModal = (item: any = null) => {
 const openAdjustModal = (item: any) => {
   selectedItem.value = item;
   adjustForm.value = { item_id: item.id, type: 'IN', quantity: 1, notes: '' };
+  adjustMode.value = 'delta';
+  setStockValue.value = item.quantity;
   isAdjustModalOpen.value = true;
 };
 
@@ -373,7 +384,20 @@ const handleSaveItem = async () => {
 
 const handleAdjustStock = async () => {
   try {
-    await inventoryApi.adjustStock(adjustForm.value as any);
+    let payload: any;
+    if (adjustMode.value === 'set') {
+      const delta = setStockDelta.value;
+      if (delta === 0) { isAdjustModalOpen.value = false; return; }
+      payload = {
+        item_id: adjustForm.value.item_id,
+        type: setStockType.value,
+        quantity: Math.abs(delta),
+        notes: adjustForm.value.notes,
+      };
+    } else {
+      payload = adjustForm.value;
+    }
+    await inventoryApi.adjustStock(payload);
     isAdjustModalOpen.value = false;
     fetchData();
   } catch (error) {
@@ -930,33 +954,83 @@ const handleSaveCategory = async () => {
       <div @click="isAdjustModalOpen = false" class="absolute inset-0 bg-primary/40 backdrop-blur-sm"></div>
       <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
         <div class="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <h3 class="text-xl font-display font-bold text-primary">Update Stok</h3>
+          <div>
+            <h3 class="text-xl font-display font-bold text-primary">Update Stok</h3>
+            <p class="text-xs text-slate-400 font-bold mt-0.5">{{ selectedItem?.name }}</p>
+          </div>
           <button @click="isAdjustModalOpen = false" class="text-slate-400 hover:text-primary"><i class="pi pi-times"></i></button>
         </div>
-        <div class="p-8 space-y-6 text-center">
-          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">{{ selectedItem?.name }}</p>
-          <div class="flex items-center justify-center gap-4">
-            <button 
-              @click="adjustForm.type = 'OUT'"
-              :class="adjustForm.type === 'OUT' ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-400'"
-              class="w-20 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
-            >Keluar</button>
-            <button 
-              @click="adjustForm.type = 'IN'"
-              :class="adjustForm.type === 'IN' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'"
-              class="w-20 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
-            >Masuk</button>
+        <div class="p-8 space-y-6">
+
+          <!-- Mode toggle -->
+          <div class="flex items-center bg-slate-100 rounded-2xl p-1">
+            <button
+              @click="adjustMode = 'delta'"
+              :class="adjustMode === 'delta' ? 'bg-white text-primary shadow-sm' : 'text-slate-400'"
+              class="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+            >Masuk / Keluar</button>
+            <button
+              @click="adjustMode = 'set'"
+              :class="adjustMode === 'set' ? 'bg-white text-primary shadow-sm' : 'text-slate-400'"
+              class="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+            >Set Stok Aktual</button>
           </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Jumlah ({{ selectedItem?.unit }})</label>
-            <input v-model.number="adjustForm.quantity" type="number" min="1" class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-center text-2xl font-display font-bold text-primary focus:ring-2 focus:ring-accent/20 outline-none">
-          </div>
+
+          <!-- Delta mode -->
+          <template v-if="adjustMode === 'delta'">
+            <div class="flex items-center justify-center gap-4">
+              <button
+                @click="adjustForm.type = 'OUT'"
+                :class="adjustForm.type === 'OUT' ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-400'"
+                class="flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
+              >Keluar</button>
+              <button
+                @click="adjustForm.type = 'IN'"
+                :class="adjustForm.type === 'IN' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'"
+                class="flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
+              >Masuk</button>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Jumlah ({{ selectedItem?.unit }})</label>
+              <input v-model.number="adjustForm.quantity" type="number" min="1" class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-center text-2xl font-display font-bold text-primary focus:ring-2 focus:ring-accent/20 outline-none">
+            </div>
+          </template>
+
+          <!-- Set mode -->
+          <template v-else>
+            <div class="bg-slate-50 rounded-2xl px-5 py-4 text-center">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stok Saat Ini</p>
+              <p class="text-3xl font-display font-bold text-slate-600 mt-1">{{ selectedItem?.quantity }} <span class="text-sm font-medium text-slate-400">{{ selectedItem?.unit }}</span></p>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Stok Aktual ({{ selectedItem?.unit }})</label>
+              <input v-model.number="setStockValue" type="number" min="0" class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-center text-2xl font-display font-bold text-primary focus:ring-2 focus:ring-accent/20 outline-none">
+            </div>
+            <!-- Preview delta -->
+            <div v-if="setStockDelta !== 0" class="flex items-center justify-center gap-2 py-2">
+              <span class="text-xs text-slate-400">Akan dicatat:</span>
+              <span
+                :class="setStockDelta > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'"
+                class="text-xs font-bold px-3 py-1 rounded-full border"
+              >
+                {{ setStockDelta > 0 ? '+' : '' }}{{ setStockDelta }} {{ selectedItem?.unit }} ({{ setStockType === 'IN' ? 'Masuk' : 'Keluar' }})
+              </span>
+            </div>
+            <div v-else class="text-center text-xs text-slate-400 py-1">Stok tidak berubah</div>
+          </template>
+
+          <!-- Notes (both modes) -->
           <div>
             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Catatan</label>
-            <input v-model="adjustForm.notes" type="text" placeholder="Misal: Restock bulanan..." class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none">
+            <input v-model="adjustForm.notes" type="text" placeholder="Misal: Restock bulanan, koreksi hitung fisik..." class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-accent/20 outline-none">
           </div>
-          <div class="pt-6 flex flex-col gap-3">
-            <button @click="handleAdjustStock" class="btn-primary w-full justify-center py-4">Konfirmasi Perubahan</button>
+
+          <div class="pt-2 flex flex-col gap-3">
+            <button
+              @click="handleAdjustStock"
+              :disabled="adjustMode === 'set' && setStockDelta === 0"
+              class="btn-primary w-full justify-center py-4 disabled:opacity-40 disabled:cursor-not-allowed"
+            >Konfirmasi Perubahan</button>
             <button @click="isAdjustModalOpen = false" class="text-sm font-bold text-slate-400 hover:text-slate-600">Batal</button>
           </div>
         </div>
