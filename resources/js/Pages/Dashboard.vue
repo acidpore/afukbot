@@ -211,15 +211,17 @@ onMounted(async () => {
     console.error('Gagal mengambil data dashboard:', error);
   }
 
-  // Refetch saat user kembali ke tab browser
   document.addEventListener('visibilitychange', onVisibilityChange);
-  // Refetch instan saat ada perubahan data sales
   window.addEventListener('sales-updated', fetchSales);
+  window.addEventListener('tab-navigate', (e: Event) => {
+    activeTab.value = (e as CustomEvent).detail;
+  });
 });
 
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisibilityChange);
   window.removeEventListener('sales-updated', fetchSales);
+  window.removeEventListener('tab-navigate', () => {});
 });
 </script>
 
