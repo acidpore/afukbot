@@ -74,8 +74,10 @@ function parsePaymentFromNotes(text: string, total: number): number {
     }
 
     // Normalisasi ribuan/jutaan: "10 juta" "500rb" "500ribu" "1.5 juta"
-    const normalized = t
-        .replace(/(\d)[.,](\d{3})(?!\d)/g, '$1$2') // 10.000 → 10000
+    let norm0 = t;
+    let prev0: string;
+    do { prev0 = norm0; norm0 = norm0.replace(/(\d)[.,](\d{3})(?!\d)/g, '$1$2'); } while (norm0 !== prev0);
+    const normalized = norm0
         .replace(/(\d+(?:[.,]\d+)?)\s*juta/g,  (_, n) => String(Math.round(parseFloat(n.replace(',', '.')) * 1_000_000)))
         .replace(/(\d+(?:[.,]\d+)?)\s*(ribu|rb|k)/g, (_, n) => String(Math.round(parseFloat(n.replace(',', '.')) * 1_000)));
 
@@ -933,7 +935,7 @@ async function printInvoice(sale: Sale) {
 
     // ── 5. DP NOTE ─────────────────────────────────────────
     const notesText  = sale.notes?.trim() || 'DP 50% PELUNASAN';
-    const dpAmount   = parseDPAmount(sale.notes, sale.grand_total);
+    const dpAmount   = sale.paid_amount > 0 ? sale.paid_amount : parseDPAmount(sale.notes, sale.grand_total);
     const kekurangan = dpAmount > 0 ? Math.max(0, sale.grand_total - dpAmount) : 0;
 
     doc.setFontSize(9);
