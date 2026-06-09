@@ -36,6 +36,7 @@ Route::middleware(EnsureAuthenticated::class)->group(function () {
     require __DIR__.'/../app/Modules/Income/routes.php';
     require __DIR__.'/../app/Modules/ManualPiutang/routes.php';
     require __DIR__.'/../app/Modules/Budget/routes.php';
+    require __DIR__.'/../app/Modules/SuratJalan/routes.php';
     require __DIR__.'/../app/Modules/MbgApi/routes.php';
 });
 

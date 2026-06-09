@@ -441,18 +441,18 @@ const handleSaveCategory = async () => {
         </p>
       </div>
       <div v-if="view !== 'history'" class="flex flex-col gap-2">
-        <!-- Search -->
-        <div class="relative w-full">
-          <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Cari barang..."
-            class="bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent shadow-sm w-full sm:w-52"
-          >
-        </div>
-        <!-- Action buttons -->
+        <!-- Action buttons + Search -->
         <div class="grid grid-cols-2 sm:flex sm:items-center gap-2">
+          <!-- Search -->
+          <div class="relative col-span-2 sm:col-auto sm:mr-1">
+            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Cari barang..."
+              class="bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent shadow-sm w-full sm:w-52 h-10"
+            >
+          </div>
           <button @click="exportItemsCsv" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
             <i class="pi pi-download text-xs"></i>
             Export

@@ -29,4 +29,9 @@ class Sale extends Model
     {
         return $this->hasMany(SaleItem::class);
     }
+
+    public function suratJalans()
+    {
+        return $this->hasMany(\App\Models\SuratJalan::class);
+    }
 }

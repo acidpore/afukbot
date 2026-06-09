@@ -14,6 +14,7 @@ import IncomeModule from './Modules/Income/IncomeModule.vue';
 import BudgetModule from './Modules/Budget/BudgetModule.vue';
 import SettingsModule from './Modules/Settings/SettingsModule.vue';
 import MbgModule from './Modules/MbgApi/MbgModule.vue';
+import SuratJalanModule from './Modules/SuratJalan/SuratJalanModule.vue';
 
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = ref(urlParams.get('tab') || 'overview');
@@ -102,6 +103,7 @@ const menuItems = [
     ],
   },
   { id: 'sales', name: 'Penjualan', icon: 'pi pi-receipt' },
+  { id: 'surat-jalan', name: 'Surat Jalan', icon: 'pi pi-truck' },
   {
     id: 'keuangan',
     name: 'Keuangan Ruko',
@@ -570,6 +572,11 @@ onUnmounted(() => {
           </div>
         </div>
         <SalesModule />
+      </div>
+
+      <!-- Module: Surat Jalan -->
+      <div v-else-if="activeTab === 'surat-jalan'">
+        <SuratJalanModule />
       </div>
 
       <!-- Module: Expenses -->
