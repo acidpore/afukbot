@@ -8,6 +8,9 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Auto backup DB setiap hari jam 02:00 dini hari
+Schedule::command('backup:upload')->dailyAt('02:00');
+
 // Kirim reminder RAB setiap tanggal 1 jam 08:00
 Schedule::command('rab:check-due')->monthlyOn(1, '08:00');
 

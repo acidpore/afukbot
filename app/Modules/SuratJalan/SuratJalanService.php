@@ -84,12 +84,6 @@ class SuratJalanService
                     $invItem = Item::find($itemId);
                     if (!$invItem) continue;
 
-                    if ($invItem->quantity < $row['qty_kirim']) {
-                        throw new \Exception(
-                            "Stok {$invItem->name} tidak cukup (tersisa {$invItem->quantity}, dibutuhkan {$row['qty_kirim']})."
-                        );
-                    }
-
                     $before = $invItem->quantity;
                     $invItem->decrement('quantity', $row['qty_kirim']);
 
