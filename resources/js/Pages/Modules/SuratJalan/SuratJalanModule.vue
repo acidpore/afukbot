@@ -96,7 +96,7 @@ const summary = computed(() => {
         inventory_item_ids: number[];
         invoices: { recipient_name: string; invoice_number: string; qty_sisa: number }[];
     }> = {};
-    for (const inv of invoices.value) {
+    for (const inv of invoices.value.filter(i => i.paid_amount > 0)) {
         for (const item of inv.items) {
             const sisa = inv.progress.items[item.id]?.qty_sisa ?? 0;
             if (sisa <= 0) continue;

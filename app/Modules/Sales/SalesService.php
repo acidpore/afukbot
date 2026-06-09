@@ -285,7 +285,8 @@ class SalesService
     public function getPendingItems(): array
     {
         $sales = Sale::with('items')
-            ->where('status', 'rencana')
+            ->whereIn('status', ['rencana', 'proses'])
+            ->where('paid_amount', '>', 0)
             ->orderBy('invoice_date')
             ->get();
 

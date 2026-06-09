@@ -209,6 +209,7 @@ class SuratJalanService
                 'unit_price'          => $item->unit_price,
                 'inventory_item_ids'  => $item->inventory_item_ids ?? [],
             ])->values()->toArray();
+            $data['paid_amount'] = (float) ($sale->paid_amount ?? 0);
             $data['progress'] = $progress;
             return $data;
         })->toArray();

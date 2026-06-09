@@ -145,9 +145,9 @@ function processSales(sales: any[]) {
     }))
     .sort((a: any, b: any) => b.sisa - a.sisa);
 
-  // Top 10 barang terlaris dari semua invoice
+  // Top 10 barang terlaris dari invoice yang sudah dikirim
   const itemMap = new Map<string, { total_qty: number; total_revenue: number }>();
-  for (const sale of sales) {
+  for (const sale of sales.filter((s: any) => s.status === 'sudah_dikirim')) {
     for (const item of (sale.items ?? [])) {
       const key = item.item_name;
       const prev = itemMap.get(key) ?? { total_qty: 0, total_revenue: 0 };
