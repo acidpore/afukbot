@@ -59,14 +59,13 @@ function progressPct(p: SaleProgress) {
 }
 
 // ── Filter ────────────────────────────────────────────────
-const activeFilter = ref<'semua' | 'belum' | 'parsial' | 'sudah_dp'>('semua');
+const activeFilter = ref<'semua' | 'belum' | 'prioritas'>('prioritas');
 const searchQuery  = ref('');
 
 const filteredInvoices = computed(() => {
     let list = invoices.value;
-    if (activeFilter.value === 'belum')    list = list.filter(i => i.progress.qty_total_kirim === 0);
-    if (activeFilter.value === 'parsial') list = list.filter(i => i.progress.qty_total_kirim > 0 && i.progress.qty_total_sisa > 0);
-    if (activeFilter.value === 'sudah_dp') list = list.filter(i => i.paid_amount > 0);
+    if (activeFilter.value === 'belum')     list = list.filter(i => i.progress.qty_total_kirim === 0);
+    if (activeFilter.value === 'prioritas') list = list.filter(i => i.paid_amount > 0 || i.progress.qty_total_kirim > 0);
     if (searchQuery.value.trim()) {
         const q = searchQuery.value.toLowerCase();
         list = list.filter(i => i.recipient_name.toLowerCase().includes(q) || i.invoice_number.toLowerCase().includes(q));
@@ -83,7 +82,7 @@ const summary = computed(() => {
         const d = new Date(i.invoice_date); d.setHours(0,0,0,0);
         return Math.floor((today.getTime() - d.getTime()) / 86400000) >= 7 && i.progress.qty_total_sisa > 0;
     });
-    const nilaiSisa = invoices.value.reduce((s, i) => {
+    const nilaiSisa = invoices.value.filter(i => i.paid_amount > 0).reduce((s, i) => {
         const pct = i.progress.qty_total_order > 0 ? i.progress.qty_total_sisa / i.progress.qty_total_order : 0;
         return s + Math.round(i.grand_total * pct);
     }, 0);
@@ -368,7 +367,7 @@ onMounted(fetchInvoices);
           <div>
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estimasi Nilai Belum Kirim</p>
             <p class="text-lg font-bold text-[#1D3557] mt-0.5">{{ formatRp(summary.nilaiSisa) }}</p>
-            <p class="text-[10px] text-slate-400">dari {{ invoices.length }} invoice aktif</p>
+            <p class="text-[10px] text-slate-400">dari {{ invoices.filter(i => i.paid_amount > 0).length }} invoice sudah DP</p>
           </div>
         </div>
 
@@ -410,7 +409,7 @@ onMounted(fetchInvoices);
       <!-- Filter chips -->
       <div class="flex gap-1.5 flex-wrap">
         <button
-          v-for="f in ([{ key: 'semua', label: 'Semua' }, { key: 'belum', label: 'Belum Kirim' }, { key: 'parsial', label: 'Parsial' }, { key: 'sudah_dp', label: 'Sudah DP' }] as const)"
+          v-for="f in ([{ key: 'semua', label: 'Semua' }, { key: 'prioritas', label: 'Prioritas' }, { key: 'belum', label: 'Belum Kirim' }] as const)"
           :key="f.key"
           @click="activeFilter = f.key"
           class="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap"
