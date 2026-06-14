@@ -267,7 +267,7 @@ onUnmounted(() => {
           <!-- Menu item dengan children (tree) -->
           <template v-if="item.children">
             <button
-              @click="activeTab = item.id"
+              @click="isExpanded(item.id) ? activeTab = 'overview' : activeTab = item.id"
               class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group"
               :class="isExpanded(item.id) ? 'text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
             >

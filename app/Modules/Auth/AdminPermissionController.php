@@ -2,6 +2,7 @@
 
 namespace App\Modules\Auth;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use App\Models\UserPermission;
 use Illuminate\Http\Request;
@@ -63,6 +64,8 @@ class AdminPermissionController extends Controller
                 ]
             );
         }
+
+        ActivityLog::record('permission_updated', "Hak akses admin {$user->name} ({$user->email}) diperbarui");
 
         return response()->json(['message' => 'Hak akses disimpan.']);
     }

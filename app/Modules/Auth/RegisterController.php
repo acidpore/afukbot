@@ -2,6 +2,7 @@
 
 namespace App\Modules\Auth;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use App\Modules\Telegram\TelegramService;
 use App\Services\WebPushService;
@@ -15,9 +16,15 @@ class RegisterController extends Controller
     public function register(Request $request)
     {
         $data = $request->validate([
-            'name'                  => 'required|string|max:100',
-            'email'                 => 'required|email|unique:users,email',
-            'password'              => 'required|string|min:8|confirmed',
+            'name'     => 'required|string|max:100',
+            'email'    => 'required|email:rfc,dns|unique:users,email',
+            'password' => [
+                'required', 'string', 'min:8', 'confirmed',
+                'regex:/[A-Z]/',      // huruf kapital
+                'regex:/[0-9]/',      // angka
+            ],
+        ], [
+            'password.regex' => 'Password harus mengandung minimal 1 huruf kapital dan 1 angka.',
         ]);
 
         $user = User::create([
@@ -52,6 +59,7 @@ class RegisterController extends Controller
         $user = User::findOrFail($id);
         $user->update(['status' => 'active']);
         $this->notifyUser($user, true);
+        ActivityLog::record('user_approved', "Akun {$user->name} ({$user->email}) disetujui");
         return response()->json(['message' => "User {$user->name} disetujui."]);
     }
 
@@ -60,6 +68,7 @@ class RegisterController extends Controller
         $user = User::findOrFail($id);
         $user->update(['status' => 'rejected']);
         $this->notifyUser($user, false);
+        ActivityLog::record('user_rejected', "Akun {$user->name} ({$user->email}) ditolak");
         return response()->json(['message' => "User {$user->name} ditolak."]);
     }
 
@@ -71,6 +80,7 @@ class RegisterController extends Controller
             return response()->json(['message' => 'Super admin tidak bisa dihapus.'], 403);
         }
 
+        ActivityLog::record('user_deleted', "Akun {$user->name} ({$user->email}) dihapus");
         $user->delete();
         return response()->json(['message' => "Akun {$user->name} dihapus."]);
     }

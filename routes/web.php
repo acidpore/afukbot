@@ -7,7 +7,19 @@ use App\Modules\Auth\PushSubscriptionController;
 use App\Modules\Auth\NotificationController;
 use App\Http\Middleware\EnsureAuthenticated;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+
+RateLimiter::for('login', function (Request $request) {
+    return Limit::perMinute(5)->by($request->ip());
+});
+
+RateLimiter::for('register', function (Request $request) {
+    return Limit::perMinute(3)->by($request->ip());
+});
 
 // ── Public pages ───────────────────────────────────────────
 Route::get('/', fn() => view('app', ['page' => ['component' => 'Landing']]));
@@ -16,10 +28,10 @@ Route::get('/dashboard', fn() => view('app', ['page' => ['component' => 'Dashboa
 
 // ── Auth API ───────────────────────────────────────────────
 Route::get('/sanctum/csrf-cookie', fn() => response()->json(['csrf' => csrf_token()]));
-Route::post('/auth/login',    [AuthController::class,   'login']);
+Route::post('/auth/login',    [AuthController::class,   'login'])->middleware('throttle:login');
 Route::post('/auth/logout',   [AuthController::class,   'logout']);
 Route::get('/auth/me',        [AuthController::class,   'me']);
-Route::post('/auth/register', [RegisterController::class, 'register']);
+Route::post('/auth/register', [RegisterController::class, 'register'])->middleware('throttle:register');
 
 // Register page
 Route::get('/register', fn() => view('app', ['page' => ['component' => 'Register']]));
@@ -45,10 +57,16 @@ Route::middleware(EnsureAuthenticated::class)->group(function () {
         Route::post('/notifications/read-all',   [NotificationController::class, 'markAllRead']);
     });
 
-    // Super admin only: permission management
+    // Super admin only: permission management + activity log
     Route::middleware(EnsureSuperAdmin::class)->group(function () {
         Route::get('/auth/users/{id}/permissions',  [AdminPermissionController::class, 'index']);
         Route::put('/auth/users/{id}/permissions',  [AdminPermissionController::class, 'update']);
+        Route::get('/activity-logs', fn() => response()->json(
+            \App\Models\ActivityLog::with('user:id,name,email')
+                ->orderByDesc('created_at')
+                ->limit(100)
+                ->get()
+        ));
     });
     require __DIR__.'/../app/Modules/Inventory/routes.php';
     require __DIR__.'/../app/Modules/Employee/routes.php';
