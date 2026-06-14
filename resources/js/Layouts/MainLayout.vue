@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import axios from 'axios';
+import { useAuth } from '@/composables/useAuth';
+import NotificationBell from '@/components/shared/NotificationBell.vue';
 
 const isSidebarOpen = ref(false);
 const isSearchOpen  = ref(false);
@@ -81,9 +83,13 @@ function onGlobalKey(e: KeyboardEvent) {
 import { watch } from 'vue';
 watch(searchQuery, () => { selectedIndex.value = 0; });
 
+const { user, isSuperAdmin, loadUser } = useAuth();
+
+
 onMounted(() => {
   window.addEventListener('keydown', onGlobalKey);
   window.addEventListener('keydown', onKeydown);
+  loadUser();
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey);
@@ -148,11 +154,11 @@ async function logout() {
         <div class="p-4 border-t border-slate-100">
           <div class="p-4 bg-slate-50 rounded-2xl flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-accent/20 border-2 border-white shadow-sm flex items-center justify-center font-bold text-accent">
-              A
+              {{ user?.name?.charAt(0)?.toUpperCase() ?? 'A' }}
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-xs font-bold text-slate-900 truncate">Administrator</p>
-              <p class="text-[10px] text-slate-500 truncate">admin@mbg.com</p>
+              <p class="text-xs font-bold text-slate-900 truncate">{{ user?.name ?? 'Administrator' }}</p>
+              <p class="text-[10px] text-slate-500 truncate">{{ isSuperAdmin ? 'Super Admin' : 'Admin' }}</p>
             </div>
             <button @click="logout" title="Logout" class="text-slate-400 hover:text-red-500 transition-colors">
               <i class="pi pi-sign-out"></i>
@@ -177,7 +183,7 @@ async function logout() {
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1">
           <button
             @click="openSearch"
             class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors text-xs"
@@ -192,6 +198,7 @@ async function logout() {
           >
             <i class="pi pi-search"></i>
           </button>
+          <NotificationBell v-if="isSuperAdmin" />
         </div>
       </header>
 

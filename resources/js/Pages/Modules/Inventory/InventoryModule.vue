@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { inventoryApi } from '@/api/inventory.api';
+import { useAuth } from '@/composables/useAuth';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,6 +10,8 @@ import LoadingState from '@/components/shared/LoadingState.vue';
 const props = defineProps<{
   view: 'ruko' | 'margomulyo' | 'history';
 }>();
+
+const { can } = useAuth();
 
 const items = ref<any[]>([]);
 const categories = ref<any[]>([]);
@@ -457,15 +460,15 @@ const handleSaveCategory = async () => {
             <i class="pi pi-download text-xs"></i>
             Export
           </button>
-          <button @click="isBulkModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+          <button v-if="can('inventory', 'create')" @click="isBulkModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
             <i class="pi pi-upload text-xs"></i>
             Import
           </button>
-          <button @click="isCategoryModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
+          <button v-if="can('inventory', 'create')" @click="isCategoryModalOpen = true" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/30 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all">
             <i class="pi pi-tag text-xs"></i>
             Kategori
           </button>
-          <button @click="openItemModal()" class="h-10 px-5 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary-light transition-all shadow-lg shadow-primary/20">
+          <button v-if="can('inventory', 'create')" @click="openItemModal()" class="h-10 px-5 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary-light transition-all shadow-lg shadow-primary/20">
             <i class="pi pi-plus text-xs"></i>
             Tambah
           </button>
@@ -505,13 +508,13 @@ const handleSaveCategory = async () => {
                 </span>
                 <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ item.unit }}</p>
                 <div class="flex items-center justify-end gap-1.5 mt-2">
-                  <button @click="openAdjustModal(item)" class="h-7 px-2.5 rounded-lg border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
+                  <button v-if="can('inventory', 'adjust')" @click="openAdjustModal(item)" class="h-7 px-2.5 rounded-lg border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
                     Stok
                   </button>
-                  <button @click="openItemModal(item)" class="w-7 h-7 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
+                  <button v-if="can('inventory', 'edit')" @click="openItemModal(item)" class="w-7 h-7 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
                     <i class="pi pi-pencil text-[10px]"></i>
                   </button>
-                  <button @click="handleDeleteItem(item.id)" class="w-7 h-7 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
+                  <button v-if="can('inventory', 'delete')" @click="handleDeleteItem(item.id)" class="w-7 h-7 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
                     <i class="pi pi-trash text-[10px]"></i>
                   </button>
                 </div>
@@ -570,13 +573,13 @@ const handleSaveCategory = async () => {
                 </td>
                 <td class="px-6 py-5 text-right">
                   <div class="flex items-center justify-end gap-2">
-                    <button @click="openAdjustModal(item)" class="h-8 px-3 rounded-lg border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
+                    <button v-if="can('inventory', 'adjust')" @click="openAdjustModal(item)" class="h-8 px-3 rounded-lg border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-white transition-all">
                       Update Stok
                     </button>
-                    <button @click="openItemModal(item)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
+                    <button v-if="can('inventory', 'edit')" @click="openItemModal(item)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/30 transition-all">
                       <i class="pi pi-pencil text-xs"></i>
                     </button>
-                    <button @click="handleDeleteItem(item.id)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
+                    <button v-if="can('inventory', 'delete')" @click="handleDeleteItem(item.id)" class="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-100 transition-all">
                       <i class="pi pi-trash text-xs"></i>
                     </button>
                   </div>

@@ -36,6 +36,7 @@ class AuthController extends Controller
                 'id'    => Auth::user()->id,
                 'name'  => Auth::user()->name,
                 'email' => Auth::user()->email,
+                'role'  => Auth::user()->role,
             ],
         ]);
     }
@@ -53,11 +54,31 @@ class AuthController extends Controller
         if (!Auth::check()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
+
+        $user = Auth::user();
+
+        $permissions = [];
+        if ($user->role === 'admin') {
+            $saved = $user->permissions->keyBy('feature');
+            foreach (\App\Modules\Auth\AdminPermissionController::FEATURES as $feature) {
+                $perm = $saved->get($feature);
+                $permissions[$feature] = [
+                    'can_view'   => $perm ? $perm->can_view   : true,
+                    'can_create' => $perm ? $perm->can_create : false,
+                    'can_edit'   => $perm ? $perm->can_edit   : false,
+                    'can_delete' => $perm ? $perm->can_delete : false,
+                    'can_adjust' => $perm ? $perm->can_adjust : false,
+                ];
+            }
+        }
+
         return response()->json([
             'user' => [
-                'id'    => Auth::user()->id,
-                'name'  => Auth::user()->name,
-                'email' => Auth::user()->email,
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'email'       => $user->email,
+                'role'        => $user->role,
+                'permissions' => $permissions,
             ],
         ]);
     }

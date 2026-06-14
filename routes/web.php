@@ -2,7 +2,11 @@
 
 use App\Modules\Auth\AuthController;
 use App\Modules\Auth\RegisterController;
+use App\Modules\Auth\AdminPermissionController;
+use App\Modules\Auth\PushSubscriptionController;
+use App\Modules\Auth\NotificationController;
 use App\Http\Middleware\EnsureAuthenticated;
+use App\Http\Middleware\EnsureSuperAdmin;
 use Illuminate\Support\Facades\Route;
 
 // ── Public pages ───────────────────────────────────────────
@@ -25,8 +29,27 @@ Route::middleware(EnsureAuthenticated::class)->group(function () {
     // Users management
     Route::get('/auth/users',           [RegisterController::class, 'getUsers']);
     Route::get('/auth/pending-count',   [RegisterController::class, 'pendingCount']);
-    Route::post('/auth/users/{id}/approve', [RegisterController::class, 'approve']);
-    Route::post('/auth/users/{id}/reject',  [RegisterController::class, 'reject']);
+    Route::post('/auth/users/{id}/approve',  [RegisterController::class, 'approve']);
+    Route::post('/auth/users/{id}/reject',   [RegisterController::class, 'reject']);
+    Route::delete('/auth/users/{id}',        [RegisterController::class, 'destroy']);
+
+    // Push subscriptions
+    Route::get('/push/vapid-key',    [PushSubscriptionController::class, 'vapidPublicKey']);
+    Route::post('/push/subscribe',   [PushSubscriptionController::class, 'store']);
+    Route::post('/push/unsubscribe', [PushSubscriptionController::class, 'destroy']);
+
+    // In-app notifications (super admin only)
+    Route::middleware(EnsureSuperAdmin::class)->group(function () {
+        Route::get('/notifications',             [NotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read',  [NotificationController::class, 'markRead']);
+        Route::post('/notifications/read-all',   [NotificationController::class, 'markAllRead']);
+    });
+
+    // Super admin only: permission management
+    Route::middleware(EnsureSuperAdmin::class)->group(function () {
+        Route::get('/auth/users/{id}/permissions',  [AdminPermissionController::class, 'index']);
+        Route::put('/auth/users/{id}/permissions',  [AdminPermissionController::class, 'update']);
+    });
     require __DIR__.'/../app/Modules/Inventory/routes.php';
     require __DIR__.'/../app/Modules/Employee/routes.php';
     require __DIR__.'/../app/Modules/Attendance/routes.php';

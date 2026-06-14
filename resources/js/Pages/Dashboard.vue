@@ -14,7 +14,9 @@ import IncomeModule from './Modules/Income/IncomeModule.vue';
 import BudgetModule from './Modules/Budget/BudgetModule.vue';
 import SettingsModule from './Modules/Settings/SettingsModule.vue';
 import MbgModule from './Modules/MbgApi/MbgModule.vue';
-import SuratJalanModule from './Modules/SuratJalan/SuratJalanModule.vue';
+import SuratJalanModule from './Modules/SuratJalan/SuratJalanModule.vue'
+import CalibrationModule from './Modules/Inventory/CalibrationModule.vue'
+import { calibrationApi } from '@/api/calibration.api';
 
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = ref(urlParams.get('tab') || 'overview');
@@ -84,7 +86,16 @@ const valuasi = ref({
   total_valuasi: 0,
   total_item_jenis: 0,
   total_stok: 0,
-});
+})
+
+const calibrationStatus = ref<{ days_since: number | null; is_overdue: boolean; last_calibration: { calibrated_at: string; calibrated_by: string } | null } | null>(null)
+
+async function fetchCalibrationStatus() {
+  try {
+    const res = await calibrationApi.getStatus()
+    calibrationStatus.value = res.data
+  } catch {}
+};
 
 const formatRupiah = (val: number) =>
   'Rp ' + val.toLocaleString('id-ID');
@@ -100,6 +111,7 @@ const menuItems = [
       { id: 'inventory-ruko', name: 'Stok Barang di Ruko', icon: 'pi pi-building' },
       { id: 'inventory-margomulyo', name: 'Stok Barang di Margomulyo', icon: 'pi pi-warehouse' },
       { id: 'inventory-history', name: 'Mutasi Stok', icon: 'pi pi-history' },
+      { id: 'inventory-calibration', name: 'Kalibrasi Stok', icon: 'pi pi-sync' },
     ],
   },
   { id: 'sales', name: 'Penjualan', icon: 'pi pi-receipt' },
@@ -183,7 +195,7 @@ async function fetchValuasi() {
 }
 
 async function fetchAll() {
-  await Promise.all([fetchSales(), fetchValuasi()]);
+  await Promise.all([fetchSales(), fetchValuasi(), fetchCalibrationStatus()]);
 }
 
 watch(activeTab, (tab) => {
@@ -297,6 +309,24 @@ onUnmounted(() => {
           </button>
         </div>
       </header>
+
+      <!-- Calibration overdue banner -->
+      <div v-if="activeTab === 'overview' && calibrationStatus?.is_overdue"
+        class="flex items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+        <div class="flex items-center gap-3">
+          <i class="pi pi-exclamation-triangle text-amber-500 text-lg"></i>
+          <div>
+            <p class="text-sm font-bold text-amber-800">
+              {{ calibrationStatus.last_calibration ? `Kalibrasi stok sudah ${calibrationStatus.days_since} hari yang lalu` : 'Kalibrasi stok belum pernah dilakukan' }}
+            </p>
+            <p class="text-xs text-amber-600 mt-0.5">Lakukan kalibrasi mingguan agar data stok tetap akurat.</p>
+          </div>
+        </div>
+        <button @click="activeTab = 'inventory-calibration'"
+          class="shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors">
+          Kalibrasi Sekarang
+        </button>
+      </div>
 
       <!-- Content for Overview -->
       <div v-if="activeTab === 'overview'" class="space-y-10">
@@ -483,6 +513,10 @@ onUnmounted(() => {
       </div>
       <div v-else-if="activeTab === 'inventory-history'">
         <InventoryModule view="history" />
+      </div>
+
+      <div v-else-if="activeTab === 'inventory-calibration'">
+        <CalibrationModule />
       </div>
 
       <!-- Module: Employees -->

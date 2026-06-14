@@ -11,6 +11,9 @@ Artisan::command('inspire', function () {
 // Auto backup DB setiap hari jam 02:00 dini hari
 Schedule::command('backup:upload')->dailyAt('02:00');
 
+// Cek kalibrasi stok setiap Senin pagi jam 08:00
+Schedule::command('calibration:check')->weeklyOn(1, '08:00');
+
 // Kirim reminder RAB setiap tanggal 1 jam 08:00
 Schedule::command('rab:check-due')->monthlyOn(1, '08:00');
 

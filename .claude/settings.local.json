@@ -25,7 +25,8 @@
       "Bash(Get-ChildItem -Directory)",
       "PowerShell($php = \"C:\\\\laragon\\\\bin\\\\php\\\\php-8.3.29-Win32-vs16-x64\\\\php.exe\"; Set-Location C:\\\\laragon\\\\www\\\\absensi; & $php artisan make:migration create_surat_jalans_table; & $php artisan make:migration create_surat_jalan_items_table)",
       "Bash(powershell *)",
-      "Bash(composer require *)"
+      "Bash(composer require *)",
+      "Bash(xargs grep -li \"rab\\\\|RAB\")"
     ]
   }
 }

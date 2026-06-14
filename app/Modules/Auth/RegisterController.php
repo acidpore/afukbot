@@ -4,6 +4,7 @@ namespace App\Modules\Auth;
 
 use App\Models\User;
 use App\Modules\Telegram\TelegramService;
+use App\Services\WebPushService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +29,14 @@ class RegisterController extends Controller
 
         $this->notifyAdmin($user);
 
+        try {
+            app(WebPushService::class)->sendToSuperAdmins(
+                'User Baru Menunggu Persetujuan',
+                "{$user->name} ({$user->email}) baru saja mendaftar.",
+                '/dashboard?tab=settings'
+            );
+        } catch (\Throwable) {}
+
         return response()->json(['message' => 'Registrasi berhasil. Menunggu persetujuan admin.'], 201);
     }
 
@@ -35,7 +44,7 @@ class RegisterController extends Controller
     {
         return response()->json(User::orderByRaw("FIELD(status, 'pending', 'active', 'rejected')")
             ->orderByDesc('created_at')
-            ->get(['id', 'name', 'email', 'status', 'created_at']));
+            ->get(['id', 'name', 'email', 'status', 'role', 'created_at']));
     }
 
     public function approve(int $id)
@@ -52,6 +61,18 @@ class RegisterController extends Controller
         $user->update(['status' => 'rejected']);
         $this->notifyUser($user, false);
         return response()->json(['message' => "User {$user->name} ditolak."]);
+    }
+
+    public function destroy(int $id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->role === 'super_admin') {
+            return response()->json(['message' => 'Super admin tidak bisa dihapus.'], 403);
+        }
+
+        $user->delete();
+        return response()->json(['message' => "Akun {$user->name} dihapus."]);
     }
 
     public function pendingCount()
