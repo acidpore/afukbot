@@ -114,8 +114,15 @@ const menuItems = [
       { id: 'inventory-calibration', name: 'Kalibrasi Stok', icon: 'pi pi-sync' },
     ],
   },
-  { id: 'sales', name: 'Penjualan', icon: 'pi pi-receipt' },
-  { id: 'surat-jalan', name: 'Surat Jalan', icon: 'pi pi-truck' },
+  {
+    id: 'penjualan',
+    name: 'Penjualan',
+    icon: 'pi pi-receipt',
+    children: [
+      { id: 'sales',       name: 'Invoice',     icon: 'pi pi-file-edit' },
+      { id: 'surat-jalan', name: 'Surat Jalan', icon: 'pi pi-truck'     },
+    ],
+  },
   {
     id: 'keuangan',
     name: 'Keuangan Ruko',
@@ -137,6 +144,17 @@ const inventoryExpanded = computed(() =>
 const keuanganExpanded = computed(() =>
   activeTab.value === 'keuangan' || activeTab.value === 'expenses' || activeTab.value === 'incomes'
 );
+
+const penjualanExpanded = computed(() =>
+  activeTab.value === 'penjualan' || activeTab.value === 'sales' || activeTab.value === 'surat-jalan'
+);
+
+function isExpanded(id: string): boolean {
+  if (id === 'inventory')  return inventoryExpanded.value;
+  if (id === 'penjualan')  return penjualanExpanded.value;
+  if (id === 'keuangan')   return keuanganExpanded.value;
+  return false;
+}
 
 function processSales(sales: any[]) {
   stats.value.totalInvoice   = sales.length;
@@ -251,13 +269,13 @@ onUnmounted(() => {
             <button
               @click="activeTab = item.id"
               class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300 group"
-              :class="(item.id === 'inventory' ? inventoryExpanded : keuanganExpanded) ? 'text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
+              :class="isExpanded(item.id) ? 'text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-primary'"
             >
               <i :class="item.icon" class="text-lg transition-transform"></i>
               <span class="tracking-wide flex-1 text-left">{{ item.name }}</span>
-              <i :class="(item.id === 'inventory' ? inventoryExpanded : keuanganExpanded) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" class="text-[10px] opacity-50"></i>
+              <i :class="isExpanded(item.id) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" class="text-[10px] opacity-50"></i>
             </button>
-            <div v-if="item.id === 'inventory' ? inventoryExpanded : keuanganExpanded" class="ml-4 flex flex-col gap-0.5 border-l-2 border-slate-100 pl-3">
+            <div v-if="isExpanded(item.id)" class="ml-4 flex flex-col gap-0.5 border-l-2 border-slate-100 pl-3">
               <button
                 v-for="child in item.children"
                 :key="child.id"
