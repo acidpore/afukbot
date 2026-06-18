@@ -385,7 +385,14 @@
             </table>
           </div>
 
-          <div class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
+          <div class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+            <button
+                @click="exportTransactionsAsCsv"
+                :disabled="!transactions.length"
+                class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg hover:bg-emerald-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+                <i class="pi pi-download text-xs"></i> Export ke CSV Expenses
+            </button>
             <span class="text-sm font-semibold text-gray-700">
               Total: {{ fmt(transactions.reduce((s: number, t: any) => s + Number(t.amount), 0)) }}
             </span>
@@ -1128,6 +1135,24 @@ async function doImport() {
   } finally {
     importLoading.value = false
   }
+}
+
+function exportTransactionsAsCsv() {
+    if (!transactions.value.length) return;
+    const header = 'tanggal,kategori,deskripsi,jumlah,dibayar_oleh,catatan';
+    const rows = transactions.value.map((tx: any) => {
+        const d = new Date(tx.transaction_date + 'T00:00:00');
+        const tanggal = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        const kategori = tx.budget_item?.category?.name ?? 'RAB';
+        const deskripsi = tx.budget_item?.name ?? '';
+        const catatan = tx.note ?? '';
+        return `${tanggal},${kategori},${deskripsi},${tx.amount},,${catatan}`;
+    });
+    const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'realisasi_rab.csv';
+    a.click();
 }
 
 function downloadTemplate() {
