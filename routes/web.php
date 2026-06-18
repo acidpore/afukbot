@@ -9,17 +9,6 @@ use App\Http\Middleware\EnsureAuthenticated;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
-
-RateLimiter::for('login', function (Request $request) {
-    return Limit::perMinute(5)->by($request->ip());
-});
-
-RateLimiter::for('register', function (Request $request) {
-    return Limit::perMinute(3)->by($request->ip());
-});
 
 // ── Public pages ───────────────────────────────────────────
 Route::get('/', fn() => view('app', ['page' => ['component' => 'Landing']]));
