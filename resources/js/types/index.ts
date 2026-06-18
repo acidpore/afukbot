@@ -81,6 +81,7 @@ export interface Expense {
     notes: string | null;
     receipt_path: string | null;
     recorded_by_id: number | null;
+    expense_transaction_id: number | null;
     created_at?: string;
 }
 

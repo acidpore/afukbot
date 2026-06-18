@@ -5,6 +5,7 @@ namespace App\Modules\Budget;
 use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\BudgetPeriod;
+use App\Models\Expense;
 use App\Models\ExpenseTransaction;
 use Illuminate\Support\Facades\DB;
 use App\Models\BudgetPeriodSetting;
@@ -92,8 +93,10 @@ class BudgetService
     public function createTransaction(array $data): ExpenseTransaction
     {
         $tx = ExpenseTransaction::create($data);
+        $tx->load('budgetItem.category');
         $this->syncPeriod($tx->budgetItem->category_id, substr($data['transaction_date'], 0, 7));
-        return $tx->load('budgetItem.category');
+        $this->upsertExpenseMirror($tx);
+        return $tx;
     }
 
     public function updateTransaction(int $id, array $data): ExpenseTransaction
@@ -101,13 +104,14 @@ class BudgetService
         $tx = ExpenseTransaction::findOrFail($id);
         $oldMonth = $tx->transaction_date->format('Y-m');
         $tx->update($data);
-        $tx->refresh();
+        $tx->refresh()->load('budgetItem.category');
         $newMonth = $tx->transaction_date->format('Y-m');
         $this->syncPeriod($tx->budgetItem->category_id, $oldMonth);
         if ($newMonth !== $oldMonth) {
             $this->syncPeriod($tx->budgetItem->category_id, $newMonth);
         }
-        return $tx->load('budgetItem.category');
+        $this->upsertExpenseMirror($tx);
+        return $tx;
     }
 
     public function deleteTransaction(int $id): void
@@ -115,6 +119,9 @@ class BudgetService
         $tx = ExpenseTransaction::findOrFail($id);
         $month = $tx->transaction_date->format('Y-m');
         $catId = $tx->budgetItem->category_id;
+
+        Expense::where('expense_transaction_id', $tx->id)->delete();
+
         $tx->delete();
         $this->syncPeriod($catId, $month);
     }
@@ -127,7 +134,28 @@ class BudgetService
         }
         $path = $file->store('budget-receipts', 'public');
         $tx->update(['receipt_path' => $path]);
-        return $tx->fresh('budgetItem.category');
+        $tx->refresh()->load('budgetItem.category');
+        $this->upsertExpenseMirror($tx);
+        return $tx;
+    }
+
+    private function upsertExpenseMirror(ExpenseTransaction $tx): void
+    {
+        $categoryName = $tx->budgetItem->category->name ?? 'RAB';
+        $itemName     = $tx->budgetItem->name ?? '';
+
+        Expense::updateOrCreate(
+            ['expense_transaction_id' => $tx->id],
+            [
+                'expense_date' => $tx->transaction_date->toDateString(),
+                'category'     => $categoryName,
+                'description'  => $itemName,
+                'amount'       => (int) $tx->amount,
+                'paid_by'      => null,
+                'notes'        => $tx->note,
+                'receipt_path' => $tx->receipt_path,
+            ]
+        );
     }
 
     // ── Summary / Dashboard ───────────────────────────────────

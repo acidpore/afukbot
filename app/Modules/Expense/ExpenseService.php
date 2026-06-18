@@ -34,6 +34,9 @@ class ExpenseService
     public function update(int $id, array $data): Expense
     {
         $expense = Expense::findOrFail($id);
+        if ($expense->expense_transaction_id) {
+            throw new \Exception('Pengeluaran ini berasal dari RAB dan hanya bisa diubah melalui tab RAB.');
+        }
         $expense->update([
             'expense_date' => $data['expense_date'],
             'category'     => $data['category'],
@@ -48,6 +51,9 @@ class ExpenseService
     public function delete(int $id): void
     {
         $expense = Expense::findOrFail($id);
+        if ($expense->expense_transaction_id) {
+            throw new \Exception('Pengeluaran ini berasal dari RAB dan hanya bisa dihapus melalui tab RAB.');
+        }
         if ($expense->receipt_path) {
             Storage::disk('public')->delete($expense->receipt_path);
         }
@@ -57,6 +63,9 @@ class ExpenseService
     public function uploadReceipt(int $id, \Illuminate\Http\UploadedFile $file): Expense
     {
         $expense = Expense::findOrFail($id);
+        if ($expense->expense_transaction_id) {
+            throw new \Exception('Bukti struk untuk pengeluaran RAB hanya bisa diupload melalui tab RAB.');
+        }
         if ($expense->receipt_path) {
             Storage::disk('public')->delete($expense->receipt_path);
         }
@@ -68,6 +77,9 @@ class ExpenseService
     public function deleteReceipt(int $id): Expense
     {
         $expense = Expense::findOrFail($id);
+        if ($expense->expense_transaction_id) {
+            throw new \Exception('Bukti struk untuk pengeluaran RAB hanya bisa dihapus melalui tab RAB.');
+        }
         if ($expense->receipt_path) {
             Storage::disk('public')->delete($expense->receipt_path);
             $expense->update(['receipt_path' => null]);

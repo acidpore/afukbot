@@ -15,6 +15,7 @@ class Expense extends Model
         'notes',
         'receipt_path',
         'recorded_by_id',
+        'expense_transaction_id',
     ];
 
     protected $casts = [

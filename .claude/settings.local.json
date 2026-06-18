@@ -26,7 +26,16 @@
       "PowerShell($php = \"C:\\\\laragon\\\\bin\\\\php\\\\php-8.3.29-Win32-vs16-x64\\\\php.exe\"; Set-Location C:\\\\laragon\\\\www\\\\absensi; & $php artisan make:migration create_surat_jalans_table; & $php artisan make:migration create_surat_jalan_items_table)",
       "Bash(powershell *)",
       "Bash(composer require *)",
-      "Bash(xargs grep -li \"rab\\\\|RAB\")"
+      "Bash(xargs grep -li \"rab\\\\|RAB\")",
+      "PowerShell(\\(Get-Content C:\\\\laragon\\\\www\\\\absensi\\\\storage\\\\logs\\\\laravel.log -Raw\\) -split \"`n\" | Where-Object { $_ -match 'exception|Exception|Error|error' } | Select-Object -Last 15 | ForEach-Object { $_.Substring\\(0, [Math]::Min\\(250, $_.Length\\)\\) })",
+      "PowerShell(Get-ChildItem C:\\\\laragon\\\\www\\\\absensi\\\\database\\\\migrations | Where-Object { $_.Name -match 'notification' })",
+      "Bash(xargs grep -li \"rab\\\\|budget\")",
+      "Bash(xargs grep -li -i \"rab\\\\|budget\")",
+      "PowerShell(& \"C:\\\\laragon\\\\bin\\\\php\\\\php8.3.14\\\\php.exe\" \"C:\\\\laragon\\\\www\\\\absensi\\\\artisan\" make:migration add_expense_transaction_id_to_expenses_table --path=database/migrations)",
+      "Bash(curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/absensi/sanctum/csrf-cookie -o /dev/null -w \"%{http_code}\")",
+      "Read(//tmp/**)",
+      "Bash(awk '{print $NF}')",
+      "Bash(curl *)"
     ]
   }
 }

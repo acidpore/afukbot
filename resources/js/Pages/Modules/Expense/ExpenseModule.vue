@@ -839,6 +839,7 @@ onMounted(loadExpenses);
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2 mb-1 flex-wrap">
                                         <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">{{ expense.category }}</span>
+                                        <span v-if="expense.expense_transaction_id" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700 whitespace-nowrap">RAB</span>
                                         <span class="text-xs text-slate-400">{{ formatDate(expense.expense_date) }}</span>
                                     </div>
                                     <p class="font-semibold text-slate-700 text-sm">{{ expense.description }}</p>
@@ -856,7 +857,7 @@ onMounted(loadExpenses);
                                 </div>
                                 <div class="flex-shrink-0 flex flex-col items-end gap-2">
                                     <span class="font-bold text-red-600 text-sm whitespace-nowrap">{{ fmt(expense.amount) }}</span>
-                                    <div class="flex items-center gap-3">
+                                    <div v-if="!expense.expense_transaction_id" class="flex items-center gap-3">
                                         <button @click="openEditModal(expense)" class="text-slate-400 hover:text-[#1D3557] transition-colors">
                                             <i class="pi pi-pencil text-sm"></i>
                                         </button>
@@ -864,6 +865,7 @@ onMounted(loadExpenses);
                                             <i class="pi pi-trash text-sm"></i>
                                         </button>
                                     </div>
+                                    <span v-else class="text-[10px] text-slate-400 italic">via RAB</span>
                                 </div>
                             </div>
                         </div>
@@ -886,9 +888,12 @@ onMounted(loadExpenses);
                             <tr v-for="expense in filtered" :key="expense.id" class="hover:bg-slate-50/60 transition-colors">
                                 <td class="px-4 py-3 text-center text-slate-600 whitespace-nowrap">{{ formatDate(expense.expense_date) }}</td>
                                 <td class="px-4 py-3 text-center">
-                                    <span class="text-[11px] font-bold px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">
-                                        {{ expense.category }}
-                                    </span>
+                                    <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                        <span class="text-[11px] font-bold px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-600 whitespace-nowrap">
+                                            {{ expense.category }}
+                                        </span>
+                                        <span v-if="expense.expense_transaction_id" class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700 whitespace-nowrap">RAB</span>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <div class="font-semibold text-slate-700">{{ expense.description }}</div>
@@ -912,7 +917,7 @@ onMounted(loadExpenses);
                                     <span v-else class="text-slate-300 text-xs">-</span>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <div class="flex items-center justify-center gap-3">
+                                    <div v-if="!expense.expense_transaction_id" class="flex items-center justify-center gap-3">
                                         <button @click="openEditModal(expense)" class="text-slate-500 hover:text-[#1D3557] transition-colors" title="Edit">
                                             <i class="pi pi-pencil"></i>
                                         </button>
@@ -920,6 +925,7 @@ onMounted(loadExpenses);
                                             <i class="pi pi-trash"></i>
                                         </button>
                                     </div>
+                                    <span v-else class="text-[10px] text-slate-400 italic">via RAB</span>
                                 </td>
                             </tr>
                         </tbody>
