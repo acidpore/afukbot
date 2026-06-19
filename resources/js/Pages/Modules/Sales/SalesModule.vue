@@ -45,11 +45,14 @@ const itemDropdownOpen   = ref<boolean[]>([false]);
 
 // ── Form ───────────────────────────────────────────────────
 const form = ref({
-    recipient_name:    '',
-    recipient_address: '',
-    invoice_date:      new Date().toISOString().slice(0, 10),
-    shipped_at:        '',
-    notes:             '',
+    recipient_name:      '',
+    recipient_address:   '',
+    invoice_date:        new Date().toISOString().slice(0, 10),
+    shipped_at:          '',
+    notes:               '',
+    bank_account_name:   '',
+    bank_name:           '',
+    bank_account_number: '',
 });
 
 const emptyItem = (): SaleItem => ({
@@ -547,11 +550,14 @@ function confirmImportItems() {
 
 function resetForm() {
     form.value = {
-        recipient_name:    '',
-        recipient_address: '',
-        invoice_date:      new Date().toISOString().slice(0, 10),
-        shipped_at:        '',
-        notes:             '',
+        recipient_name:      '',
+        recipient_address:   '',
+        invoice_date:        new Date().toISOString().slice(0, 10),
+        shipped_at:          '',
+        notes:               '',
+        bank_account_name:   '',
+        bank_name:           '',
+        bank_account_number: '',
     };
     items.value             = [emptyItem()];
     itemSearchQueries.value = [''];
@@ -1172,6 +1178,25 @@ onMounted(async () => {
                             Terdeteksi pembayaran: {{ fmt(parsedPayment) }}
                             <span class="text-slate-400 font-normal">· sisa {{ fmt(grandTotal - parsedPayment) }}</span>
                         </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rekening -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
+                <h2 class="text-base font-bold text-slate-700 mb-4">Info Rekening PDF</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Rekening</label>
+                        <input v-model="form.bank_account_name" type="text" placeholder="RONALDO CHANDRA SUSANTO" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Bank</label>
+                        <input v-model="form.bank_name" type="text" placeholder="Bank Mandiri" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nomor Rekening</label>
+                        <input v-model="form.bank_account_number" type="text" placeholder="1430033951870" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                     </div>
                 </div>
             </div>
