@@ -39,6 +39,7 @@ export interface SaleItem {
     total_price?: number;
     inventory_item_ids?: number[];
     is_new_item?: boolean;
+    is_online_order?: boolean;
 }
 
 export interface Sale {
@@ -56,7 +57,7 @@ export interface Sale {
     attachment_path: string | null;
     grand_total: number;
     paid_amount: number;
-    status: 'rencana' | 'dipesan' | 'sudah_dikirim';
+    status: 'rencana' | 'sudah_dikirim';
     shipped_at?: string | null;
     items: SaleItem[];
     created_at?: string;

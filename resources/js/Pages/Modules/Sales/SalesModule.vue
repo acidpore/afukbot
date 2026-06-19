@@ -56,10 +56,11 @@ const form = ref({
 });
 
 const emptyItem = (): SaleItem => ({
-    item_name:   '',
-    description: '',
-    qty:         null as any,
-    unit_price:  null as any,
+    item_name:      '',
+    description:    '',
+    qty:            null as any,
+    unit_price:     null as any,
+    is_online_order: false,
 });
 
 const items = ref<SaleItem[]>([emptyItem()]);
@@ -158,7 +159,7 @@ function openEditModal(sale: Sale) {
 }
 
 function addEditItem() {
-    editItems.value.push({ item_name: '', description: '', qty: null as any, unit_price: null as any });
+    editItems.value.push({ item_name: '', description: '', qty: null as any, unit_price: null as any, is_online_order: false });
     editSearchQueries.value.push('');
     editDropdownOpen.value.push(false);
     editPriceDisplays.value.push('');
@@ -1422,6 +1423,18 @@ onMounted(async () => {
                             class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                         /></div>
 
+                        <!-- Online toggle -->
+                        <div class="md:contents">
+                        <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Online</label>
+                        <div class="flex items-center">
+                            <button
+                                type="button"
+                                @click="item.is_online_order = !item.is_online_order"
+                                :class="item.is_online_order ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'"
+                                class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                            >{{ item.is_online_order ? 'Online' : 'Offline' }}</button>
+                        </div></div>
+
                         <!-- Qty + Harga (berdampingan di mobile) -->
                         <div class="grid grid-cols-2 gap-2 md:contents">
                             <div>
@@ -1962,6 +1975,15 @@ onMounted(async () => {
                                     <input v-model="item.description" type="text" placeholder="Keterangan"
                                         class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                                     />
+                                </div>
+
+                                <!-- Online toggle -->
+                                <div>
+                                    <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Online</label>
+                                    <button type="button" @click="item.is_online_order = !item.is_online_order"
+                                        :class="item.is_online_order ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'"
+                                        class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                                    >{{ item.is_online_order ? 'Online' : 'Offline' }}</button>
                                 </div>
 
                                 <!-- Qty + Harga berdampingan di mobile -->

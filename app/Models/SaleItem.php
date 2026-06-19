@@ -14,10 +14,12 @@ class SaleItem extends Model
         'unit_price',
         'total_price',
         'inventory_item_ids',
+        'is_online_order',
     ];
 
     protected $casts = [
         'inventory_item_ids' => 'array',
+        'is_online_order'    => 'boolean',
     ];
 
     public function sale()

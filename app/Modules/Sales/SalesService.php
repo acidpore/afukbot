@@ -65,6 +65,7 @@ class SalesService
                     'unit_price'          => $item['unit_price'],
                     'total_price'         => $item['qty'] * $item['unit_price'],
                     'inventory_item_ids'  => $inventoryItemIds,
+                    'is_online_order'     => !empty($item['is_online_order']),
                 ]);
             }
 
@@ -173,6 +174,7 @@ class SalesService
                         'unit_price'         => $item['unit_price'],
                         'total_price'        => $total,
                         'inventory_item_ids' => $item['inventory_item_ids'] ?? null,
+                        'is_online_order'    => !empty($item['is_online_order']),
                     ]);
                 }
 
