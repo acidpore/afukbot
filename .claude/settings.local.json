@@ -35,7 +35,8 @@
       "Bash(curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/absensi/sanctum/csrf-cookie -o /dev/null -w \"%{http_code}\")",
       "Read(//tmp/**)",
       "Bash(awk '{print $NF}')",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Skill(update-config)"
     ]
   }
 }

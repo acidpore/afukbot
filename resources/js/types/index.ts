@@ -50,6 +50,9 @@ export interface Sale {
     notes: string;
     sender_name: string | null;
     sender_address: string | null;
+    bank_account_name: string | null;
+    bank_name: string | null;
+    bank_account_number: string | null;
     attachment_path: string | null;
     grand_total: number;
     paid_amount: number;

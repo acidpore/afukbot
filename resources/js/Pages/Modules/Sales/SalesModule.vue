@@ -124,7 +124,7 @@ const salesSudahDikirim = computed(() => sales.value.filter(s => s.status === 's
 
 // ── Modal Edit ────────────────────────────────────────────
 const editModal = ref<{ open: boolean; sale: Sale | null }>({ open: false, sale: null });
-const editForm  = ref({ recipient_name: '', recipient_address: '', invoice_date: '', shipped_at: '', notes: '', sender_name: '', sender_address: '' });
+const editForm  = ref({ recipient_name: '', recipient_address: '', invoice_date: '', shipped_at: '', notes: '', sender_name: '', sender_address: '', bank_account_name: '', bank_name: '', bank_account_number: '' });
 const editItems = ref<SaleItem[]>([]);
 const editSearchQueries  = ref<string[]>([]);
 const editDropdownOpen   = ref<boolean[]>([]);
@@ -140,8 +140,11 @@ function openEditModal(sale: Sale) {
         invoice_date:      sale.invoice_date,
         shipped_at:        sale.shipped_at ? sale.shipped_at.slice(0, 10) : '',
         notes:             sale.notes,
-        sender_name:       sale.sender_name ?? '',
-        sender_address:    sale.sender_address ?? '',
+        sender_name:         sale.sender_name ?? '',
+        sender_address:      sale.sender_address ?? '',
+        bank_account_name:   sale.bank_account_name ?? '',
+        bank_name:           sale.bank_name ?? '',
+        bank_account_number: sale.bank_account_number ?? '',
     };
     editItems.value          = sale.items.map(i => ({ ...i }));
     editSearchQueries.value  = sale.items.map(i => i.item_name);
@@ -883,13 +886,13 @@ async function printInvoice(sale: Sale) {
     y += 5;
     doc.setFontSize(9);
     doc.setFont('times', 'bold');
-    doc.text('RONALDO CHANDRA SUSANTO', LM, y);
+    doc.text(sale.bank_account_name?.trim() || 'RONALDO CHANDRA SUSANTO', LM, y);
     y += 5;
     doc.setFont('times', 'normal');
-    doc.text('Bank Mandiri', LM, y);
+    doc.text(sale.bank_name?.trim() || 'Bank Mandiri', LM, y);
     y += 5;
     doc.setFont('times', 'bold');
-    doc.text('1430033951870', LM, y);
+    doc.text(sale.bank_account_number?.trim() || '1430033951870', LM, y);
     y += 5;
     drawHR(y, noteW - 4);
 
@@ -1696,6 +1699,18 @@ onMounted(async () => {
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 mb-1.5">Alamat Pengirim</label>
                                 <input v-model="editForm.sender_address" type="text" placeholder="Alamat pengirim" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Rekening</label>
+                                <input v-model="editForm.bank_account_name" type="text" placeholder="RONALDO CHANDRA SUSANTO" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Bank</label>
+                                <input v-model="editForm.bank_name" type="text" placeholder="Bank Mandiri" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nomor Rekening</label>
+                                <input v-model="editForm.bank_account_number" type="text" placeholder="1430033951870" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                             </div>
                         </div>
                     </div>
