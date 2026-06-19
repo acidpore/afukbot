@@ -9,7 +9,7 @@ import { PDFDocument } from 'pdf-lib';
 import * as XLSX from 'xlsx';
 
 // ── State ──────────────────────────────────────────────────
-const activeTab        = ref<'new' | 'rencana' | 'dipesan' | 'proses' | 'sudah_dikirim'>('new');
+const activeTab        = ref<'new' | 'rencana' | 'proses' | 'sudah_dikirim'>('new');
 const historySubTab    = ref<'rencana' | 'proses' | 'sudah_dikirim'>('rencana'); // rencana/proses adalah view filter, bukan status DB
 const sales       = ref<Sale[]>([]);
 const loading     = ref(false);
@@ -56,11 +56,10 @@ const form = ref({
 });
 
 const emptyItem = (): SaleItem => ({
-    item_name:      '',
-    description:    '',
-    qty:            null as any,
-    unit_price:     null as any,
-    is_online_order: false,
+    item_name:   '',
+    description: '',
+    qty:         null as any,
+    unit_price:  null as any,
 });
 
 const items = ref<SaleItem[]>([emptyItem()]);
@@ -124,7 +123,6 @@ const formValid = computed(() =>
 
 const salesRencana      = computed(() => sales.value.filter(s => s.status === 'rencana' && s.paid_amount === 0));
 const salesProses       = computed(() => sales.value.filter(s => s.status === 'rencana' && s.paid_amount > 0));
-const salesDipesan      = computed(() => sales.value.filter(s => s.status === 'dipesan'));
 const salesSudahDikirim = computed(() => sales.value.filter(s => s.status === 'sudah_dikirim'));
 
 // ── Modal Edit ────────────────────────────────────────────
@@ -159,7 +157,7 @@ function openEditModal(sale: Sale) {
 }
 
 function addEditItem() {
-    editItems.value.push({ item_name: '', description: '', qty: null as any, unit_price: null as any, is_online_order: false });
+    editItems.value.push({ item_name: '', description: '', qty: null as any, unit_price: null as any });
     editSearchQueries.value.push('');
     editDropdownOpen.value.push(false);
     editPriceDisplays.value.push('');
@@ -610,13 +608,9 @@ async function submitSale() {
 }
 
 // ── Modal Konfirmasi Kirim ─────────────────────────────────
-type StockError = { item_name: string; item_id: number | null; current: number; needed: number; unlinked: boolean }
 const shipModal = ref<{ open: boolean; sale: Sale | null; inputRaw: string; display: string; shippedAt: string }>({
     open: false, sale: null, inputRaw: '', display: '', shippedAt: '',
 });
-const stockErrors   = ref<StockError[]>([]);
-const stockAdjusts  = ref<Record<number, string>>({});  // item_id → tambah qty string
-const adjustLoading = ref<Record<number, boolean>>({});
 
 const shipKekurangan = computed(() => {
     if (!shipModal.value.sale) return 0;
@@ -637,8 +631,6 @@ function openShipModal(sale: Sale) {
     const defaultDate = sale.shipped_at
         ? sale.shipped_at.slice(0, 10)
         : new Date().toISOString().slice(0, 10);
-    stockErrors.value  = [];
-    stockAdjusts.value = {};
     shipModal.value = {
         open: true, sale,
         inputRaw: String(total),
@@ -659,7 +651,6 @@ async function confirmShip() {
     if (!shipModal.value.sale) return;
     const id     = shipModal.value.sale.id;
     const amount = parseInt(shipModal.value.inputRaw) || 0;
-    stockErrors.value = [];
     try {
         await salesApi.ship(id, {
             shipped_at: shipModal.value.shippedAt || undefined,
@@ -669,67 +660,7 @@ async function confirmShip() {
         await loadSales();
         shipModal.value.open = false;
     } catch (e: any) {
-        const errs = e?.response?.data?.data?.stock_errors;
-        if (errs?.length) {
-            stockErrors.value  = errs;
-            stockAdjusts.value = {};
-        } else {
-            showToast(e?.response?.data?.message || 'Gagal memperbarui status.');
-        }
-    }
-}
-
-async function applyStockAdjust(err: StockError) {
-    if (!err.item_id) return;
-    const qty = parseInt(stockAdjusts.value[err.item_id] ?? '') || 0;
-    if (qty <= 0) return;
-    adjustLoading.value[err.item_id] = true;
-    try {
-        await inventoryApi.adjustStock({ item_id: err.item_id, type: 'IN', quantity: qty, notes: 'Tambah stok dari proses kirim invoice' });
-        err.current += qty;
-        stockAdjusts.value[err.item_id] = '';
-        // Hapus dari list kalau sudah cukup
-        if (err.current >= err.needed) stockErrors.value = stockErrors.value.filter(e => e.item_id !== err.item_id);
-    } catch {
-        showToast('Gagal menambah stok.');
-    } finally {
-        adjustLoading.value[err.item_id] = false;
-    }
-}
-
-async function setActualStock(err: StockError) {
-    if (!err.item_id) return;
-    const qty = parseInt(stockAdjusts.value[err.item_id] ?? '') || 0;
-    if (qty < 0) return;
-    adjustLoading.value[err.item_id] = true;
-    try {
-        const diff = qty - err.current;
-        if (diff !== 0) await inventoryApi.adjustStock({ item_id: err.item_id, type: diff > 0 ? 'IN' : 'OUT', quantity: Math.abs(diff), notes: 'Set stok aktual dari proses kirim invoice' });
-        err.current = qty;
-        stockAdjusts.value[err.item_id] = '';
-        if (err.current >= err.needed) stockErrors.value = stockErrors.value.filter(e => e.item_id !== err.item_id);
-    } catch {
-        showToast('Gagal set stok.');
-    } finally {
-        adjustLoading.value[err.item_id] = false;
-    }
-}
-
-async function markDipesan(sale: Sale) {
-    try {
-        await salesApi.setDipesan(sale.id);
-        await loadSales();
-    } catch (e: any) {
-        showToast(e?.response?.data?.message || 'Gagal menandai dipesan.');
-    }
-}
-
-async function cancelDipesan(sale: Sale) {
-    try {
-        await salesApi.unsetDipesan(sale.id);
-        await loadSales();
-    } catch (e: any) {
-        showToast(e?.response?.data?.message || 'Gagal membatalkan status dipesan.');
+        showToast(e?.response?.data?.message || 'Gagal memperbarui status.');
     }
 }
 
@@ -1146,8 +1077,8 @@ onMounted(async () => {
             >
                 Buat Invoice
             </button>
-            <!-- Rencana + Dipesan + Proses + Sudah: berdampingan di mobile -->
-            <div class="grid grid-cols-4 sm:contents gap-2">
+            <!-- Rencana + Proses + Sudah: berdampingan di mobile -->
+            <div class="grid grid-cols-3 sm:contents gap-2">
                 <button
                     @click="activeTab = 'rencana'; historySubTab = 'rencana'"
                     :class="activeTab === 'rencana'
@@ -1160,19 +1091,6 @@ onMounted(async () => {
                         :class="activeTab === 'rencana' ? 'bg-white/30 text-white' : 'bg-amber-100 text-amber-700'"
                         class="text-xs font-bold px-1.5 py-0.5 rounded-full"
                     >{{ salesRencana.length }}</span>
-                </button>
-                <button
-                    @click="activeTab = 'dipesan'; historySubTab = 'rencana'"
-                    :class="activeTab === 'dipesan'
-                        ? 'bg-violet-600 text-white shadow-lg'
-                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
-                    class="py-2.5 sm:px-5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5"
-                >
-                    Dipesan
-                    <span v-if="salesDipesan.length"
-                        :class="activeTab === 'dipesan' ? 'bg-white/30 text-white' : 'bg-violet-100 text-violet-700'"
-                        class="text-xs font-bold px-1.5 py-0.5 rounded-full"
-                    >{{ salesDipesan.length }}</span>
                 </button>
                 <button
                     @click="activeTab = 'proses'; historySubTab = 'proses'"
@@ -1423,18 +1341,6 @@ onMounted(async () => {
                             class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1D3557]/30 focus:border-[#1D3557]"
                         /></div>
 
-                        <!-- Online toggle -->
-                        <div class="md:contents">
-                        <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Online</label>
-                        <div class="flex items-center">
-                            <button
-                                type="button"
-                                @click="item.is_online_order = !item.is_online_order"
-                                :class="item.is_online_order ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'"
-                                class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-                            >{{ item.is_online_order ? 'Online' : 'Offline' }}</button>
-                        </div></div>
-
                         <!-- Qty + Harga (berdampingan di mobile) -->
                         <div class="grid grid-cols-2 gap-2 md:contents">
                             <div>
@@ -1520,10 +1426,9 @@ onMounted(async () => {
             <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h2 class="text-base font-bold text-slate-700">
-                        {{ activeTab === 'rencana' ? 'Invoice Rencana' : activeTab === 'dipesan' ? 'Invoice Dipesan' : activeTab === 'proses' ? 'Invoice Proses' : 'Invoice Sudah Dikirim' }}
+                        {{ activeTab === 'rencana' ? 'Invoice Rencana' : activeTab === 'proses' ? 'Invoice Proses' : 'Invoice Sudah Dikirim' }}
                     </h2>
                     <p v-if="activeTab === 'rencana'" class="text-xs text-amber-600 mt-0.5">Stok belum dipotong. Tandai terkirim untuk memotong stok.</p>
-                    <p v-else-if="activeTab === 'dipesan'" class="text-xs text-violet-600 mt-0.5">Order online/pre-order. Stok belum dipotong.</p>
                     <p v-else-if="activeTab === 'proses'" class="text-xs text-blue-600 mt-0.5">Sedang dalam proses. Tandai terkirim untuk memotong stok.</p>
                     <p v-else class="text-xs text-emerald-600 mt-0.5">Stok sudah dipotong saat status diubah menjadi terkirim.</p>
                 </div>
@@ -1534,40 +1439,6 @@ onMounted(async () => {
             </div>
 
             <template v-else>
-                <!-- Dipesan -->
-                <div v-if="activeTab === 'dipesan'">
-                    <div v-if="salesDipesan.length === 0" class="flex flex-col items-center justify-center py-16 text-slate-400">
-                        <i class="pi pi-shopping-bag text-3xl mb-2"></i>
-                        <p class="text-sm">Tidak ada order dipesan</p>
-                    </div>
-                    <div v-else class="divide-y divide-slate-100">
-                        <div v-for="sale in salesDipesan" :key="sale.id" class="p-4 hover:bg-violet-50/30 transition-colors">
-                            <div class="flex items-start justify-between gap-3 mb-2">
-                                <div class="min-w-0">
-                                    <p class="font-mono text-xs font-bold text-[#1D3557]">{{ sale.invoice_number }}</p>
-                                    <p class="font-semibold text-slate-800 mt-0.5">{{ sale.recipient_name }}</p>
-                                    <p v-if="sale.recipient_address" class="text-xs text-slate-400">{{ sale.recipient_address }}</p>
-                                </div>
-                                <div class="text-right flex-shrink-0">
-                                    <p class="font-bold text-slate-800">{{ fmt(sale.grand_total) }}</p>
-                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Dipesan</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <button @click="openShipModal(sale)" class="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
-                                    <i class="pi pi-send text-xs"></i> Kirim
-                                </button>
-                                <button @click="cancelDipesan(sale)" class="text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
-                                    Batalkan Pesanan
-                                </button>
-                                <button @click="openEditModal(sale)" class="text-xs font-bold text-[#1D3557] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
-                                    Edit
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Rencana / Proses -->
                 <div v-if="activeTab === 'rencana' || activeTab === 'proses'">
                     <div v-if="(activeTab === 'rencana' ? salesRencana : salesProses).length === 0" class="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -1594,9 +1465,6 @@ onMounted(async () => {
                                 <div class="flex items-center gap-2 mt-2 flex-wrap">
                                     <button @click="openShipModal(sale)" class="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
                                         <i class="pi pi-send text-xs"></i> Kirim
-                                    </button>
-                                    <button @click="markDipesan(sale)" class="flex items-center gap-1 text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors">
-                                        <i class="pi pi-shopping-bag text-xs"></i> Pesan
                                     </button>
                                     <button v-if="sisaTagihan(sale) > 0" @click="openPayModal(sale)" class="text-xs font-bold text-[#1D3557] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
                                         + Catat Bayar
@@ -1653,9 +1521,6 @@ onMounted(async () => {
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         <div class="flex items-center justify-center gap-3">
-                                            <button @click="markDipesan(sale)" class="flex items-center gap-1 text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-2.5 py-1 rounded-lg transition-colors" title="Tandai Dipesan">
-                                                <i class="pi pi-shopping-bag text-xs"></i> Pesan
-                                            </button>
                                             <button
                                                 @click="openShipModal(sale)"
                                                 class="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors"
@@ -1977,15 +1842,6 @@ onMounted(async () => {
                                     />
                                 </div>
 
-                                <!-- Online toggle -->
-                                <div>
-                                    <label class="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Online</label>
-                                    <button type="button" @click="item.is_online_order = !item.is_online_order"
-                                        :class="item.is_online_order ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-400'"
-                                        class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-                                    >{{ item.is_online_order ? 'Online' : 'Offline' }}</button>
-                                </div>
-
                                 <!-- Qty + Harga berdampingan di mobile -->
                                 <div class="grid grid-cols-2 gap-2 md:contents">
                                     <div>
@@ -2118,38 +1974,6 @@ onMounted(async () => {
                     <p class="text-sm font-bold text-red-700 mt-0.5">{{ shipKeteranganAuto }}</p>
                 </div>
 
-                <!-- Stok kurang -->
-                <div v-if="stockErrors.length" class="mb-4 space-y-3">
-                    <p class="text-xs font-bold text-red-600 uppercase tracking-wide">Stok tidak cukup</p>
-                    <div v-for="err in stockErrors" :key="err.item_id ?? err.item_name" class="bg-red-50 border border-red-200 rounded-xl p-3">
-                        <div class="flex justify-between items-start mb-2">
-                            <p class="text-sm font-semibold text-slate-800">{{ err.item_name }}</p>
-                            <span class="text-xs text-red-600 font-bold">{{ err.current }} / {{ err.needed }}</span>
-                        </div>
-                        <p v-if="err.unlinked" class="text-xs text-slate-500">Belum terhubung ke inventory.</p>
-                        <template v-else>
-                            <div class="flex gap-2">
-                                <input
-                                    v-model="stockAdjusts[err.item_id!]"
-                                    type="number" min="1" placeholder="Qty"
-                                    class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30"
-                                />
-                                <button
-                                    @click="applyStockAdjust(err)"
-                                    :disabled="adjustLoading[err.item_id!]"
-                                    class="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                                >+ Tambah</button>
-                                <button
-                                    @click="setActualStock(err)"
-                                    :disabled="adjustLoading[err.item_id!]"
-                                    class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 transition-colors"
-                                >Set Aktual</button>
-                            </div>
-                            <p class="text-[10px] text-slate-400 mt-1">Tambah = nambah dari angka saat ini · Set Aktual = ganti jadi angka ini</p>
-                        </template>
-                    </div>
-                </div>
-
                 <div class="flex gap-3">
                     <button @click="shipModal.open = false" class="flex-1 border border-slate-300 text-slate-600 text-sm font-bold py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
                         Batal
@@ -2158,7 +1982,7 @@ onMounted(async () => {
                         @click="confirmShip"
                         class="flex-1 bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
                     >
-                        {{ stockErrors.length ? 'Coba Kirim Lagi' : 'Kirim' }}
+                        Kirim
                     </button>
                 </div>
             </div>

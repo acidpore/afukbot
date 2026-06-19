@@ -109,28 +109,8 @@ class SalesController extends Controller
             );
             return $this->sendResponse($sale, 'Invoice ditandai sebagai terkirim');
         } catch (\Exception $e) {
-            $decoded = json_decode($e->getMessage(), true);
-            if (isset($decoded['stock_errors'])) {
-                return $this->sendError('Stok tidak cukup untuk beberapa item.', $decoded, 422);
-            }
             return $this->sendError($e->getMessage(), [], 422);
         }
-    }
-
-    public function setDipesan($id)
-    {
-        $sale = \App\Models\Sale::findOrFail((int) $id);
-        if ($sale->status !== 'rencana') return $this->sendError('Hanya invoice rencana yang bisa dipesan.', [], 422);
-        $sale->update(['status' => 'dipesan']);
-        return $this->sendResponse($sale->fresh(), 'Invoice ditandai sebagai dipesan.');
-    }
-
-    public function cancelDipesan($id)
-    {
-        $sale = \App\Models\Sale::findOrFail((int) $id);
-        if ($sale->status !== 'dipesan') return $this->sendError('Invoice bukan berstatus dipesan.', [], 422);
-        $sale->update(['status' => 'rencana']);
-        return $this->sendResponse($sale->fresh(), 'Status invoice dikembalikan ke rencana.');
     }
 
     public function revertStock($id)

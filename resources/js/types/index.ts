@@ -39,7 +39,6 @@ export interface SaleItem {
     total_price?: number;
     inventory_item_ids?: number[];
     is_new_item?: boolean;
-    is_online_order?: boolean;
 }
 
 export interface Sale {

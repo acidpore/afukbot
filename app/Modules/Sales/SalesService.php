@@ -65,7 +65,6 @@ class SalesService
                     'unit_price'          => $item['unit_price'],
                     'total_price'         => $item['qty'] * $item['unit_price'],
                     'inventory_item_ids'  => $inventoryItemIds,
-                    'is_online_order'     => !empty($item['is_online_order']),
                 ]);
             }
 
@@ -82,30 +81,17 @@ class SalesService
                 throw new \Exception('Invoice sudah berstatus terkirim.');
             }
 
-            // Validasi semua item dulu sebelum potong stok
-            $stockErrors = [];
             foreach ($sale->items as $saleItem) {
                 $itemIds = $saleItem->inventory_item_ids ?? [];
-                if (empty($itemIds)) {
-                    $stockErrors[] = ['item_name' => $saleItem->item_name, 'item_id' => null, 'current' => 0, 'needed' => $saleItem->qty, 'unlinked' => true];
-                    continue;
-                }
                 foreach ($itemIds as $itemId) {
                     $invItem = Item::find($itemId);
                     if (!$invItem) continue;
-                    if ($invItem->quantity < $saleItem->qty) {
-                        $stockErrors[] = ['item_name' => $invItem->name, 'item_id' => $invItem->id, 'current' => $invItem->quantity, 'needed' => $saleItem->qty, 'unlinked' => false];
-                    }
-                }
-            }
-            if (!empty($stockErrors)) {
-                throw new \RuntimeException(json_encode(['stock_errors' => $stockErrors]));
-            }
 
-            foreach ($sale->items as $saleItem) {
-                $itemIds = $saleItem->inventory_item_ids ?? [];
-                foreach ($itemIds as $itemId) {
-                    $invItem = Item::find($itemId);
+                    if ($invItem->quantity < $saleItem->qty) {
+                        throw new \Exception(
+                            "Stok {$invItem->name} tidak cukup (tersisa {$invItem->quantity}, dibutuhkan {$saleItem->qty})."
+                        );
+                    }
 
                     $before = $invItem->quantity;
                     $invItem->decrement('quantity', $saleItem->qty);
@@ -174,7 +160,6 @@ class SalesService
                         'unit_price'         => $item['unit_price'],
                         'total_price'        => $total,
                         'inventory_item_ids' => $item['inventory_item_ids'] ?? null,
-                        'is_online_order'    => !empty($item['is_online_order']),
                     ]);
                 }
 
