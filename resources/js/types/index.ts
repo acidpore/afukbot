@@ -56,7 +56,7 @@ export interface Sale {
     attachment_path: string | null;
     grand_total: number;
     paid_amount: number;
-    status: 'rencana' | 'sudah_dikirim';
+    status: 'rencana' | 'dipesan' | 'sudah_dikirim';
     shipped_at?: string | null;
     items: SaleItem[];
     created_at?: string;

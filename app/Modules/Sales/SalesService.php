@@ -81,17 +81,30 @@ class SalesService
                 throw new \Exception('Invoice sudah berstatus terkirim.');
             }
 
+            // Validasi semua item dulu sebelum potong stok
+            $stockErrors = [];
+            foreach ($sale->items as $saleItem) {
+                $itemIds = $saleItem->inventory_item_ids ?? [];
+                if (empty($itemIds)) {
+                    $stockErrors[] = ['item_name' => $saleItem->item_name, 'item_id' => null, 'current' => 0, 'needed' => $saleItem->qty, 'unlinked' => true];
+                    continue;
+                }
+                foreach ($itemIds as $itemId) {
+                    $invItem = Item::find($itemId);
+                    if (!$invItem) continue;
+                    if ($invItem->quantity < $saleItem->qty) {
+                        $stockErrors[] = ['item_name' => $invItem->name, 'item_id' => $invItem->id, 'current' => $invItem->quantity, 'needed' => $saleItem->qty, 'unlinked' => false];
+                    }
+                }
+            }
+            if (!empty($stockErrors)) {
+                throw new \RuntimeException(json_encode(['stock_errors' => $stockErrors]));
+            }
+
             foreach ($sale->items as $saleItem) {
                 $itemIds = $saleItem->inventory_item_ids ?? [];
                 foreach ($itemIds as $itemId) {
                     $invItem = Item::find($itemId);
-                    if (!$invItem) continue;
-
-                    if ($invItem->quantity < $saleItem->qty) {
-                        throw new \Exception(
-                            "Stok {$invItem->name} tidak cukup (tersisa {$invItem->quantity}, dibutuhkan {$saleItem->qty})."
-                        );
-                    }
 
                     $before = $invItem->quantity;
                     $invItem->decrement('quantity', $saleItem->qty);
@@ -263,24 +276,11 @@ class SalesService
         $item = Item::create([
             'name'        => $name,
             'category_id' => $category->id,
-            'quantity'    => $qty,
+            'quantity'    => 0,
             'unit'        => 'pcs',
             'location'    => 'Ruko',
             'harga_jual'  => $hargaJual,
         ]);
-
-        if ($qty > 0) {
-            StockTransaction::create([
-                'item_id'        => $item->id,
-                'type'           => 'IN',
-                'quantity'       => $qty,
-                'stock_before'   => 0,
-                'stock_after'    => $qty,
-                'date'           => now()->toDateString(),
-                'notes'          => "Stok awal - auto dari {$invoiceNumber}",
-                'recorded_by_id' => $userId,
-            ]);
-        }
 
         return $item->id;
     }

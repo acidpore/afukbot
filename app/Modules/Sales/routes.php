@@ -12,7 +12,9 @@ Route::prefix('sales')->group(function () {
     Route::patch('/{id}/pay',         [SalesController::class, 'pay']);
     Route::patch('/{id}/set-payment', [SalesController::class, 'setPayment']);
     Route::patch('/{id}/ship',        [SalesController::class, 'ship']);
-    Route::patch('/{id}/revert-stock', [SalesController::class, 'revertStock']);
+    Route::patch('/{id}/revert-stock',   [SalesController::class, 'revertStock']);
+    Route::patch('/{id}/dipesan',        [SalesController::class, 'setDipesan']);
+    Route::patch('/{id}/dipesan/cancel', [SalesController::class, 'cancelDipesan']);
     Route::delete('/{id}',                  [SalesController::class, 'destroy']);
     Route::post('/{id}/attachment',         [SalesController::class, 'uploadAttachment']);
     Route::delete('/{id}/attachment',       [SalesController::class, 'deleteAttachment']);
