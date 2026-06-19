@@ -377,7 +377,7 @@ function exportPDF() {
 
     // ── Header ────────────────────────────────────────────
     doc.setFontSize(18); doc.setFont('times', 'bold'); doc.setTextColor(...NAVY);
-    doc.text('PT Indo Pangan', pageW / 2, y, { align: 'center' });
+    doc.text('Indo Pangan', pageW / 2, y, { align: 'center' });
     y += 5;
     doc.setFontSize(8); doc.setFont('times', 'normal'); doc.setTextColor(80, 80, 80);
     for (const line of ['Ruko Puncak CBD — Jalan Dukuh Kramat I No.36 Blok 7E PSR', 'Jajar Tunggal, Kec. Wiyung, Kota Surabaya, Jawa Timur']) {

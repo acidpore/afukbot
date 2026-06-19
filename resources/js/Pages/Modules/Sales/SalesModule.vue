@@ -699,7 +699,7 @@ async function printInvoice(sale: Sale) {
     doc.setFontSize(20);
     doc.setFont('times', 'bold');
     doc.setTextColor(...NAVY);
-    const senderName = sale.sender_name?.trim() || 'PT Indo Pangan';
+    const senderName = sale.sender_name?.trim() || 'Indo Pangan';
     doc.text(senderName, pageW / 2, y, { align: 'center' });
     y += 5;
 
@@ -899,7 +899,6 @@ async function printInvoice(sale: Sale) {
     const summaryRows = [
         ['Sub Total', 'IDR ' + subTotal.toLocaleString('id-ID')],
         ['Diskon',    ''],
-        ['PPN (0%)',  ''],
     ];
 
     const colHalf = summaryW / 2;
@@ -1688,11 +1687,11 @@ onMounted(async () => {
 
                     <!-- Seksi: Kop PDF -->
                     <div>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Kop PDF <span class="text-slate-300 font-normal normal-case tracking-normal">— kosongkan untuk pakai PT Indo Pangan</span></p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Kop PDF <span class="text-slate-300 font-normal normal-case tracking-normal">— kosongkan untuk pakai Indo Pangan</span></p>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Pengirim</label>
-                                <input v-model="editForm.sender_name" type="text" placeholder="PT Indo Pangan" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                                <input v-model="editForm.sender_name" type="text" placeholder="Indo Pangan" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-500 mb-1.5">Alamat Pengirim</label>
