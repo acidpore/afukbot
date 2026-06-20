@@ -334,6 +334,30 @@ class SalesService
         ];
     }
 
+    public function checkStock(int $id): array
+    {
+        $sale = Sale::with('items')->findOrFail($id);
+        $shortages = [];
+
+        foreach ($sale->items as $saleItem) {
+            foreach ($saleItem->inventory_item_ids ?? [] as $itemId) {
+                $invItem = Item::find($itemId);
+                if (!$invItem) continue;
+                if ($invItem->quantity < $saleItem->qty) {
+                    $shortages[] = [
+                        'item_id'       => $invItem->id,
+                        'name'          => $invItem->name,
+                        'qty_needed'    => $saleItem->qty,
+                        'qty_available' => $invItem->quantity,
+                        'shortage'      => $saleItem->qty - $invItem->quantity,
+                    ];
+                }
+            }
+        }
+
+        return $shortages;
+    }
+
     private function generateInvoiceNumber(): string
     {
         $today  = now()->format('dmy');

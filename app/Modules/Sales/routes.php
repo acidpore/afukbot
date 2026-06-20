@@ -11,6 +11,7 @@ Route::prefix('sales')->group(function () {
     Route::put('/{id}',         [SalesController::class, 'update']);
     Route::patch('/{id}/pay',         [SalesController::class, 'pay']);
     Route::patch('/{id}/set-payment', [SalesController::class, 'setPayment']);
+    Route::get('/{id}/check-stock',   [SalesController::class, 'checkStock']);
     Route::patch('/{id}/ship',        [SalesController::class, 'ship']);
     Route::patch('/{id}/revert-stock', [SalesController::class, 'revertStock']);
     Route::delete('/{id}',                  [SalesController::class, 'destroy']);

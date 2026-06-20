@@ -95,6 +95,12 @@ class SalesController extends Controller
         }
     }
 
+    public function checkStock($id)
+    {
+        $shortages = $this->salesService->checkStock((int) $id);
+        return $this->sendResponse($shortages, 'Stock check complete');
+    }
+
     public function ship(Request $request, $id)
     {
         $request->validate([

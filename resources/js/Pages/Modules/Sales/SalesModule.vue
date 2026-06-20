@@ -607,6 +607,56 @@ async function submitSale() {
     }
 }
 
+// ── Modal Stok Kurang ──────────────────────────────────────
+type StockShortage = { item_id: number; name: string; qty_needed: number; qty_available: number; shortage: number };
+const stockModal = ref<{
+    open: boolean;
+    saleId: number | null;
+    items: (StockShortage & { mode: 'tambah' | 'set'; inputVal: string; loading: boolean; done: boolean })[];
+}>({ open: false, saleId: null, items: [] });
+
+async function openStockModal(saleId: number, shortages: StockShortage[]) {
+    stockModal.value = {
+        open: true,
+        saleId,
+        items: shortages.map(s => ({ ...s, mode: 'tambah', inputVal: String(s.shortage), loading: false, done: false })),
+    };
+}
+
+async function applyStockFix(idx: number) {
+    const item = stockModal.value.items[idx];
+    const qty = parseInt(item.inputVal) || 0;
+    if (qty <= 0) return;
+    item.loading = true;
+    try {
+        if (item.mode === 'tambah') {
+            await inventoryApi.adjustStock({ item_id: item.item_id, type: 'IN', quantity: qty, notes: 'Fix stok dari invoice' });
+        } else {
+            // set actual: compute delta vs current available
+            const delta = qty - item.qty_available;
+            if (delta === 0) { item.done = true; item.loading = false; return; }
+            await inventoryApi.adjustStock({
+                item_id: item.item_id,
+                type: delta > 0 ? 'IN' : 'OUT',
+                quantity: Math.abs(delta),
+                notes: 'Set stok dari invoice',
+            });
+        }
+        item.done = true;
+    } catch {
+        showToast(`Gagal adjust stok ${item.name}`);
+    }
+    item.loading = false;
+}
+
+async function retryShipAfterStock() {
+    const saleId = stockModal.value.saleId;
+    if (!saleId) return;
+    stockModal.value.open = false;
+    // re-trigger ship flow via shipModal which is already open
+    await confirmShip();
+}
+
 // ── Modal Konfirmasi Kirim ─────────────────────────────────
 const shipModal = ref<{ open: boolean; sale: Sale | null; inputRaw: string; display: string; shippedAt: string }>({
     open: false, sale: null, inputRaw: '', display: '', shippedAt: '',
@@ -652,6 +702,13 @@ async function confirmShip() {
     const id     = shipModal.value.sale.id;
     const amount = parseInt(shipModal.value.inputRaw) || 0;
     try {
+        // cek stok dulu
+        const checkRes = await salesApi.checkStock(id);
+        const shortages = checkRes.data.data ?? [];
+        if (shortages.length > 0) {
+            openStockModal(id, shortages);
+            return;
+        }
         await salesApi.ship(id, {
             shipped_at: shipModal.value.shippedAt || undefined,
             notes: shipKeteranganAuto.value || undefined,
@@ -1983,6 +2040,56 @@ onMounted(async () => {
                         class="flex-1 bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
                     >
                         Kirim
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── Modal Stok Kurang ─── -->
+        <div v-if="stockModal.open" class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl p-6 w-full sm:max-w-lg max-h-[85vh] flex flex-col">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="text-base font-bold text-slate-800">Stok Tidak Cukup</h3>
+                    <button @click="stockModal.open = false" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+                </div>
+                <p class="text-xs text-slate-500 mb-4">Tambah stok atau set stok aktual, lalu kirim ulang.</p>
+                <div class="space-y-3 overflow-y-auto flex-1">
+                    <div v-for="(item, idx) in stockModal.items" :key="item.item_id"
+                        class="border rounded-xl p-3 text-sm"
+                        :class="item.done ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-slate-800">{{ item.name }}</span>
+                            <span v-if="item.done" class="text-xs text-emerald-600 font-bold">✓ OK</span>
+                            <span v-else class="text-xs text-amber-700">Ada {{ item.qty_available }}, butuh {{ item.qty_needed }}</span>
+                        </div>
+                        <div v-if="!item.done" class="flex gap-2 items-center">
+                            <div class="flex rounded-lg overflow-hidden border border-slate-200 text-xs">
+                                <button @click="item.mode = 'tambah'"
+                                    :class="item.mode === 'tambah' ? 'bg-slate-800 text-white' : 'bg-white text-slate-500'"
+                                    class="px-2 py-1 font-medium transition-colors">+ Tambah</button>
+                                <button @click="item.mode = 'set'"
+                                    :class="item.mode === 'set' ? 'bg-slate-800 text-white' : 'bg-white text-slate-500'"
+                                    class="px-2 py-1 font-medium transition-colors">Set Stok</button>
+                            </div>
+                            <input v-model="item.inputVal" type="number" min="1"
+                                class="w-20 border border-slate-200 rounded-lg px-2 py-1 text-xs text-center" />
+                            <span class="text-xs text-slate-500">{{ item.mode === 'tambah' ? 'pcs ditambah' : 'stok aktual' }}</span>
+                            <button @click="applyStockFix(idx)" :disabled="item.loading"
+                                class="ml-auto text-xs bg-slate-800 text-white px-3 py-1 rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors">
+                                {{ item.loading ? '...' : 'Terapkan' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-4">
+                    <button @click="stockModal.open = false"
+                        class="flex-1 border border-slate-300 text-slate-600 text-sm font-bold py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+                        Batal
+                    </button>
+                    <button @click="retryShipAfterStock"
+                        :disabled="!stockModal.items.every(i => i.done)"
+                        class="flex-1 bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+                        Kirim Sekarang
                     </button>
                 </div>
             </div>

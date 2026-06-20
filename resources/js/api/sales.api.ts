@@ -14,6 +14,7 @@ export const salesApi = {
     update:  (id: number, data: object)   => api.put<ApiResponse<Sale>>(`/sales/${id}`, data),
     pay:        (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/pay`, { amount }),
     setPayment: (id: number, amount: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/set-payment`, { amount }),
+    checkStock:  (id: number) => api.get<ApiResponse<{ item_id: number; name: string; qty_needed: number; qty_available: number; shortage: number }[]>>(`/sales/${id}/check-stock`),
     ship:        (id: number, data: { shipped_at?: string; notes?: string }) => api.patch<ApiResponse<Sale>>(`/sales/${id}/ship`, data),
     revertStock:      (id: number) => api.patch<ApiResponse<Sale>>(`/sales/${id}/revert-stock`, {}),
     remove:           (id: number) => api.delete<ApiResponse<null>>(`/sales/${id}`),
