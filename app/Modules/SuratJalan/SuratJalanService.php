@@ -60,6 +60,29 @@ class SuratJalanService
                 }
             }
 
+            // Cek stok sebelum deduct
+            $shortages = [];
+            foreach ($data['items'] as $row) {
+                $saleItem = SaleItem::find($row['sale_item_id']);
+                if (!$saleItem) continue;
+                foreach ($saleItem->inventory_item_ids ?? [] as $itemId) {
+                    $invItem = Item::find($itemId);
+                    if (!$invItem) continue;
+                    if ($invItem->quantity < $row['qty_kirim']) {
+                        $shortages[] = [
+                            'item_id'       => $invItem->id,
+                            'name'          => $invItem->name,
+                            'qty_needed'    => $row['qty_kirim'],
+                            'qty_available' => $invItem->quantity,
+                            'shortage'      => $row['qty_kirim'] - $invItem->quantity,
+                        ];
+                    }
+                }
+            }
+            if (!empty($shortages)) {
+                throw new \Exception('STOCK_SHORTAGE:' . json_encode($shortages));
+            }
+
             $nomor = $this->generateNomor();
 
             $sj = SuratJalan::create([
