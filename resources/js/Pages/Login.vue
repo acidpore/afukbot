@@ -4,6 +4,7 @@ import axios from 'axios';
 
 const email    = ref('');
 const password = ref('');
+const remember = ref(false);
 const error    = ref('');
 const loading  = ref(false);
 
@@ -11,9 +12,8 @@ async function handleLogin() {
   error.value   = '';
   loading.value = true;
   try {
-    // Ambil CSRF cookie dulu (diperlukan untuk session auth)
     await axios.get('/sanctum/csrf-cookie').catch(() => {});
-    await axios.post('/auth/login', { email: email.value, password: password.value });
+    await axios.post('/auth/login', { email: email.value, password: password.value, remember: remember.value });
     window.location.href = '/dashboard';
   } catch (e: any) {
     error.value = e?.response?.data?.message ?? 'Gagal login, coba lagi.';
@@ -53,7 +53,7 @@ async function handleLogin() {
           <div>
             <div class="flex justify-between items-center mb-2">
               <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
-              <a href="#" class="text-[10px] font-bold text-accent hover:underline">Lupa Password?</a>
+              <a href="/forgot-password" class="text-[10px] font-bold text-accent hover:underline">Lupa Password?</a>
             </div>
             <input 
               v-model="password"
@@ -64,7 +64,7 @@ async function handleLogin() {
           </div>
 
           <div class="flex items-center gap-3 py-2">
-            <input type="checkbox" id="remember" class="w-4 h-4 rounded border-slate-200 text-primary focus:ring-primary">
+            <input type="checkbox" id="remember" v-model="remember" class="w-4 h-4 rounded border-slate-200 text-primary focus:ring-primary">
             <label for="remember" class="text-xs text-slate-500">Ingat saya di perangkat ini</label>
           </div>
 

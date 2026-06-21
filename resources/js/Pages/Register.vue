@@ -1,11 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 
 const form    = ref({ name: '', email: '', password: '', password_confirmation: '' });
 const error   = ref('');
 const success  = ref(false);
 const loading = ref(false);
+
+const passwordStrength = computed(() => {
+  const p = form.value.password;
+  if (!p) return 0;
+  let score = 0;
+  if (p.length >= 8)          score++;
+  if (/[A-Z]/.test(p))        score++;
+  if (/[0-9]/.test(p))        score++;
+  if (/[^A-Za-z0-9]/.test(p)) score++;
+  return score;
+});
+
+const strengthLabel = computed(() => ['', 'Lemah', 'Sedang', 'Kuat', 'Sangat Kuat'][passwordStrength.value]);
+const strengthColor = computed(() => ['', 'bg-red-400', 'bg-yellow-400', 'bg-green-400', 'bg-green-600'][passwordStrength.value]);
 
 async function handleRegister() {
   error.value   = '';
@@ -69,6 +83,13 @@ async function handleRegister() {
             <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Password</label>
             <input v-model="form.password" type="password" placeholder="Min. 8 karakter" required
               class="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all" />
+            <div v-if="form.password" class="mt-2 space-y-1">
+              <div class="flex gap-1">
+                <div v-for="i in 4" :key="i" class="h-1 flex-1 rounded-full transition-colors"
+                  :class="i <= passwordStrength ? strengthColor : 'bg-slate-200'"></div>
+              </div>
+              <p class="text-[11px] text-slate-500">Kekuatan: <span class="font-semibold">{{ strengthLabel }}</span></p>
+            </div>
           </div>
 
           <div>

@@ -1,8 +1,11 @@
 <?php
 
 use App\Modules\Auth\AuthController;
+use App\Modules\Auth\PasswordResetController;
 use App\Modules\Auth\RegisterController;
 use App\Modules\Auth\AdminPermissionController;
+use App\Modules\Settings\BankAccountController;
+use App\Modules\MutasiRekening\AccountMutationController;
 use App\Modules\Auth\PushSubscriptionController;
 use App\Modules\Auth\NotificationController;
 use App\Http\Middleware\EnsureAuthenticated;
@@ -23,7 +26,13 @@ Route::get('/auth/me',        [AuthController::class,   'me']);
 Route::post('/auth/register', [RegisterController::class, 'register'])->middleware('throttle:register');
 
 // Register page
-Route::get('/register', fn() => view('app', ['page' => ['component' => 'Register']]));
+Route::get('/register',        fn() => view('app', ['page' => ['component' => 'Register']]));
+Route::get('/forgot-password', fn() => view('app', ['page' => ['component' => 'ForgotPassword']]));
+Route::get('/reset-password',  fn() => view('app', ['page' => ['component' => 'ResetPassword']]));
+
+// Password reset API
+Route::post('/auth/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:5,1');
+Route::post('/auth/reset-password',  [PasswordResetController::class, 'reset']);
 
 // ── Protected Module Routes ────────────────────────────────
 Route::middleware(EnsureAuthenticated::class)->group(function () {
@@ -44,6 +53,23 @@ Route::middleware(EnsureAuthenticated::class)->group(function () {
         Route::get('/notifications',             [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read',  [NotificationController::class, 'markRead']);
         Route::post('/notifications/read-all',   [NotificationController::class, 'markAllRead']);
+    });
+
+    // Mutasi rekening
+    Route::get('/account-mutations',            [AccountMutationController::class, 'index']);
+    Route::get('/account-mutations/categories',  [AccountMutationController::class, 'categories']);
+    Route::get('/account-mutations/tax-summary', [AccountMutationController::class, 'taxSummary']);
+    Route::post('/account-mutations',         [AccountMutationController::class, 'store']);
+    Route::put('/account-mutations/opening',  [AccountMutationController::class, 'setOpening']);
+    Route::put('/account-mutations/{id}',     [AccountMutationController::class, 'update']);
+    Route::delete('/account-mutations/{id}',  [AccountMutationController::class, 'destroy']);
+
+    // Bank accounts (semua authenticated bisa baca, super admin bisa CRUD)
+    Route::get('/bank-accounts', [BankAccountController::class, 'index']);
+    Route::middleware(EnsureSuperAdmin::class)->group(function () {
+        Route::post('/bank-accounts',        [BankAccountController::class, 'store']);
+        Route::put('/bank-accounts/{id}',    [BankAccountController::class, 'update']);
+        Route::delete('/bank-accounts/{id}', [BankAccountController::class, 'destroy']);
     });
 
     // Super admin only: permission management + activity log

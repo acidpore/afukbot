@@ -36,7 +36,7 @@ class AuthController extends Controller
             ], 429);
         }
 
-        if (!Auth::attempt($credentials, true)) {
+        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
             DB::table('login_attempts')->insert(['email' => $email, 'ip_address' => $ip, 'success' => false]);
             $remaining = self::MAX_ATTEMPTS - $recentFails - 1;
             $msg = 'Email atau password salah.';

@@ -20,8 +20,10 @@ const componentName = pageData.component || 'Landing';
 const pages: Record<string, any> = {
     Landing:  defineAsyncComponent(() => import('./Pages/Landing.vue')),
     Login:    defineAsyncComponent(() => import('./Pages/Login.vue')),
-    Register: defineAsyncComponent(() => import('./Pages/Register.vue')),
-    Dashboard: defineAsyncComponent(() => import('./Pages/Dashboard.vue')),
+    Register:       defineAsyncComponent(() => import('./Pages/Register.vue')),
+    ForgotPassword: defineAsyncComponent(() => import('./Pages/ForgotPassword.vue')),
+    ResetPassword:  defineAsyncComponent(() => import('./Pages/ResetPassword.vue')),
+    Dashboard:      defineAsyncComponent(() => import('./Pages/Dashboard.vue')),
 };
 
 const app = createApp({

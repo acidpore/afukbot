@@ -22,6 +22,16 @@
             ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700']">
           Hak Akses Admin
         </button>
+        <button v-if="isSuperAdmin" @click="loadBankAccounts(); tab = 'banks'"
+          :class="['pb-3 text-sm font-medium border-b-2 transition-colors', tab === 'banks'
+            ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700']">
+          Rekening Bank
+        </button>
+        <button v-if="isSuperAdmin" @click="loadActivityLog(); tab = 'activity'"
+          :class="['pb-3 text-sm font-medium border-b-2 transition-colors', tab === 'activity'
+            ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700']">
+          Log Aktivitas
+        </button>
       </nav>
     </div>
 
@@ -211,6 +221,114 @@
       <p v-else class="text-sm text-gray-400">Pilih admin untuk mengatur hak aksesnya.</p>
     </div>
 
+    <!-- Tab: Rekening Bank -->
+    <div v-if="tab === 'banks' && isSuperAdmin" class="space-y-4">
+      <!-- Form tambah / edit -->
+      <div class="bg-white rounded-2xl shadow p-4 space-y-3">
+        <p class="text-sm font-bold text-gray-700">{{ bankForm.id ? 'Edit Rekening' : 'Tambah Rekening' }}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Nama Pemilik</label>
+            <input v-model="bankForm.account_name" type="text" placeholder="RONALDO CHANDRA SUSANTO"
+              class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Nama Bank</label>
+            <input v-model="bankForm.bank_name" type="text" placeholder="Bank Mandiri"
+              class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Nomor Rekening</label>
+            <input v-model="bankForm.account_number" type="text" placeholder="1430033951870"
+              class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" v-model="bankForm.is_default" class="accent-primary w-4 h-4" />
+            Jadikan default
+          </label>
+          <button @click="saveBank"
+            :disabled="!bankForm.account_name || !bankForm.bank_name || !bankForm.account_number"
+            class="bg-primary text-white text-xs font-bold px-5 py-2 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {{ bankForm.id ? 'Simpan Perubahan' : 'Tambah' }}
+          </button>
+          <button v-if="bankForm.id" @click="resetBankForm" class="text-xs text-gray-400 hover:text-gray-600">
+            Batal
+          </button>
+        </div>
+      </div>
+
+      <!-- Daftar rekening -->
+      <div class="bg-white rounded-2xl shadow overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+            <tr>
+              <th class="px-4 py-3 text-left">Nama Pemilik</th>
+              <th class="px-4 py-3 text-left">Bank</th>
+              <th class="px-4 py-3 text-left">Nomor Rekening</th>
+              <th class="px-4 py-3 text-center">Default</th>
+              <th class="px-4 py-3 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="b in bankAccounts" :key="b.id" class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium text-gray-800">{{ b.account_name }}</td>
+              <td class="px-4 py-3 text-gray-600">{{ b.bank_name }}</td>
+              <td class="px-4 py-3 font-mono text-gray-600">{{ b.account_number }}</td>
+              <td class="px-4 py-3 text-center">
+                <span v-if="b.is_default" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Default</span>
+                <span v-else class="text-xs text-gray-300">—</span>
+              </td>
+              <td class="px-4 py-3 text-center">
+                <div class="flex justify-center gap-2">
+                  <button @click="editBank(b)" class="text-xs text-blue-600 hover:underline">Edit</button>
+                  <button @click="deleteBank(b.id)" class="text-xs text-red-500 hover:underline">Hapus</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!bankAccounts.length">
+              <td colspan="5" class="px-4 py-10 text-center text-gray-400 text-sm">Belum ada rekening</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Log Aktivitas -->
+    <div v-if="tab === 'activity' && isSuperAdmin" class="space-y-4">
+      <p class="text-sm text-gray-500">100 aktivitas terbaru</p>
+      <div class="bg-white rounded-2xl shadow overflow-hidden">
+        <div v-if="activityLoading" class="px-4 py-10 text-center text-gray-400 text-sm">Memuat...</div>
+        <table v-else class="w-full text-sm">
+          <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+            <tr>
+              <th class="px-4 py-3 text-left">Waktu</th>
+              <th class="px-4 py-3 text-left">User</th>
+              <th class="px-4 py-3 text-left">Aksi</th>
+              <th class="px-4 py-3 text-left">Deskripsi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr v-for="log in activityLogs" :key="log.id" class="hover:bg-gray-50">
+              <td class="px-4 py-2.5 text-xs text-gray-400 whitespace-nowrap">{{ fmtDate(log.created_at) }}</td>
+              <td class="px-4 py-2.5 text-xs text-gray-600">{{ log.user?.name ?? 'System' }}</td>
+              <td class="px-4 py-2.5">
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                  :class="actionClass(log.action)">
+                  {{ log.action }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-xs text-gray-500">{{ log.description }}</td>
+            </tr>
+            <tr v-if="!activityLogs.length">
+              <td colspan="4" class="px-4 py-10 text-center text-gray-400 text-sm">Tidak ada data</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Toast -->
     <Transition name="toast">
       <div v-if="toast.show"
@@ -236,6 +354,50 @@ const toast  = ref({ show: false, message: '', type: 'success' })
 
 const selectedAdminId = ref<number | ''>('')
 const permissions     = ref<any[]>([])
+const activityLogs    = ref<any[]>([])
+const activityLoading = ref(false)
+
+const bankAccounts = ref<any[]>([])
+const bankForm     = ref({ id: 0, account_name: '', bank_name: '', account_number: '', is_default: false })
+
+function resetBankForm() {
+  bankForm.value = { id: 0, account_name: '', bank_name: '', account_number: '', is_default: false }
+}
+
+function editBank(b: any) {
+  bankForm.value = { id: b.id, account_name: b.account_name, bank_name: b.bank_name, account_number: b.account_number, is_default: b.is_default }
+}
+
+async function loadBankAccounts() {
+  const res = await axios.get('/bank-accounts')
+  bankAccounts.value = res.data
+}
+
+async function saveBank() {
+  try {
+    if (bankForm.value.id) {
+      await axios.put(`/bank-accounts/${bankForm.value.id}`, bankForm.value)
+    } else {
+      await axios.post('/bank-accounts', bankForm.value)
+    }
+    await loadBankAccounts()
+    resetBankForm()
+    showToast('Rekening disimpan')
+  } catch {
+    showToast('Gagal menyimpan rekening', 'error')
+  }
+}
+
+async function deleteBank(id: number) {
+  if (!confirm('Hapus rekening ini?')) return
+  try {
+    await axios.delete(`/bank-accounts/${id}`)
+    await loadBankAccounts()
+    showToast('Rekening dihapus')
+  } catch {
+    showToast('Gagal menghapus rekening', 'error')
+  }
+}
 
 const FEATURE_LABELS: Record<string, string> = {
   inventory:   'Inventory Stok',
@@ -279,6 +441,24 @@ function userStatusLabel(s: string) {
 }
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+async function loadActivityLog() {
+  if (activityLogs.value.length) return
+  activityLoading.value = true
+  try {
+    const res = await axios.get('/activity-logs')
+    activityLogs.value = res.data
+  } finally {
+    activityLoading.value = false
+  }
+}
+
+function actionClass(action: string) {
+  if (action.includes('login'))    return 'bg-blue-100 text-blue-700'
+  if (action.includes('delete') || action.includes('reject')) return 'bg-red-100 text-red-700'
+  if (action.includes('approved')) return 'bg-green-100 text-green-700'
+  return 'bg-gray-100 text-gray-600'
 }
 
 async function loadUsers() {

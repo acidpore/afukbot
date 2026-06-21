@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 
 class RegisterController extends Controller
 {
@@ -117,7 +118,13 @@ class RegisterController extends Controller
 
     private function notifyUser(User $user, bool $approved): void
     {
-        // Opsional: kirim email notifikasi ke user (jika mail dikonfigurasi)
-        // Mail::to($user->email)->send(new RegistrationDecision($approved));
+        try {
+            $status  = $approved ? 'disetujui' : 'ditolak';
+            $body    = $approved
+                ? "Halo {$user->name},\n\nAkun kamu telah disetujui. Silakan login di " . config('app.url') . "/login\n\nTerima kasih."
+                : "Halo {$user->name},\n\nMaaf, permintaan akun kamu telah ditolak oleh admin.\n\nJika ada pertanyaan, hubungi admin.\n\nTerima kasih.";
+
+            Mail::raw($body, fn($m) => $m->to($user->email)->subject("Akun MBG System {$status}"));
+        } catch (\Throwable) {}
     }
 }

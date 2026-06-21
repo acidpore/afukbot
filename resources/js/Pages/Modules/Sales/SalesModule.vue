@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { salesApi } from '../../../api/sales.api';
 import { inventoryApi } from '../../../api/inventory.api';
 import type { Sale, SaleItem } from '../../../types';
@@ -35,6 +35,41 @@ function showToast(message: string, type: 'error' | 'success' = 'error') {
     toastTimer = setTimeout(() => { toast.value.show = false; }, 4000);
 }
 const successMsg  = ref('');
+
+// Daftar rekening bank
+const bankAccounts      = ref<any[]>([])
+const selectedBankId    = ref<number | ''>('')
+const editSelectedBankId = ref<number | ''>('')
+
+async function loadBankAccounts() {
+    const res = await import('axios').then(m => m.default.get('/bank-accounts'))
+    bankAccounts.value = res.data
+    const def = bankAccounts.value.find((b: any) => b.is_default)
+    if (def) {
+        selectedBankId.value = def.id
+        form.value.bank_account_name   = def.account_name
+        form.value.bank_name           = def.bank_name
+        form.value.bank_account_number = def.account_number
+    }
+}
+
+watch(selectedBankId, (id) => {
+    const acc = bankAccounts.value.find((b: any) => b.id === id)
+    if (acc) {
+        form.value.bank_account_name   = acc.account_name
+        form.value.bank_name           = acc.bank_name
+        form.value.bank_account_number = acc.account_number
+    }
+})
+
+watch(editSelectedBankId, (id) => {
+    const acc = bankAccounts.value.find((b: any) => b.id === id)
+    if (acc) {
+        editForm.value.bank_account_name   = acc.account_name
+        editForm.value.bank_name           = acc.bank_name
+        editForm.value.bank_account_number = acc.account_number
+    }
+})
 
 // Daftar barang dari inventory ruko
 const inventoryItems = ref<any[]>([]);
@@ -154,6 +189,11 @@ function openEditModal(sale: Sale) {
     editDropdownOpen.value   = sale.items.map(() => false);
     editPriceDisplays.value  = sale.items.map(i => Number(i.unit_price) > 0 ? Number(i.unit_price).toLocaleString('id-ID') : '');
     editModal.value          = { open: true, sale };
+    // Set dropdown rekening berdasarkan data tersimpan di invoice
+    const match = bankAccounts.value.find((b: any) =>
+        b.account_number === sale.bank_account_number
+    )
+    editSelectedBankId.value = match ? match.id : ''
 }
 
 function addEditItem() {
@@ -1112,7 +1152,7 @@ function parseDPAmount(notes: string | null | undefined, grandTotal: number): nu
 
 // ── Lifecycle ──────────────────────────────────────────────
 onMounted(async () => {
-    await Promise.all([loadInventory(), loadSales()]);
+    await Promise.all([loadInventory(), loadSales(), loadBankAccounts()]);
 });
 </script>
 
@@ -1242,18 +1282,20 @@ onMounted(async () => {
             <!-- Rekening -->
             <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
                 <h2 class="text-base font-bold text-slate-700 mb-4">Info Rekening PDF</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Rekening</label>
-                        <input v-model="form.bank_account_name" type="text" placeholder="RONALDO CHANDRA SUSANTO" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Bank</label>
-                        <input v-model="form.bank_name" type="text" placeholder="Bank Mandiri" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nomor Rekening</label>
-                        <input v-model="form.bank_account_number" type="text" placeholder="1430033951870" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                <div v-if="bankAccounts.length === 0" class="text-sm text-slate-400">
+                    Belum ada rekening. Tambah di Pengaturan → Rekening Bank.
+                </div>
+                <div v-else class="space-y-3">
+                    <select v-model="selectedBankId" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]">
+                        <option value="">— Pilih rekening —</option>
+                        <option v-for="b in bankAccounts" :key="b.id" :value="b.id">
+                            {{ b.account_name }} · {{ b.bank_name }}
+                        </option>
+                    </select>
+                    <div v-if="selectedBankId" class="bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-600 space-y-0.5">
+                        <p><span class="font-semibold">{{ form.bank_account_name }}</span></p>
+                        <p>{{ form.bank_name }}</p>
+                        <p class="font-mono">{{ form.bank_account_number }}</p>
                     </div>
                 </div>
             </div>
@@ -1782,17 +1824,19 @@ onMounted(async () => {
                                 <label class="block text-xs font-semibold text-slate-500 mb-1.5">Alamat Pengirim</label>
                                 <input v-model="editForm.sender_address" type="text" placeholder="Alamat pengirim" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Rekening</label>
-                                <input v-model="editForm.bank_account_name" type="text" placeholder="RONALDO CHANDRA SUSANTO" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nama Bank</label>
-                                <input v-model="editForm.bank_name" type="text" placeholder="Bank Mandiri" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Nomor Rekening</label>
-                                <input v-model="editForm.bank_account_number" type="text" placeholder="1430033951870" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]" />
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Rekening</label>
+                                <select v-model="editSelectedBankId" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D3557]/30 focus:border-[#1D3557]">
+                                    <option value="">— Pilih rekening —</option>
+                                    <option v-for="b in bankAccounts" :key="b.id" :value="b.id">
+                                        {{ b.account_name }} · {{ b.bank_name }}
+                                    </option>
+                                </select>
+                                <div v-if="editSelectedBankId" class="mt-2 bg-slate-50 rounded-xl px-4 py-2.5 text-xs text-slate-600 space-y-0.5">
+                                    <p><span class="font-semibold">{{ editForm.bank_account_name }}</span></p>
+                                    <p>{{ editForm.bank_name }}</p>
+                                    <p class="font-mono">{{ editForm.bank_account_number }}</p>
+                                </div>
                             </div>
                         </div>
                     </div>

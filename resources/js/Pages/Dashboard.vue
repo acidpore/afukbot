@@ -16,6 +16,7 @@ import SettingsModule from './Modules/Settings/SettingsModule.vue';
 import MbgModule from './Modules/MbgApi/MbgModule.vue';
 import SuratJalanModule from './Modules/SuratJalan/SuratJalanModule.vue'
 import CalibrationModule from './Modules/Inventory/CalibrationModule.vue'
+import MutasiRekeningModule from './Modules/MutasiRekening/MutasiRekeningModule.vue'
 import { calibrationApi } from '@/api/calibration.api';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -134,6 +135,7 @@ const menuItems = [
     ],
   },
   { id: 'mbg', name: 'MBG Admin', icon: 'pi pi-globe' },
+  { id: 'mutasi-rekening', name: 'Mutasi Rekening', icon: 'pi pi-credit-card' },
   { id: 'settings', name: 'Pengaturan', icon: 'pi pi-cog' },
 ];
 
@@ -649,6 +651,11 @@ onUnmounted(() => {
       <!-- Module: MBG Admin -->
       <div v-else-if="activeTab === 'mbg'">
         <MbgModule />
+      </div>
+
+      <!-- Module: Mutasi Rekening -->
+      <div v-else-if="activeTab === 'mutasi-rekening'">
+        <MutasiRekeningModule />
       </div>
 
       <!-- Module: Settings -->

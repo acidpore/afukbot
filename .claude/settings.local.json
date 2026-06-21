@@ -37,7 +37,8 @@
       "Bash(awk '{print $NF}')",
       "Bash(curl *)",
       "Skill(update-config)",
-      "PowerShell(php C:\\\\laragon\\\\www\\\\absensi\\\\artisan make:migration add_dipesan_status_to_sales 2>&1)"
+      "PowerShell(php C:\\\\laragon\\\\www\\\\absensi\\\\artisan make:migration add_dipesan_status_to_sales 2>&1)",
+      "Bash(grep *)"
     ]
   }
 }

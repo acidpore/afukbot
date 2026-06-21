@@ -4,11 +4,35 @@ Dokumentasi internal sistem manajemen MBG Store.
 
 ## Daftar Dokumen
 
-- [Arsitektur Sistem](./architecture.md) — stack, struktur folder, pola kode
-- [Hirarki Role & Akses](./roles-permissions.md) — Super Admin, Admin, permission system
-- [Fitur Kalibrasi Stok](./calibration.md) — kalibrasi mingguan, reminder otomatis
-- [PWA & Push Notifikasi](./pwa-push.md) — install ke HP, push notif, cara setup di VPS
-- [Panduan Deploy VPS](./deploy-vps.md) — langkah lengkap apply semua fitur ke production
+| Dokumen | Isi |
+|---|---|
+| [Arsitektur Sistem](./architecture.md) | Stack, struktur folder, pola kode, alur autentikasi |
+| [Modul & Fitur](./modules.md) | Detail lengkap semua modul: endpoint, form, business logic |
+| [Skema Database](./database.md) | Semua tabel, kolom, relasi, dan catatan penting |
+| [UI Patterns](./ui-patterns.md) | Konvensi frontend, pola CRUD, export, permission UI |
+| [Auth Flow & Keamanan Login](./auth-flow.md) | Login, register, validasi, rate limit, fitur keamanan yang ada & yang belum |
+| [Hirarki Role & Akses](./roles-permissions.md) | Super Admin, Admin, permission system |
+| [Fitur Kalibrasi Stok](./calibration.md) | Kalibrasi mingguan, reminder otomatis |
+| [PWA & Push Notifikasi](./pwa-push.md) | Install ke HP, push notif, cara setup di VPS |
+| [Telegram Bot](./telegram-bot.md) | Voice note stok, buat invoice, approval user via Telegram |
+| [Panduan Deploy VPS](./deploy-vps.md) | Langkah lengkap apply semua fitur ke production |
+
+## Modul Sistem
+
+| Modul | Tab | Keterangan |
+|---|---|---|
+| Dashboard | `overview` | Statistik, piutang, barang perlu disiapkan |
+| Stok Ruko | `inventory-ruko` | Inventory lokasi ruko |
+| Stok Margomulyo | `inventory-margomulyo` | Inventory lokasi margomulyo |
+| Mutasi Stok | `inventory-history` | Riwayat IN/OUT stok |
+| Kalibrasi Stok | `inventory-calibration` | Kalibrasi fisik mingguan |
+| Invoice | `sales` | Buat, kelola, kirim invoice |
+| Surat Jalan | `surat-jalan` | Pengiriman partial per invoice |
+| Pengeluaran | `expenses` | Catat pengeluaran ruko |
+| Pemasukan | `incomes` | Catat pemasukan ruko |
+| RAB Tracking | `rab` | Anggaran & realisasi |
+| MBG Admin | `mbg` | Sinkronisasi MBG API |
+| Pengaturan | `settings` | User management & permission |
 
 ---
 
