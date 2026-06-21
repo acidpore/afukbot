@@ -57,8 +57,10 @@ Route::middleware(EnsureAuthenticated::class)->group(function () {
 
     // Mutasi rekening
     Route::get('/account-mutations',            [AccountMutationController::class, 'index']);
-    Route::get('/account-mutations/categories',  [AccountMutationController::class, 'categories']);
-    Route::get('/account-mutations/tax-summary', [AccountMutationController::class, 'taxSummary']);
+    Route::get('/account-mutations/categories',   [AccountMutationController::class, 'categories']);
+    Route::get('/account-mutations/tax-summary',  [AccountMutationController::class, 'taxSummary']);
+    Route::post('/account-mutations/import-preview', [AccountMutationController::class, 'importPreview']);
+    Route::post('/account-mutations/import-commit',  [AccountMutationController::class, 'importCommit']);
     Route::post('/account-mutations',         [AccountMutationController::class, 'store']);
     Route::put('/account-mutations/opening',  [AccountMutationController::class, 'setOpening']);
     Route::put('/account-mutations/{id}',     [AccountMutationController::class, 'update']);

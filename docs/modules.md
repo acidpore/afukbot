@@ -593,3 +593,79 @@ Data master rekening yang tampil di PDF invoice.
 | PUT | `/bank-accounts/{id}` | Super Admin | Edit rekening |
 | DELETE | `/bank-accounts/{id}` | Super Admin | Hapus rekening |
 | GET | `/activity-logs` | Super Admin | 100 log terbaru |
+
+---
+
+## 14. Mutasi Rekening
+
+**File:** `resources/js/Pages/Modules/MutasiRekening/MutasiRekeningModule.vue`
+**Backend:** `app/Modules/MutasiRekening/AccountMutationController.php`
+**Model:** `App\Models\AccountMutation`, `App\Models\BankAccount`
+**Tab ID:** `mutasi-rekening`
+
+### Fitur Utama
+- Pilih rekening PT (dari `bank_accounts`), filter bulan/tahun
+- Pilihan rekening terakhir disimpan di **localStorage** (`mutasi_selected_account`)
+- 3 summary cards: Saldo Rekening (total keseluruhan), Masuk bulan ini, Keluar bulan ini
+- Tabel mutasi dengan running balance per transaksi
+- **Dua tab:** Mutasi (riwayat) & Konsultan Pajak (analisis)
+
+### Saldo Awal
+- Disimpan sebagai baris `type = 'opening'` di tabel `account_mutations`
+- Set via panel "Saldo Awal" di UI atau `PUT /account-mutations/opening`
+- Saldo awal periode = opening + semua mutasi sebelum bulan yang dipilih
+
+### Biaya Variabel
+- Setiap transaksi **masuk** bisa ditambahkan biaya variabel (kirim, kuli, dll)
+- Disimpan sebagai JSON `costs: [{label, amount}]` di kolom `costs`
+- Mengurangi **laba bersih** — berpengaruh pada estimasi PPh Badan (jika > 4,8 M)
+- Tidak mengurangi omzet (PPh Final 0,5% tetap dari total masuk)
+
+### Cashflow Alert Card
+Muncul otomatis berdasarkan total masuk **tahun berjalan** vs batas Rp 4,8 M:
+| Status | Kondisi | Warna |
+|---|---|---|
+| Aman | < Rp 3,84 M (80%) | Hijau |
+| Perlu Perhatian | Rp 3,84 M – 4,8 M | Kuning |
+| Terlampaui | ≥ Rp 4,8 M | Merah |
+
+Card juga menampilkan: laba bersih, biaya variabel, estimasi PPh Final 0,5% atau PPh Badan 22%.
+
+### Tab Konsultan Pajak
+- **Posisi pajak** — PPh Final (< 4,8 M) atau PPh Badan (≥ 4,8 M)
+- **Rincian biaya variabel** — semua label biaya dirangkum dengan total tahunan
+- **Klasifikasi pengeluaran** — auto-tag kategori:
+  - `deductible`: gaji, sewa, operasional, supplier, transport, dll
+  - `non-deductible`: tarik tunai, pribadi, prive
+  - `review`: belum terkategori / tidak dikenali
+- **Rekomendasi kontekstual** — tips spesifik berdasarkan kondisi data aktual
+
+### Import Mutasi Bank (Mandiri)
+- Tombol **Import** di header → file picker
+- Upload CSV export dari Mandiri internet banking
+- Backend deteksi format: `Nominal + DB/CR` atau `Debet + Kredit` terpisah
+- Handle encoding Windows-1252, tanggal `DD/MM/YYYY`, angka dengan titik pemisah ribuan
+- **Modal preview** — user review semua transaksi sebelum konfirmasi
+- Duplikat (date + type + amount + description sama) otomatis diskip
+
+### Kategori Autocomplete
+- Input kategori di form menggunakan `<datalist>` native
+- Opsi diambil dari endpoint `GET /account-mutations/categories` — kategori unik yang pernah dipakai
+
+### Mobile
+- Modal form muncul dari bawah layar (bottom sheet)
+- FAB `+` fixed di kanan bawah — bisa catat transaksi tanpa scroll
+- Card view menggantikan tabel pada layar kecil
+
+### API Endpoints
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET | `/account-mutations` | List mutasi bulan + summary + running balance |
+| POST | `/account-mutations` | Tambah transaksi |
+| PUT | `/account-mutations/{id}` | Edit transaksi |
+| DELETE | `/account-mutations/{id}` | Hapus transaksi |
+| PUT | `/account-mutations/opening` | Set saldo awal |
+| GET | `/account-mutations/categories` | Kategori unik per rekening |
+| GET | `/account-mutations/tax-summary` | Analisis pajak tahunan |
+| POST | `/account-mutations/import-preview` | Parse CSV Mandiri → preview rows |
+| POST | `/account-mutations/import-commit` | Simpan hasil import ke DB |

@@ -232,6 +232,39 @@ Fitur yang dikontrol: `inventory`, `sales`, `expenses`, `incomes`, `rab`, `emplo
 
 ---
 
+## Mutasi Rekening PT
+
+### `bank_accounts`
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| account_name | string | Nama pemilik rekening |
+| bank_name | string | Nama bank |
+| account_number | string | Nomor rekening |
+| is_default | boolean | Rekening default untuk invoice |
+| created_at / updated_at | timestamp | |
+
+### `account_mutations`
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| bank_account_id | FK bank_accounts cascade | |
+| date | date | Tanggal transaksi |
+| type | enum | `in`, `out`, `opening` |
+| amount | unsignedBigInteger | Nominal (rupiah, tanpa desimal) |
+| description | string nullable | Keterangan transaksi |
+| category | string nullable | Kategori bebas (autocomplete dari history) |
+| costs | json nullable | Biaya variabel `[{label, amount}]` — hanya untuk type `in` |
+| created_at / updated_at | timestamp | |
+
+**Catatan penting:**
+- `type = opening` → saldo awal rekening, hanya satu per `bank_account_id`
+- `costs` → biaya yang melekat pada pemasukan (biaya kirim, kuli, dll), mengurangi laba bersih
+- Running balance dihitung on-the-fly di controller, tidak disimpan di DB
+- Saldo awal periode = opening + semua mutasi sebelum bulan yang dipilih
+
+---
+
 ## Karyawan & HR
 
 ### `employees`

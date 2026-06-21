@@ -213,6 +213,124 @@ class AccountMutationController extends Controller
         return response()->json($mutation);
     }
 
+    public function importPreview(Request $request)
+    {
+        $request->validate([
+            'file'            => 'required|file|mimes:csv,txt,xlsx,xls|max:5120',
+            'bank_account_id' => 'required|exists:bank_accounts,id',
+        ]);
+
+        $rows = $this->parseMandiriCsv($request->file('file'));
+
+        return response()->json(['rows' => $rows, 'count' => count($rows)]);
+    }
+
+    public function importCommit(Request $request)
+    {
+        $data = $request->validate([
+            'bank_account_id' => 'required|exists:bank_accounts,id',
+            'rows'            => 'required|array',
+            'rows.*.date'     => 'required|date',
+            'rows.*.type'     => 'required|in:in,out',
+            'rows.*.amount'   => 'required|integer|min:1',
+            'rows.*.description' => 'nullable|string|max:255',
+        ]);
+
+        $inserted = 0;
+        foreach ($data['rows'] as $row) {
+            // Skip duplikat (date + amount + type + description sama)
+            $exists = AccountMutation::where('bank_account_id', $data['bank_account_id'])
+                ->where('date', $row['date'])
+                ->where('type', $row['type'])
+                ->where('amount', $row['amount'])
+                ->where('description', $row['description'] ?? null)
+                ->exists();
+
+            if (!$exists) {
+                AccountMutation::create([
+                    'bank_account_id' => $data['bank_account_id'],
+                    'date'            => $row['date'],
+                    'type'            => $row['type'],
+                    'amount'          => $row['amount'],
+                    'description'     => $row['description'] ?? null,
+                    'category'        => $row['category'] ?? null,
+                ]);
+                $inserted++;
+            }
+        }
+
+        return response()->json(['inserted' => $inserted, 'skipped' => count($data['rows']) - $inserted]);
+    }
+
+    private function parseMandiriCsv(\Illuminate\Http\UploadedFile $file): array
+    {
+        $content  = file_get_contents($file->getRealPath());
+        // Mandiri kadang pakai encoding Windows-1252
+        if (!mb_check_encoding($content, 'UTF-8')) {
+            $content = mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
+        }
+
+        $lines  = preg_split('/\r\n|\r|\n/', trim($content));
+        $rows   = [];
+        $header = null;
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+
+            $cols = str_getcsv($line, ',', '"');
+            $cols = array_map('trim', $cols);
+
+            // Cari baris header (mengandung "Tanggal" dan "Nominal" atau "Debet"/"Kredit")
+            if ($header === null) {
+                $lower = array_map('strtolower', $cols);
+                if (in_array('tanggal', $lower) && (in_array('nominal', $lower) || in_array('debet', $lower))) {
+                    $header = $lower;
+                }
+                continue;
+            }
+
+            if (count($cols) < count($header)) continue;
+
+            $map = array_combine($header, array_slice($cols, 0, count($header)));
+
+            // Ambil tanggal — format DD/MM/YYYY
+            $rawDate = $map['tanggal'] ?? '';
+            if (preg_match('#(\d{2})/(\d{2})/(\d{4})#', $rawDate, $m)) {
+                $date = "{$m[3]}-{$m[2]}-{$m[1]}";
+            } else {
+                continue; // skip baris tidak valid
+            }
+
+            // Deteksi format: kolom "nominal" + "db/cr" ATAU kolom "debet"/"kredit" terpisah
+            $type   = null;
+            $amount = 0;
+
+            if (isset($map['nominal']) && isset($map['db/cr'])) {
+                $dbcr   = strtoupper(trim($map['db/cr']));
+                $type   = $dbcr === 'CR' ? 'in' : 'out';
+                $amount = (int) preg_replace('/[^0-9]/', '', $map['nominal']);
+            } elseif (isset($map['debet']) || isset($map['kredit'])) {
+                $debet  = (int) preg_replace('/[^0-9]/', '', $map['debet']  ?? '0');
+                $kredit = (int) preg_replace('/[^0-9]/', '', $map['kredit'] ?? '0');
+                if ($kredit > 0)      { $type = 'in';  $amount = $kredit; }
+                elseif ($debet > 0)   { $type = 'out'; $amount = $debet; }
+            }
+
+            if (!$type || $amount <= 0) continue;
+
+            $rows[] = [
+                'date'        => $date,
+                'type'        => $type,
+                'amount'      => $amount,
+                'description' => $map['keterangan'] ?? $map['transaksi'] ?? null,
+                'category'    => null,
+            ];
+        }
+
+        return $rows;
+    }
+
     public function destroy(int $id)
     {
         AccountMutation::findOrFail($id)->delete();

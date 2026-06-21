@@ -32,7 +32,8 @@ Dokumentasi internal sistem manajemen MBG Store.
 | Pemasukan | `incomes` | Catat pemasukan ruko |
 | RAB Tracking | `rab` | Anggaran & realisasi |
 | MBG Admin | `mbg` | Sinkronisasi MBG API |
-| Pengaturan | `settings` | User management & permission |
+| Pengaturan | `settings` | User management, rekening bank, log aktivitas |
+| Mutasi Rekening | `mutasi-rekening` | Mutasi rekening PT, konsultan pajak, import Mandiri |
 
 ---
 

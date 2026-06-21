@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import ExcelJS from 'exceljs'
 
 // ── State ──────────────────────────────────────────
 const bankAccounts    = ref<any[]>([])
@@ -134,7 +137,7 @@ async function submitForm() {
       showToast('Transaksi dicatat')
     }
     closeForm()
-    await loadMutations()
+    await Promise.all([loadMutations(), loadCategories()])
   } catch {
     showToast('Gagal menyimpan', 'error')
   } finally {
@@ -203,8 +206,352 @@ async function loadCategories() {
 
 watch(selectedAccount, loadCategories)
 
+// ── Sort ────────────────────────────────────────────
+// ── Filter kategori ─────────────────────────────────
+const filterCategory = ref('')
+
+// ── Sort ────────────────────────────────────────────
+type SortKey = 'date' | 'description' | 'category' | 'in' | 'out' | 'balance'
+const sortKey = ref<SortKey>('date')
+const sortDir = ref<'asc' | 'desc'>('desc')
+
+function setSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'desc'
+  }
+}
+
+function sortIcon(key: SortKey) {
+  if (sortKey.value !== key) return 'pi-sort-alt text-slate-300'
+  return sortDir.value === 'desc' ? 'pi-sort-amount-down text-primary' : 'pi-sort-amount-up-alt text-primary'
+}
+
+const sortedMutations = computed(() => {
+  if (!data.value?.mutations) return []
+  const base = filterCategory.value
+    ? data.value.mutations.filter((m: any) => m.category === filterCategory.value)
+    : data.value.mutations
+  return [...base].sort((a: any, b: any) => {
+    let va: any, vb: any
+    switch (sortKey.value) {
+      case 'date':
+        va = a.date + String(a.id).padStart(10, '0')
+        vb = b.date + String(b.id).padStart(10, '0')
+        break
+      case 'description':
+        va = (a.description ?? '').toLowerCase()
+        vb = (b.description ?? '').toLowerCase()
+        break
+      case 'category':
+        va = (a.category ?? '').toLowerCase()
+        vb = (b.category ?? '').toLowerCase()
+        break
+      case 'in':
+        va = a.type === 'in' ? a.amount : 0
+        vb = b.type === 'in' ? b.amount : 0
+        break
+      case 'out':
+        va = a.type === 'out' ? a.amount : 0
+        vb = b.type === 'out' ? b.amount : 0
+        break
+      case 'balance':
+        va = a.balance_after
+        vb = b.balance_after
+        break
+    }
+    if (va < vb) return sortDir.value === 'asc' ? -1 : 1
+    if (va > vb) return sortDir.value === 'asc' ? 1 : -1
+    return 0
+  })
+})
+
+function fmtTime(d: string) {
+  return new Date(d).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+}
+
 // ── Tab ─────────────────────────────────────────────
 const activeTab = ref<'mutasi' | 'pajak'>('mutasi')
+
+// ── Import ──────────────────────────────────────────
+const importFileInput  = ref<HTMLInputElement | null>(null)
+const importPreviewRows = ref<any[]>([])
+const showImportModal  = ref(false)
+const importing        = ref(false)
+const importResult     = ref<{ inserted: number; skipped: number } | null>(null)
+
+function triggerImport() { importFileInput.value?.click() }
+
+async function onFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file || !selectedAccount.value) return
+  importing.value = true
+  importPreviewRows.value = []
+  importResult.value = null
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('bank_account_id', String(selectedAccount.value))
+    const res = await axios.post('/account-mutations/import-preview', fd)
+    importPreviewRows.value = res.data.rows
+    showImportModal.value = true
+  } catch (err: any) {
+    showToast(err?.response?.data?.message ?? 'Gagal membaca file', 'error')
+  } finally {
+    importing.value = false
+    ;(e.target as HTMLInputElement).value = ''
+  }
+}
+
+async function commitImport() {
+  if (!selectedAccount.value) return
+  importing.value = true
+  try {
+    const res = await axios.post('/account-mutations/import-commit', {
+      bank_account_id: selectedAccount.value,
+      rows: importPreviewRows.value,
+    })
+    importResult.value = res.data
+    showToast(`${res.data.inserted} transaksi berhasil diimport`)
+    await loadMutations()
+  } catch {
+    showToast('Gagal import', 'error')
+  } finally {
+    importing.value = false
+  }
+}
+
+function closeImportModal() {
+  showImportModal.value = false
+  importPreviewRows.value = []
+  importResult.value = null
+}
+
+// ── Export ──────────────────────────────────────────
+function exportRows() {
+  if (!data.value?.mutations?.length) return []
+  return data.value.mutations.map((m: any) => ({
+    date: m.date,
+    description: m.description ?? '',
+    category: m.category ?? '',
+    in: m.type === 'in' ? m.amount : null,
+    out: m.type === 'out' ? m.amount : null,
+    balance: m.balance_after,
+  }))
+}
+
+async function exportExcel() {
+  const rows = exportRows()
+  if (!rows.length) { showToast('Tidak ada data untuk diekspor', 'error'); return }
+
+  const acc      = selectedAccountInfo.value
+  const filename = `mutasi-${acc?.bank_name}-${year.value}-${String(month.value).padStart(2, '0')}`
+  const PURPLE   = 'FF6366F1'
+  const PURPLE_D = 'FF4F46E5'
+  const numFmt   = '#,##0'
+
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'MBG Admin System'
+  const ws = wb.addWorksheet('Mutasi')
+
+  ws.columns = [
+    { key: 'date',    width: 14 },
+    { key: 'desc',    width: 44 },
+    { key: 'cat',     width: 22 },
+    { key: 'in',      width: 20 },
+    { key: 'out',     width: 20 },
+    { key: 'balance', width: 20 },
+  ]
+
+  // ── Title ──
+  const r1 = ws.addRow([`Laporan Mutasi Rekening — ${acc?.account_name} (${acc?.bank_name})`])
+  ws.mergeCells('A1:F1')
+  r1.height = 26
+  Object.assign(r1.getCell(1), {
+    font:      { bold: true, size: 13, color: { argb: 'FFFFFFFF' } },
+    fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: PURPLE } },
+    alignment: { vertical: 'middle' },
+  })
+
+  // ── Subtitle ──
+  const r2 = ws.addRow([`No. Rekening: ${acc?.account_number}   |   Periode: ${MONTHS[month.value - 1]} ${year.value}`])
+  ws.mergeCells('A2:F2')
+  r2.height = 16
+  Object.assign(r2.getCell(1), {
+    font:      { size: 9, color: { argb: 'FFE0E7FF' } },
+    fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: PURPLE } },
+    alignment: { vertical: 'middle' },
+  })
+
+  ws.addRow([]).height = 6
+
+  // ── Header ──
+  const rHead = ws.addRow(['Tanggal', 'Keterangan', 'Kategori', 'Masuk', 'Keluar', 'Saldo'])
+  rHead.height = 18
+  rHead.eachCell((cell, col) => {
+    cell.font      = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } }
+    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: PURPLE_D } }
+    cell.alignment = { vertical: 'middle', horizontal: col >= 4 ? 'right' : 'left' }
+    cell.border    = { bottom: { style: 'medium', color: { argb: PURPLE } } }
+  })
+
+  // ── Saldo awal ──
+  const rOpen = ws.addRow(['Saldo Awal Periode', '', '', null, null, data.value.balance_before])
+  ws.mergeCells(`A${rOpen.number}:C${rOpen.number}`)
+  rOpen.getCell(1).font      = { italic: true, size: 9, color: { argb: 'FF64748B' } }
+  rOpen.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
+  rOpen.getCell(6).font      = { bold: true, size: 9 }
+  rOpen.getCell(6).numFmt    = numFmt
+  rOpen.getCell(6).alignment = { horizontal: 'right' }
+  rOpen.getCell(6).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
+
+  // ── Data rows ──
+  rows.forEach((r, idx) => {
+    const row   = ws.addRow([r.date, r.description, r.category, r.in, r.out, r.balance])
+    const bg    = idx % 2 === 1 ? 'FFF8FAFC' : 'FFFFFFFF'
+    row.eachCell({ includeEmpty: true }, cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }
+      cell.font = { size: 9 }
+    })
+
+    const inCell  = row.getCell(4)
+    inCell.numFmt    = numFmt
+    inCell.alignment = { horizontal: 'right' }
+    if (r.in)  inCell.font  = { size: 9, bold: true, color: { argb: 'FF059669' } }
+
+    const outCell = row.getCell(5)
+    outCell.numFmt    = numFmt
+    outCell.alignment = { horizontal: 'right' }
+    if (r.out) outCell.font = { size: 9, bold: true, color: { argb: 'FFEF4444' } }
+
+    const balCell = row.getCell(6)
+    balCell.numFmt    = numFmt
+    balCell.alignment = { horizontal: 'right' }
+    balCell.font      = { size: 9, bold: true }
+  })
+
+  // ── Total row ──
+  const rTotal = ws.addRow(['', '', 'Total', data.value.total_in, data.value.total_out, data.value.final_balance])
+  rTotal.height = 18
+  rTotal.eachCell({ includeEmpty: true }, (cell, col) => {
+    cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+    cell.font   = { bold: true, size: 9 }
+    cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } } }
+    if (col >= 3) cell.alignment = { horizontal: 'right' }
+    if (col >= 4) cell.numFmt = numFmt
+  })
+  rTotal.getCell(4).font = { bold: true, size: 9, color: { argb: 'FF059669' } }
+  rTotal.getCell(5).font = { bold: true, size: 9, color: { argb: 'FFEF4444' } }
+
+  // ── Download ──
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url    = URL.createObjectURL(blob)
+  const a      = document.createElement('a')
+  a.href = url
+  a.download = `${filename}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function exportPdf() {
+  const rows = exportRows()
+  if (!rows.length) { showToast('Tidak ada data untuk diekspor', 'error'); return }
+
+  const acc    = selectedAccountInfo.value
+  const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageW  = doc.internal.pageSize.getWidth()
+  const pageH  = doc.internal.pageSize.getHeight()
+  const PRIMARY: [number, number, number] = [99, 102, 241]
+
+  // ── Header band ──
+  doc.setFillColor(...PRIMARY)
+  doc.rect(0, 0, pageW, 42, 'F')
+
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(15)
+  doc.text('Laporan Mutasi Rekening', 14, 14)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.text(`${acc?.account_name}  —  ${acc?.bank_name}`, 14, 22)
+  doc.text(`No. Rekening: ${acc?.account_number}`, 14, 28)
+  doc.text(`Periode: ${MONTHS[month.value - 1]} ${year.value}`, 14, 34)
+
+  // ── Summary (kanan header) ──
+  const sumX = pageW - 14
+  doc.setFontSize(7.5)
+  doc.setTextColor(200, 200, 255)
+  doc.text('Total Masuk', sumX - 32, 18, { align: 'right' })
+  doc.text('Total Keluar', sumX - 32, 24, { align: 'right' })
+  doc.text('Saldo Akhir', sumX - 32, 30, { align: 'right' })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(255, 255, 255)
+  doc.text(fmt(data.value.total_in),     sumX, 18, { align: 'right' })
+  doc.text(fmt(data.value.total_out),    sumX, 24, { align: 'right' })
+  doc.text(fmt(data.value.final_balance),sumX, 30, { align: 'right' })
+
+  // ── Tabel mutasi ──
+  autoTable(doc, {
+    startY: 48,
+    head: [['Tanggal', 'Keterangan', 'Kategori', 'Masuk', 'Keluar', 'Saldo']],
+    body: [
+      [{
+        content: `Saldo awal periode: ${fmt(data.value.balance_before)}`,
+        colSpan: 6,
+        styles: { fontStyle: 'italic', textColor: [100, 116, 139], halign: 'left', fillColor: [248, 250, 252] },
+      }],
+      ...rows.map(r => [
+        fmtDate(r.date),
+        r.description || '—',
+        r.category || '—',
+        r.in   ? fmt(r.in)  : '',
+        r.out  ? fmt(r.out) : '',
+        fmt(r.balance),
+      ]),
+    ],
+    foot: [[
+      { content: 'Total', colSpan: 3, styles: { fontStyle: 'bold', halign: 'left' } },
+      { content: fmt(data.value.total_in),      styles: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } },
+      { content: fmt(data.value.total_out),     styles: { halign: 'right', fontStyle: 'bold', textColor: [239, 68, 68] } },
+      { content: fmt(data.value.final_balance), styles: { halign: 'right', fontStyle: 'bold' } },
+    ]],
+    showFoot: 'lastPage',
+    styles: { fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, overflow: 'ellipsize' },
+    headStyles: { fillColor: PRIMARY, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    footStyles: { fillColor: [241, 245, 249], textColor: [30, 41, 59] },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 24 },
+      1: { cellWidth: 56 },
+      2: { cellWidth: 30 },
+      3: { halign: 'right', textColor: [5, 150, 105],  cellWidth: 28 },
+      4: { halign: 'right', textColor: [239, 68, 68],  cellWidth: 28 },
+      5: { halign: 'right', fontStyle: 'bold',         cellWidth: 28 },
+    },
+  })
+
+  // ── Page footer ──
+  const pageCount = doc.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(148, 163, 184)
+    const printed = `Dicetak: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}`
+    doc.text(printed, 14, pageH - 8)
+    doc.text(`Halaman ${i} / ${pageCount}`, pageW - 14, pageH - 8, { align: 'right' })
+    // separator line
+    doc.setDrawColor(226, 232, 240)
+    doc.line(14, pageH - 12, pageW - 14, pageH - 12)
+  }
+
+  doc.save(`mutasi-${acc?.bank_name}-${year.value}-${String(month.value).padStart(2, '0')}.pdf`)
+}
 
 // ── Konsultan Pajak ─────────────────────────────────
 const taxData    = ref<any>(null)
@@ -228,6 +575,7 @@ watch([selectedAccount, year], () => { if (activeTab.value === 'pajak') loadTaxS
 
 onMounted(async () => {
   await loadBankAccounts()
+  await loadCategories()
 })
 </script>
 
@@ -252,6 +600,28 @@ onMounted(async () => {
           <i class="pi pi-wallet text-xs"></i>
           <span>Saldo Awal</span>
         </button>
+        <!-- Import -->
+        <button @click="triggerImport" :disabled="importing"
+          class="hidden sm:flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50">
+          <i class="pi pi-upload text-xs"></i>
+          <span>{{ importing ? 'Membaca...' : 'Import' }}</span>
+        </button>
+        <input ref="importFileInput" type="file" accept=".csv,.txt,.xlsx,.xls" class="hidden" @change="onFileSelected" />
+
+        <!-- Export Excel -->
+        <button @click="exportExcel" :disabled="!data?.mutations?.length"
+          class="hidden sm:flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-40">
+          <i class="pi pi-file-excel text-xs"></i>
+          <span>Excel</span>
+        </button>
+
+        <!-- Export PDF -->
+        <button @click="exportPdf" :disabled="!data?.mutations?.length"
+          class="hidden sm:flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-40">
+          <i class="pi pi-file-pdf text-xs"></i>
+          <span>PDF</span>
+        </button>
+
         <!-- Desktop only, mobile pakai FAB -->
         <button @click="openForm()" class="hidden sm:flex btn-primary shadow-lg shadow-primary/20">
           <i class="pi pi-plus"></i>
@@ -297,6 +667,15 @@ onMounted(async () => {
         <select v-model="year"
           class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-primary outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white">
           <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+        </select>
+      </div>
+      <div v-if="categories.length" class="w-full sm:w-auto">
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Kategori</label>
+        <select v-model="filterCategory"
+          class="w-full border rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white transition-colors"
+          :class="filterCategory ? 'border-primary text-primary' : 'border-slate-200 text-primary'">
+          <option value="">Semua</option>
+          <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
         </select>
       </div>
       <div v-if="selectedAccountInfo" class="flex items-center gap-2 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
@@ -489,9 +868,16 @@ onMounted(async () => {
           <h4 class="text-sm font-bold text-slate-800">Riwayat Transaksi</h4>
           <p class="text-xs text-slate-400 mt-0.5">{{ currentMonthLabel }} {{ year }}</p>
         </div>
-        <span v-if="data?.mutations?.length" class="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">
-          {{ data.mutations.length }} transaksi
-        </span>
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          <span v-if="data?.mutations?.length" class="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">
+            {{ sortedMutations.length }}{{ filterCategory ? `/${data.mutations.length}` : '' }} transaksi
+          </span>
+          <button v-if="data?.mutations?.length" @click="setSort('date')"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            <i class="pi text-[10px]" :class="sortKey === 'date' && sortDir === 'desc' ? 'pi-sort-amount-down text-primary' : 'pi-sort-amount-up-alt'"></i>
+            {{ sortKey === 'date' && sortDir === 'desc' ? 'Terbaru' : 'Terlama' }}
+          </button>
+        </div>
       </div>
 
       <!-- Loading skeleton -->
@@ -531,7 +917,7 @@ onMounted(async () => {
 
           <!-- ── MOBILE CARDS (< md) ── -->
           <div class="md:hidden divide-y divide-slate-100">
-            <div v-for="m in data.mutations" :key="m.id" class="p-4 space-y-3">
+            <div v-for="m in sortedMutations" :key="m.id" class="p-4 space-y-3">
 
               <!-- Baris utama: icon + info + nominal -->
               <div class="flex items-center gap-3">
@@ -545,6 +931,7 @@ onMounted(async () => {
                   </p>
                   <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <span class="text-xs text-slate-400">{{ fmtDate(m.date) }}</span>
+                    <span class="text-[10px] text-slate-300">{{ fmtTime(m.created_at) }}</span>
                     <span v-if="m.category" class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">{{ m.category }}</span>
                   </div>
                 </div>
@@ -593,24 +980,51 @@ onMounted(async () => {
             <table class="w-full text-sm border-collapse">
               <thead>
                 <tr class="bg-slate-50/50 border-b border-slate-100">
-                  <th class="px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-left">Tanggal</th>
-                  <th class="px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-left">Keterangan</th>
-                  <th class="px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Kategori</th>
-                  <th class="px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Masuk</th>
-                  <th class="px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Keluar</th>
-                  <th class="px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Saldo</th>
+                  <th @click="setSort('date')"
+                    class="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-left cursor-pointer select-none transition-colors hover:text-primary"
+                    :class="sortKey === 'date' ? 'text-primary' : 'text-slate-400'">
+                    <span class="flex items-center gap-1">Tanggal <i class="pi text-[9px]" :class="sortIcon('date')"></i></span>
+                  </th>
+                  <th @click="setSort('description')"
+                    class="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-left cursor-pointer select-none transition-colors hover:text-primary"
+                    :class="sortKey === 'description' ? 'text-primary' : 'text-slate-400'">
+                    <span class="flex items-center gap-1">Keterangan <i class="pi text-[9px]" :class="sortIcon('description')"></i></span>
+                  </th>
+                  <th @click="setSort('category')"
+                    class="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-center cursor-pointer select-none transition-colors hover:text-primary"
+                    :class="sortKey === 'category' ? 'text-primary' : 'text-slate-400'">
+                    <span class="flex items-center justify-center gap-1">Kategori <i class="pi text-[9px]" :class="sortIcon('category')"></i></span>
+                  </th>
+                  <th @click="setSort('in')"
+                    class="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-center cursor-pointer select-none transition-colors hover:text-primary"
+                    :class="sortKey === 'in' ? 'text-primary' : 'text-slate-400'">
+                    <span class="flex items-center justify-center gap-1">Masuk <i class="pi text-[9px]" :class="sortIcon('in')"></i></span>
+                  </th>
+                  <th @click="setSort('out')"
+                    class="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-center cursor-pointer select-none transition-colors hover:text-primary"
+                    :class="sortKey === 'out' ? 'text-primary' : 'text-slate-400'">
+                    <span class="flex items-center justify-center gap-1">Keluar <i class="pi text-[9px]" :class="sortIcon('out')"></i></span>
+                  </th>
+                  <th @click="setSort('balance')"
+                    class="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-center cursor-pointer select-none transition-colors hover:text-primary"
+                    :class="sortKey === 'balance' ? 'text-primary' : 'text-slate-400'">
+                    <span class="flex items-center justify-center gap-1">Saldo <i class="pi text-[9px]" :class="sortIcon('balance')"></i></span>
+                  </th>
                   <th class="px-5 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-50">
-                <tr v-for="m in data.mutations" :key="m.id" class="hover:bg-slate-50/40 transition-colors group">
+                <tr v-for="m in sortedMutations" :key="m.id" class="hover:bg-slate-50/40 transition-colors group">
                   <td class="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
                     <div class="flex items-center gap-2">
                       <div :class="m.type === 'in' ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-400'"
                         class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0">
                         <i :class="m.type === 'in' ? 'pi pi-arrow-down-left' : 'pi pi-arrow-up-right'" class="text-[11px]"></i>
                       </div>
-                      {{ fmtDate(m.date) }}
+                      <div>
+                        <div>{{ fmtDate(m.date) }}</div>
+                        <div class="text-[10px] text-slate-300 mt-0.5">{{ fmtTime(m.created_at) }}</div>
+                      </div>
                     </div>
                   </td>
                   <td class="px-5 py-4 text-sm text-slate-700 max-w-[200px]">
@@ -634,7 +1048,7 @@ onMounted(async () => {
                   </td>
                   <td class="px-5 py-4 text-center font-bold text-slate-800 text-sm">{{ fmt(m.balance_after) }}</td>
                   <td class="px-5 py-4 text-right">
-                    <div class="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center justify-end gap-1.5">
                       <button @click="openForm(m)"
                         class="h-7 px-2.5 text-[10px] font-bold text-primary border border-primary/20 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors uppercase tracking-widest">
                         Edit
@@ -975,6 +1389,87 @@ onMounted(async () => {
       </div>
 
     </template>
+
+    <!-- Import Preview Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showImportModal"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm"
+        @click.self="closeImportModal">
+        <div class="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col">
+
+          <div class="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+            <div class="w-10 h-1 bg-slate-200 rounded-full"></div>
+          </div>
+
+          <div class="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+            <div>
+              <h3 class="text-base font-bold text-slate-800">Preview Import Mandiri</h3>
+              <p class="text-xs text-slate-400 mt-0.5">{{ importPreviewRows.length }} transaksi terdeteksi</p>
+            </div>
+            <button @click="closeImportModal" class="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100">
+              <i class="pi pi-times text-sm"></i>
+            </button>
+          </div>
+
+          <!-- Hasil setelah import -->
+          <div v-if="importResult" class="px-5 py-8 text-center flex-shrink-0">
+            <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i class="pi pi-check-circle text-3xl text-emerald-500"></i>
+            </div>
+            <h4 class="text-lg font-bold text-slate-800">Import Selesai</h4>
+            <p class="text-sm text-slate-500 mt-1">
+              <span class="font-semibold text-emerald-600">{{ importResult.inserted }} transaksi</span> diimport,
+              <span class="font-semibold text-slate-500">{{ importResult.skipped }} duplikat</span> dilewati
+            </p>
+            <button @click="closeImportModal" class="mt-5 btn-primary justify-center">Selesai</button>
+          </div>
+
+          <!-- Preview tabel -->
+          <template v-else>
+            <div class="overflow-y-auto flex-1">
+              <table class="w-full text-sm border-collapse">
+                <thead class="sticky top-0 bg-slate-50">
+                  <tr class="border-b border-slate-100">
+                    <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-left">Tanggal</th>
+                    <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-left">Keterangan</th>
+                    <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Tipe</th>
+                    <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Nominal</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  <tr v-for="(row, i) in importPreviewRows" :key="i" class="hover:bg-slate-50/50">
+                    <td class="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{{ fmtDate(row.date) }}</td>
+                    <td class="px-4 py-2.5 text-xs text-slate-700 max-w-[200px] truncate">{{ row.description || '—' }}</td>
+                    <td class="px-4 py-2.5 text-center">
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        :class="row.type === 'in' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'">
+                        {{ row.type === 'in' ? 'Masuk' : 'Keluar' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-xs"
+                      :class="row.type === 'in' ? 'text-emerald-600' : 'text-red-500'">
+                      {{ row.type === 'in' ? '+' : '−' }}{{ fmt(row.amount) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="px-5 py-4 border-t border-slate-100 flex gap-2 flex-shrink-0">
+              <button @click="commitImport" :disabled="importing"
+                class="flex-1 btn-primary justify-center disabled:opacity-60">
+                <i v-if="importing" class="pi pi-spin pi-spinner"></i>
+                {{ importing ? 'Mengimport...' : `Import ${importPreviewRows.length} Transaksi` }}
+              </button>
+              <button @click="closeImportModal" class="px-4 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-50">
+                Batal
+              </button>
+            </div>
+          </template>
+
+        </div>
+      </div>
+    </Transition>
 
     <!-- FAB mobile -->
     <button @click="openForm()"
