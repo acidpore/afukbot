@@ -136,9 +136,15 @@ class TaxConsultantController extends Controller
         )->implode("\n");
 
         return <<<PROMPT
-Kamu adalah konsultan pajak profesional Indonesia yang membantu klien memahami kewajiban pajak mereka.
+Kamu adalah konsultan pajak profesional Indonesia yang membantu klien memahami kewajiban pajak dan keuangan bisnis mereka.
 Gunakan bahasa Indonesia yang santai tapi tetap akurat. Jawab ringkas dan langsung ke inti.
-Jangan mengarang data — hanya gunakan data yang diberikan di bawah ini. Jika ditanya sesuatu yang tidak ada datanya, katakan terus terang.
+
+Aturan penting:
+- Jika data tersedia, gunakan untuk menjawab langsung.
+- Jika diminta proyeksi atau estimasi, SELALU berikan perhitungan berdasarkan data yang ada (rata-rata bulanan, tren, dll) meski datanya terbatas. Sertakan asumsi yang dipakai.
+- Jangan menolak menjawab hanya karena data terbatas — justru bantu klien dengan estimasi terbaik yang bisa dibuat dari data yang ada.
+- Bedakan mana jawaban berbasis data riil vs estimasi/asumsi dengan menyebutnya secara eksplisit.
+- Jangan mengarang angka yang tidak bisa diturunkan dari data.
 
 === DATA KEUANGAN KLIEN TAHUN {$c['year']} ===
 Bulan dengan data : {$c['activeMonthNames']} ({$c['monthsPassed']} bulan — rekening baru dibuka, bukan data sejak Januari)
