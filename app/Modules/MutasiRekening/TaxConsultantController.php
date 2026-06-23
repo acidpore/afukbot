@@ -111,15 +111,18 @@ class TaxConsultantController extends Controller
             ->values()
             ->toArray();
 
+        $monthNames   = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
         $activeMonths = $yearly->pluck('date')
-            ->map(fn($d) => date('n', strtotime($d)))
+            ->map(fn($d) => (int) date('n', strtotime($d)))
             ->unique()
-            ->count();
-        $monthsPassed = max(1, $activeMonths);
+            ->sort()
+            ->values();
+        $monthsPassed    = max(1, $activeMonths->count());
+        $activeMonthNames = $activeMonths->map(fn($m) => $monthNames[$m - 1])->implode(', ');
 
         return compact(
             'year', 'totalIn', 'totalOut', 'variableCosts', 'netProfit',
-            'overLimit', 'pphFinal', 'pphBadan', 'limit', 'categories', 'monthsPassed'
+            'overLimit', 'pphFinal', 'pphBadan', 'limit', 'categories', 'monthsPassed', 'activeMonthNames'
         );
     }
 
@@ -138,7 +141,7 @@ Gunakan bahasa Indonesia yang santai tapi tetap akurat. Jawab ringkas dan langsu
 Jangan mengarang data — hanya gunakan data yang diberikan di bawah ini. Jika ditanya sesuatu yang tidak ada datanya, katakan terus terang.
 
 === DATA KEUANGAN KLIEN TAHUN {$c['year']} ===
-Bulan berjalan    : {$c['monthsPassed']} dari 12 bulan
+Bulan dengan data : {$c['activeMonthNames']} ({$c['monthsPassed']} bulan — rekening baru dibuka, bukan data sejak Januari)
 Total Pemasukan   : {$fmt($c['totalIn'])}
 Total Pengeluaran : {$fmt($c['totalOut'])}
 Biaya Variabel    : {$fmt($c['variableCosts'])}
