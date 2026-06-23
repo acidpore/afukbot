@@ -9,57 +9,52 @@ use Illuminate\Support\Facades\Http;
 
 class TaxConsultantController extends Controller
 {
-    private const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+    private const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+    private const MODEL    = 'llama-3.3-70b-versatile';
 
     public function chat(Request $request)
     {
         $request->validate([
             'message'         => 'required|string|max:1000',
             'history'         => 'nullable|array|max:20',
-            'history.*.role'  => 'required|in:user,model',
+            'history.*.role'  => 'required|in:user,assistant',
             'history.*.text'  => 'required|string',
             'bank_account_id' => 'required|exists:bank_accounts,id',
             'year'            => 'required|integer',
         ]);
 
-        $apiKey = config('services.gemini.key');
+        $apiKey = config('services.groq.key');
         if (!$apiKey) {
-            return response()->json(['message' => 'GEMINI_API_KEY belum dikonfigurasi'], 500);
+            return response()->json(['message' => 'GROQ_API_KEY belum dikonfigurasi'], 500);
         }
 
-        $context = $this->buildContext($request->integer('bank_account_id'), $request->integer('year'));
+        $context      = $this->buildContext($request->integer('bank_account_id'), $request->integer('year'));
         $systemPrompt = $this->buildSystemPrompt($context);
 
-        // Bangun history conversation untuk multi-turn
-        $contents = [];
-
-        // Inject system prompt sebagai pesan pertama dari user + ack dari model
-        $contents[] = ['role' => 'user',  'parts' => [['text' => $systemPrompt]]];
-        $contents[] = ['role' => 'model', 'parts' => [['text' => 'Baik, saya siap membantu sebagai konsultan pajak berdasarkan data keuangan Anda.']]];
+        $messages   = [];
+        $messages[] = ['role' => 'system', 'content' => $systemPrompt];
 
         foreach ($request->input('history', []) as $h) {
-            $contents[] = ['role' => $h['role'], 'parts' => [['text' => $h['text']]]];
+            $messages[] = ['role' => $h['role'], 'content' => $h['text']];
         }
 
-        $contents[] = ['role' => 'user', 'parts' => [['text' => $request->input('message')]]];
+        $messages[] = ['role' => 'user', 'content' => $request->input('message')];
 
-        $response = Http::timeout(30)->post(self::GEMINI_URL . '?key=' . $apiKey, [
-            'contents'         => $contents,
-            'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => 1024],
-        ]);
+        $response = Http::timeout(30)
+            ->withToken($apiKey)
+            ->post(self::GROQ_URL, [
+                'model'       => self::MODEL,
+                'messages'    => $messages,
+                'temperature' => 0.4,
+                'max_tokens'  => 1024,
+            ]);
 
         if (!$response->successful()) {
-            \Log::error('Gemini chat failed', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-            return response()->json([
-                'message' => 'Gagal menghubungi AI. Coba lagi.',
-                'debug'   => $response->json(),
-            ], 502);
+            \Log::error('Groq chat failed', ['status' => $response->status(), 'body' => $response->body()]);
+            return response()->json(['message' => 'Gagal menghubungi AI. Coba lagi.'], 502);
         }
 
-        $text = $response->json('candidates.0.content.parts.0.text', '');
+        $text = $response->json('choices.0.message.content', '');
 
         return response()->json(['reply' => trim($text)]);
     }

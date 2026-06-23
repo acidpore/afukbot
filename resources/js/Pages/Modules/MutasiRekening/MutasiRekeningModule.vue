@@ -567,7 +567,7 @@ const reclassify = ref<{ category: string; newCategory: string } | null>(null)
 const reclassifying = ref(false)
 
 // ── Tax Chatbot ──────────────────────────────────────
-type ChatMessage = { role: 'user' | 'model'; text: string }
+type ChatMessage = { role: 'user' | 'assistant'; text: string }
 const chatOpen      = ref(false)
 const chatMessages  = ref<ChatMessage[]>([])
 const chatInput     = ref('')
@@ -599,9 +599,9 @@ async function sendChat() {
       bank_account_id: selectedAccount.value,
       year: year.value,
     })
-    chatMessages.value.push({ role: 'model', text: res.data.reply })
+    chatMessages.value.push({ role: 'assistant', text: res.data.reply })
   } catch {
-    chatMessages.value.push({ role: 'model', text: 'Maaf, terjadi kesalahan. Coba lagi.' })
+    chatMessages.value.push({ role: 'assistant', text: 'Maaf, terjadi kesalahan. Coba lagi.' })
   } finally {
     chatLoading.value = false
     await nextTick()
@@ -1890,7 +1890,7 @@ onMounted(async () => {
               <template v-else>
                 <div v-for="(msg, i) in chatMessages" :key="i"
                   class="flex gap-2" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-                  <div v-if="msg.role === 'model'"
+                  <div v-if="msg.role === 'assistant'"
                     class="w-6 h-6 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                     <i class="pi pi-sparkles text-white text-[9px]"></i>
                   </div>
