@@ -64,6 +64,8 @@ Route::middleware(EnsureAuthenticated::class)->group(function () {
     Route::post('/account-mutations',         [AccountMutationController::class, 'store']);
     Route::put('/account-mutations/opening',  [AccountMutationController::class, 'setOpening']);
     Route::put('/account-mutations/{id}',     [AccountMutationController::class, 'update']);
+    Route::post('/account-mutations/reclassify', [AccountMutationController::class, 'reclassifyCategory']);
+    Route::post('/tax-consultant/chat', [\App\Modules\MutasiRekening\TaxConsultantController::class, 'chat']);
     Route::delete('/account-mutations/{id}',  [AccountMutationController::class, 'destroy']);
 
     // Bank accounts (semua authenticated bisa baca, super admin bisa CRUD)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import axios from 'axios'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -563,6 +563,51 @@ function exportPdf() {
 // ── Konsultan Pajak ─────────────────────────────────
 const taxData    = ref<any>(null)
 const taxLoading = ref(false)
+const reclassify = ref<{ category: string; newCategory: string } | null>(null)
+const reclassifying = ref(false)
+
+// ── Tax Chatbot ──────────────────────────────────────
+type ChatMessage = { role: 'user' | 'model'; text: string }
+const chatOpen      = ref(false)
+const chatMessages  = ref<ChatMessage[]>([])
+const chatInput     = ref('')
+const chatLoading   = ref(false)
+const chatContainer = ref<HTMLElement | null>(null)
+
+const SUGGESTED_QUESTIONS = [
+  'Berapa pajak yang harus saya bayar bulan ini?',
+  'Pengeluaran mana yang bisa mengurangi pajak saya?',
+  'Kapan saya harus setor pajak dan ke mana?',
+  'Apa risiko jika saya telat bayar pajak?',
+]
+
+async function sendChat() {
+  const msg = chatInput.value.trim()
+  if (!msg || chatLoading.value || !selectedAccount.value) return
+
+  chatMessages.value.push({ role: 'user', text: msg })
+  chatInput.value = ''
+  chatLoading.value = true
+
+  await nextTick()
+  chatContainer.value?.scrollTo({ top: chatContainer.value.scrollHeight, behavior: 'smooth' })
+
+  try {
+    const res = await axios.post('/tax-consultant/chat', {
+      message: msg,
+      history: chatMessages.value.slice(0, -1).slice(-10), // kirim 10 pesan terakhir sebagai konteks
+      bank_account_id: selectedAccount.value,
+      year: year.value,
+    })
+    chatMessages.value.push({ role: 'model', text: res.data.reply })
+  } catch {
+    chatMessages.value.push({ role: 'model', text: 'Maaf, terjadi kesalahan. Coba lagi.' })
+  } finally {
+    chatLoading.value = false
+    await nextTick()
+    chatContainer.value?.scrollTo({ top: chatContainer.value.scrollHeight, behavior: 'smooth' })
+  }
+}
 
 async function loadTaxSummary() {
   if (!selectedAccount.value) return
@@ -579,6 +624,115 @@ async function loadTaxSummary() {
 
 watch(activeTab, (tab) => { if (tab === 'pajak') loadTaxSummary() })
 watch([selectedAccount, year], () => { if (activeTab.value === 'pajak') loadTaxSummary() })
+
+async function submitReclassify() {
+  if (!reclassify.value || !reclassify.value.newCategory.trim()) return
+  reclassifying.value = true
+  try {
+    await axios.post('/account-mutations/reclassify', {
+      bank_account_id: selectedAccount.value,
+      year: year.value,
+      old_category: reclassify.value.category,
+      new_category: reclassify.value.newCategory.trim(),
+    })
+    reclassify.value = null
+    await loadTaxSummary()
+  } finally {
+    reclassifying.value = false
+  }
+}
+
+function exportTaxPdf() {
+  if (!taxData.value) return
+  const d    = taxData.value
+  const acc  = bankAccounts.value.find(a => a.id === selectedAccount.value)
+  const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const PRIMARY: [number, number, number] = [99, 102, 241]
+  const GREEN:   [number, number, number] = [5, 150, 105]
+  const RED:     [number, number, number] = [239, 68, 68]
+
+  // Header
+  doc.setFillColor(...PRIMARY)
+  doc.rect(0, 0, pageW, 38, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  doc.text('Laporan Analisis Pajak', 14, 13)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.text(`${acc?.account_name ?? ''} — ${acc?.bank_name ?? ''}`, 14, 21)
+  doc.text(`Tahun: ${d.year}  |  Dibuat: ${new Date().toLocaleDateString('id-ID')}`, 14, 28)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(200, 220, 255)
+  doc.text(d.over_limit ? 'PPh Badan 22%' : 'PPh Final 0,5%', pageW - 14, 21, { align: 'right' })
+
+  // Ringkasan keuangan
+  let y = 46
+  doc.setTextColor(30, 41, 59)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.text('Ringkasan Keuangan', 14, y)
+  y += 4
+
+  autoTable(doc, {
+    startY: y,
+    body: [
+      ['Total Masuk (Omzet)',  fmt(d.total_in)],
+      ['Total Keluar',         fmt(d.total_out)],
+      ['Biaya Variabel',       fmt(d.variable_costs)],
+      ['Laba Bersih',          fmt(d.net_profit)],
+      [d.over_limit ? 'Estimasi PPh Badan 22%' : 'Estimasi PPh Final 0,5%',
+       fmt(d.over_limit ? d.pph_badan : d.pph_final)],
+      ...(d.over_limit && d.angsuran_pph25 ? [['Angsuran PPh 25/bulan', fmt(d.angsuran_pph25)]] : []),
+    ],
+    styles: { fontSize: 8.5, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, halign: 'center' },
+    columnStyles: { 0: { fontStyle: 'bold', halign: 'left' }, 1: { halign: 'center' } },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+  })
+
+  // Klasifikasi pengeluaran
+  y = (doc as any).lastAutoTable.finalY + 8
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(30, 41, 59)
+  doc.text('Klasifikasi Pengeluaran', 14, y)
+  y += 3
+
+  const statusLabel: Record<string, string> = { deductible: 'Deductible', non: 'Non-deductible', review: 'Perlu Review' }
+  autoTable(doc, {
+    startY: y,
+    head: [['Kategori', 'Total', 'Transaksi', 'Status']],
+    body: (d.expense_categories ?? []).map((c: any) => [
+      c.category, fmt(c.total), c.count, statusLabel[c.status] ?? c.status,
+    ]),
+    foot: [[
+      {
+        content: `Deductible: ${fmt(d.deductible_total)}   |   Non-deductible: ${fmt(d.non_deductible_total)}   |   Review: ${fmt(d.review_total)}`,
+        colSpan: 4,
+        styles: { fontStyle: 'italic', halign: 'center', textColor: [100, 116, 139], fillColor: [241, 245, 249] },
+      },
+    ]],
+    showFoot: 'lastPage',
+    styles: { fontSize: 8, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, halign: 'center' },
+    headStyles: { fillColor: PRIMARY, textColor: 255, fontStyle: 'bold', fontSize: 8, halign: 'center' },
+    columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center' }, 2: { halign: 'center', cellWidth: 22 }, 3: { cellWidth: 36, halign: 'center' } },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    didParseCell(data) {
+      if (data.column.index === 3 && data.section === 'body') {
+        const v = data.cell.raw as string
+        if (v === 'Deductible')     data.cell.styles.textColor = GREEN
+        if (v === 'Non-deductible') data.cell.styles.textColor = RED
+        if (v === 'Perlu Review')   data.cell.styles.textColor = [180, 120, 0]
+      }
+    },
+  })
+
+  doc.save(`laporan-pajak-${d.year}.pdf`)
+}
 
 onMounted(async () => {
   await loadBankAccounts()
@@ -1211,6 +1365,14 @@ onMounted(async () => {
     <!-- ── TAB KONSULTAN PAJAK ── -->
     <template v-if="activeTab === 'pajak'">
 
+      <!-- Toolbar -->
+      <div v-if="taxData && !taxLoading" class="flex justify-end">
+        <button @click="exportTaxPdf"
+          class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 shadow-sm transition-colors">
+          <i class="pi pi-file-pdf text-red-500"></i> Export PDF
+        </button>
+      </div>
+
       <!-- Loading -->
       <div v-if="taxLoading" class="premium-card bg-white p-10 text-center text-slate-400 text-sm animate-pulse">
         Menganalisis data pajak...
@@ -1264,6 +1426,185 @@ onMounted(async () => {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Proyeksi Akhir Tahun -->
+        <div v-if="taxData.months_passed < 12 && taxData.avg_monthly_in > 0" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Proyeksi Akhir Tahun {{ taxData.year }}</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-50 rounded-xl p-3">
+              <p class="text-[11px] text-slate-400 font-medium mb-1">Rata-rata Masuk/Bulan</p>
+              <p class="text-sm font-bold text-slate-800">{{ fmt(taxData.avg_monthly_in) }}</p>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3">
+              <p class="text-[11px] text-slate-400 font-medium mb-1">Estimasi Omzet Akhir Tahun</p>
+              <p class="text-sm font-bold" :class="taxData.projected_yearly_in >= taxData.limit ? 'text-red-600' : 'text-emerald-600'">
+                {{ fmt(taxData.projected_yearly_in) }}
+              </p>
+            </div>
+          </div>
+          <div v-if="taxData.months_to_limit !== null" class="mt-3 flex gap-3 p-3 rounded-xl border"
+            :class="taxData.months_to_limit <= 3 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'">
+            <i class="pi pi-clock mt-0.5 flex-shrink-0" :class="taxData.months_to_limit <= 3 ? 'text-red-500' : 'text-amber-500'"></i>
+            <p class="text-xs" :class="taxData.months_to_limit <= 3 ? 'text-red-700' : 'text-amber-700'">
+              Dengan tren saat ini, batas Rp 4,8 M akan terlampaui dalam
+              <strong>{{ taxData.months_to_limit }} bulan lagi</strong> — beralih ke rezim PPh Badan 22%.
+            </p>
+          </div>
+          <div v-else-if="taxData.projected_yearly_in < taxData.limit" class="mt-3 flex gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <i class="pi pi-check-circle text-emerald-500 mt-0.5 flex-shrink-0"></i>
+            <p class="text-xs text-emerald-700">Dengan tren saat ini, omzet tahun ini diperkirakan <strong>tidak melampaui</strong> batas Rp 4,8 M. Tetap di tarif PPh Final 0,5%.</p>
+          </div>
+        </div>
+
+        <!-- Angsuran PPh 25 -->
+        <div v-if="taxData.over_limit && taxData.angsuran_pph25 > 0" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Angsuran PPh 25 (Bulanan)</p>
+          <div class="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <div>
+              <p class="text-xs text-orange-600 font-medium">Setor tiap bulan ke kas negara</p>
+              <p class="text-[10px] text-slate-400 mt-0.5">PPh Badan estimasi / 12 bulan</p>
+            </div>
+            <p class="text-2xl font-bold text-orange-600">{{ fmt(taxData.angsuran_pph25) }}</p>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-3">Angsuran PPh 25 wajib dibayar paling lambat tanggal 15 bulan berikutnya via SSP/Billing DJP Online.</p>
+        </div>
+
+        <!-- Alur Pembayaran Pajak -->
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100">
+            <h4 class="text-sm font-bold text-slate-800">Alur Pembayaran Pajak {{ taxData.year }}</h4>
+            <p class="text-xs text-slate-400 mt-0.5">
+              {{ taxData.over_limit ? 'Rezim PPh Badan 22% — 3 jenis kewajiban pajak' : 'Rezim PPh Final 0,5% — bayar bulanan dari omzet' }}
+            </p>
+          </div>
+
+          <!-- PPh Final (tidak over limit) -->
+          <template v-if="!taxData.over_limit">
+            <div class="p-5 space-y-3">
+              <div class="flex gap-4 items-start">
+                <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span class="text-[10px] font-bold text-white">1</span>
+                </div>
+                <div class="flex-1">
+                  <p class="text-xs font-bold text-slate-800">Hitung omzet bulan ini</p>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Total semua pemasukan masuk ke rekening bulan tersebut.</p>
+                </div>
+              </div>
+              <div class="flex gap-4 items-start">
+                <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span class="text-[10px] font-bold text-white">2</span>
+                </div>
+                <div class="flex-1">
+                  <p class="text-xs font-bold text-slate-800">Kalikan 0,5%</p>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Tidak perlu hitung laba atau biaya. Langsung dari omzet.</p>
+                  <div class="mt-2 bg-primary/5 rounded-lg px-3 py-2 text-[11px] text-primary font-medium">
+                    Contoh: omzet Rp 200.000 → bayar Rp 1.000
+                  </div>
+                </div>
+              </div>
+              <div class="flex gap-4 items-start">
+                <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span class="text-[10px] font-bold text-white">3</span>
+                </div>
+                <div class="flex-1">
+                  <p class="text-xs font-bold text-slate-800">Setor paling lambat tanggal 15 bulan berikutnya</p>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Via DJP Online → e-Billing → pilih kode pajak PPh Final UMKM (411128-420).</p>
+                </div>
+              </div>
+              <div class="flex gap-4 items-start">
+                <div class="w-7 h-7 rounded-full bg-slate-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span class="text-[10px] font-bold text-white">4</span>
+                </div>
+                <div class="flex-1">
+                  <p class="text-xs font-bold text-slate-500">Lapor SPT Tahunan — April {{ taxData.year + 1 }}</p>
+                  <p class="text-[11px] text-slate-400 mt-0.5">Rekap semua setoran bulanan. Jika sudah semua dibayar, SPT nihil — tidak ada tambahan bayar.</p>
+                </div>
+              </div>
+            </div>
+            <div class="px-5 py-3.5 bg-emerald-50 border-t border-emerald-100 flex items-center gap-3">
+              <i class="pi pi-check-circle text-emerald-500 flex-shrink-0"></i>
+              <p class="text-[11px] text-emerald-700">
+                Estimasi PPh Final tahun ini: <strong>{{ fmt(taxData.pph_final) }}</strong> —
+                dibayar cicil tiap bulan, tidak ada tagihan besar di akhir tahun.
+              </p>
+            </div>
+          </template>
+
+          <!-- PPh Badan (over limit) -->
+          <template v-else>
+            <div class="p-5 space-y-3">
+              <!-- PPh 25 -->
+              <div class="flex gap-4 items-start">
+                <div class="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span class="text-[10px] font-bold text-white">1</span>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between">
+                    <p class="text-xs font-bold text-slate-800">PPh 25 — Angsuran Bulanan Wajib</p>
+                    <p class="text-sm font-bold text-orange-600">{{ fmt(taxData.angsuran_pph25) }}<span class="text-[10px] font-normal text-slate-400">/bln</span></p>
+                  </div>
+                  <p class="text-[11px] text-slate-500 mt-1">Dihitung dari PPh Badan tahun lalu dibagi 12. Tahun pertama kena PPh Badan biasanya nihil. Setor paling lambat <strong>tanggal 15</strong> tiap bulan. Telat kena sanksi bunga <strong>2%/bulan</strong>.</p>
+                </div>
+              </div>
+
+              <div class="ml-11 h-px bg-slate-100"></div>
+
+              <!-- SPT Tahunan -->
+              <div class="flex gap-4 items-start">
+                <div class="w-7 h-7 rounded-full bg-slate-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span class="text-[10px] font-bold text-white">2</span>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between">
+                    <p class="text-xs font-bold text-slate-800">SPT Tahunan — April {{ taxData.year + 1 }}</p>
+                    <p class="text-sm font-bold text-slate-700">22% × laba bersih</p>
+                  </div>
+                  <p class="text-[11px] text-slate-500 mt-1">Hitung PPh Badan sesungguhnya dari laba bersih tahun ini. Hasilnya dibandingkan dengan total PPh 25 yang sudah disetor.</p>
+                  <div class="mt-2 bg-slate-50 rounded-lg px-3 py-2 space-y-1">
+                    <div class="flex justify-between text-[11px]">
+                      <span class="text-slate-500">PPh Badan terutang (estimasi)</span>
+                      <span class="font-bold text-slate-700">{{ fmt(taxData.pph_badan) }}</span>
+                    </div>
+                    <div class="flex justify-between text-[11px]">
+                      <span class="text-slate-500">Total PPh 25 setahun (estimasi)</span>
+                      <span class="font-bold text-orange-600">{{ fmt(taxData.angsuran_pph25 * 12) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ml-11 h-px bg-slate-100"></div>
+
+              <!-- PPh 28/29 -->
+              <div class="flex gap-4 items-start">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                  :class="taxData.pph_badan > taxData.angsuran_pph25 * 12 ? 'bg-red-500' : 'bg-emerald-500'">
+                  <span class="text-[10px] font-bold text-white">3</span>
+                </div>
+                <div class="flex-1">
+                  <template v-if="taxData.pph_badan > taxData.angsuran_pph25 * 12">
+                    <div class="flex items-center justify-between">
+                      <p class="text-xs font-bold text-red-700">PPh 29 — Kurang Bayar di SPT</p>
+                      <p class="text-sm font-bold text-red-600">{{ fmt(taxData.pph_badan - taxData.angsuran_pph25 * 12) }}</p>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1">Selisih ini harus dilunasi saat lapor SPT Tahunan, paling lambat <strong>30 April {{ taxData.year + 1 }}</strong>.</p>
+                  </template>
+                  <template v-else-if="taxData.pph_badan < taxData.angsuran_pph25 * 12">
+                    <div class="flex items-center justify-between">
+                      <p class="text-xs font-bold text-emerald-700">PPh 28 — Lebih Bayar</p>
+                      <p class="text-sm font-bold text-emerald-600">{{ fmt(taxData.angsuran_pph25 * 12 - taxData.pph_badan) }}</p>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1">Kelebihan ini bisa dikompensasi ke tahun berikutnya atau diajukan restitusi (pengembalian) ke DJP.</p>
+                  </template>
+                  <template v-else>
+                    <p class="text-xs font-bold text-slate-700">Pajak Pas — Tidak Ada Kurang/Lebih Bayar</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Total angsuran tepat sama dengan PPh Badan terutang.</p>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
 
         <!-- Biaya Variabel Breakdown -->
@@ -1320,12 +1661,31 @@ onMounted(async () => {
                   <p class="text-[10px] text-slate-400">{{ cat.count }} transaksi</p>
                 </div>
               </div>
-              <div class="text-right flex-shrink-0">
-                <p class="text-sm font-bold text-slate-700">{{ fmt(cat.total) }}</p>
-                <p class="text-[10px] font-medium"
-                  :class="cat.status === 'deductible' ? 'text-emerald-600' : cat.status === 'non' ? 'text-red-400' : 'text-amber-500'">
-                  {{ cat.status === 'deductible' ? 'Deductible' : cat.status === 'non' ? 'Non-deductible' : 'Perlu review' }}
-                </p>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <!-- Inline reklasifikasi untuk kategori review -->
+                <template v-if="cat.status === 'review'">
+                  <template v-if="reclassify?.category === cat.category">
+                    <input v-model="reclassify.newCategory" @keyup.enter="submitReclassify" @keyup.esc="reclassify = null"
+                      class="text-xs border border-slate-200 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="Kategori baru" autofocus />
+                    <button @click="submitReclassify" :disabled="reclassifying"
+                      class="text-[11px] font-bold text-white bg-primary px-2.5 py-1 rounded-lg disabled:opacity-50">
+                      {{ reclassifying ? '...' : 'Simpan' }}
+                    </button>
+                    <button @click="reclassify = null" class="text-[11px] text-slate-400 hover:text-slate-600">Batal</button>
+                  </template>
+                  <button v-else @click="reclassify = { category: cat.category, newCategory: cat.category }"
+                    class="text-[11px] text-amber-600 border border-amber-200 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100 font-medium flex-shrink-0">
+                    Klasifikasi
+                  </button>
+                </template>
+                <div class="text-right">
+                  <p class="text-sm font-bold text-slate-700">{{ fmt(cat.total) }}</p>
+                  <p class="text-[10px] font-medium"
+                    :class="cat.status === 'deductible' ? 'text-emerald-600' : cat.status === 'non' ? 'text-red-400' : 'text-amber-500'">
+                    {{ cat.status === 'deductible' ? 'Deductible' : cat.status === 'non' ? 'Non-deductible' : 'Perlu review' }}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1392,6 +1752,83 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- Breakdown Per Bulan -->
+        <div v-if="taxData.monthly_breakdown?.length" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100">
+            <h4 class="text-sm font-bold text-slate-800">Timeline Omzet {{ taxData.year }}</h4>
+            <p class="text-xs text-slate-400 mt-0.5">Masuk & keluar per bulan — akumulatif vs batas Rp 4,8 M</p>
+          </div>
+          <!-- Desktop -->
+          <div class="hidden md:block">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 font-bold">
+                  <th class="text-center px-3 py-2.5">Bulan</th>
+                  <th class="text-center px-3 py-2.5">Masuk</th>
+                  <th class="text-center px-3 py-2.5">Keluar</th>
+                  <th class="text-center px-3 py-2.5">Akumulatif</th>
+                  <th class="text-center px-3 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-50">
+                <tr v-for="row in taxData.monthly_breakdown" :key="row.month"
+                  :class="row.cumulative >= taxData.limit ? 'bg-red-50' : ''">
+                  <td class="text-center px-3 py-2.5 font-medium text-slate-700">
+                    {{ ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][row.month - 1] }}
+                  </td>
+                  <td class="text-center px-3 py-2.5 text-emerald-600 font-medium">{{ fmt(row.total_in) }}</td>
+                  <td class="text-center px-3 py-2.5 text-red-500">{{ fmt(row.total_out) }}</td>
+                  <td class="text-center px-3 py-2.5 font-bold"
+                    :class="row.cumulative >= taxData.limit ? 'text-red-600' : 'text-slate-800'">
+                    {{ fmt(row.cumulative) }}
+                  </td>
+                  <td class="text-center px-3 py-2.5">
+                    <span v-if="row.cumulative >= taxData.limit"
+                      class="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Melampaui</span>
+                    <span v-else-if="row.cumulative >= taxData.limit * 0.8"
+                      class="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Mendekati</span>
+                    <span v-else class="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Aman</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile: card per bulan -->
+          <div class="md:hidden divide-y divide-slate-50">
+            <div v-for="row in taxData.monthly_breakdown" :key="row.month"
+              class="px-4 py-3"
+              :class="row.cumulative >= taxData.limit ? 'bg-red-50' : ''">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-bold text-slate-700">
+                  {{ ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][row.month - 1] }}
+                </span>
+                <span v-if="row.cumulative >= taxData.limit"
+                  class="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Melampaui</span>
+                <span v-else-if="row.cumulative >= taxData.limit * 0.8"
+                  class="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Mendekati</span>
+                <span v-else class="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">Aman</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <div class="bg-white rounded-lg p-2 text-center border border-slate-100 min-w-0">
+                  <p class="text-[10px] text-slate-400 mb-0.5">Masuk</p>
+                  <p class="font-bold text-emerald-600 text-[11px] truncate">{{ fmt(row.total_in) }}</p>
+                </div>
+                <div class="bg-white rounded-lg p-2 text-center border border-slate-100 min-w-0">
+                  <p class="text-[10px] text-slate-400 mb-0.5">Keluar</p>
+                  <p class="font-bold text-red-500 text-[11px] truncate">{{ fmt(row.total_out) }}</p>
+                </div>
+                <div class="bg-white rounded-lg p-2 text-center border border-slate-100 min-w-0">
+                  <p class="text-[10px] text-slate-400 mb-0.5">Akumulatif</p>
+                  <p class="font-bold text-[11px] truncate" :class="row.cumulative >= taxData.limit ? 'text-red-600' : 'text-slate-800'">
+                    {{ fmt(row.cumulative) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </template>
 
       <div v-else class="premium-card bg-white py-16 text-center text-slate-400 text-sm">
@@ -1399,6 +1836,107 @@ onMounted(async () => {
       </div>
 
     </template>
+
+    <!-- ── Floating AI Chat Bubble (tab pajak) ── -->
+    <Teleport to="body">
+      <div v-if="activeTab === 'pajak' && selectedAccount" class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+
+        <!-- Chat popup -->
+        <Transition name="chat-popup">
+          <div v-if="chatOpen"
+            class="w-[340px] sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden"
+            style="height: 520px; max-height: calc(100dvh - 100px)">
+
+            <!-- Header -->
+            <div class="px-4 py-3 bg-primary flex items-center gap-3 flex-shrink-0">
+              <div class="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                <i class="pi pi-sparkles text-white text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-white leading-tight">Konsultan Pajak AI</p>
+                <p class="text-[10px] text-white/70">Data keuangan {{ year }} sudah dibaca</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button v-if="chatMessages.length" @click="chatMessages = []" title="Reset chat"
+                  class="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                  <i class="pi pi-refresh text-white text-[10px]"></i>
+                </button>
+                <button @click="chatOpen = false"
+                  class="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+                  <i class="pi pi-times text-white text-[10px]"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Messages -->
+            <div ref="chatContainer" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/60">
+
+              <!-- Empty state -->
+              <template v-if="!chatMessages.length">
+                <div class="text-center pt-4 pb-2">
+                  <p class="text-xs font-medium text-slate-600">Halo! Saya siap bantu soal pajak Anda.</p>
+                  <p class="text-[11px] text-slate-400 mt-1">Pilih pertanyaan atau ketik sendiri.</p>
+                </div>
+                <div class="space-y-1.5">
+                  <button v-for="q in SUGGESTED_QUESTIONS" :key="q"
+                    @click="chatInput = q; sendChat()"
+                    class="w-full text-left text-[11px] text-primary bg-white border border-primary/20 rounded-xl px-3 py-2.5 hover:bg-primary/5 transition-colors shadow-sm">
+                    {{ q }}
+                  </button>
+                </div>
+              </template>
+
+              <!-- Messages -->
+              <template v-else>
+                <div v-for="(msg, i) in chatMessages" :key="i"
+                  class="flex gap-2" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+                  <div v-if="msg.role === 'model'"
+                    class="w-6 h-6 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="pi pi-sparkles text-white text-[9px]"></i>
+                  </div>
+                  <div class="max-w-[82%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap"
+                    :class="msg.role === 'user'
+                      ? 'bg-primary text-white rounded-tr-sm'
+                      : 'bg-white border border-slate-100 text-slate-700 shadow-sm rounded-tl-sm'">
+                    {{ msg.text }}
+                  </div>
+                </div>
+                <!-- Loading dots -->
+                <div v-if="chatLoading" class="flex gap-2 justify-start">
+                  <div class="w-6 h-6 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="pi pi-sparkles text-white text-[9px]"></i>
+                  </div>
+                  <div class="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex gap-1.5 items-center">
+                    <span class="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style="animation-delay:0ms"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style="animation-delay:150ms"></span>
+                    <span class="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style="animation-delay:300ms"></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Input -->
+            <div class="p-3 border-t border-slate-100 flex gap-2 flex-shrink-0 bg-white">
+              <input v-model="chatInput" @keyup.enter="sendChat" :disabled="chatLoading"
+                placeholder="Ketik pertanyaan..."
+                class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50" />
+              <button @click="sendChat" :disabled="chatLoading || !chatInput.trim()"
+                class="w-9 h-9 bg-primary rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 hover:bg-primary/90 transition-colors">
+                <i class="pi pi-send text-white text-xs"></i>
+              </button>
+            </div>
+          </div>
+        </Transition>
+
+        <!-- Bubble button -->
+        <button @click="chatOpen = !chatOpen"
+          class="w-14 h-14 bg-primary rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center relative">
+          <i class="pi text-white text-xl" :class="chatOpen ? 'pi-times' : 'pi-sparkles'"></i>
+          <!-- Unread dot -->
+          <span v-if="!chatOpen && chatMessages.length" class="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+        </button>
+      </div>
+    </Teleport>
 
     <!-- Import Preview Modal -->
     <Transition name="modal-fade">
@@ -1501,6 +2039,10 @@ onMounted(async () => {
 <style scoped>
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+.chat-popup-enter-active { transition: opacity 0.2s, transform 0.2s; }
+.chat-popup-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.chat-popup-enter-from, .chat-popup-leave-to { opacity: 0; transform: translateY(12px) scale(0.97); }
 
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.25s ease; }
 .slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-8px); }

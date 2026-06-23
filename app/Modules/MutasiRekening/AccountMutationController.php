@@ -144,6 +144,31 @@ class AccountMutationController extends Controller
         $pphFinal           = round($totalIn * 0.005);
         $pphBadan           = $netProfit > 0 ? round($netProfit * 0.22) : 0;
         $limitPPh           = 4_800_000_000;
+        $monthlyBreakdown = $yearly->whereNotIn('type', ['opening'])
+            ->groupBy(fn($m) => (int) date('n', strtotime($m->date)))
+            ->map(fn($rows, $mon) => [
+                'month'      => $mon,
+                'total_in'   => $rows->where('type', 'in')->sum('amount'),
+                'total_out'  => $rows->where('type', 'out')->sum('amount'),
+                'cumulative' => 0, // filled below
+            ])
+            ->sortKeys()
+            ->values();
+
+        $cumulative = 0;
+        $monthlyBreakdown = $monthlyBreakdown->map(function ($row) use (&$cumulative) {
+            $cumulative += $row['total_in'];
+            $row['cumulative'] = $cumulative;
+            return $row;
+        });
+
+        $monthsPassed       = ($year === now()->year) ? max(1, now()->month) : 12;
+        $angsuranPph25      = $pphBadan > 0 ? round($pphBadan / 12) : 0;
+        $avgMonthlyIn       = $monthsPassed > 0 ? round($totalIn / $monthsPassed) : 0;
+        $projectedYearlyIn  = round($avgMonthlyIn * 12);
+        $monthsToLimit      = $avgMonthlyIn > 0 && $totalIn < $limitPPh
+            ? (int) ceil(($limitPPh - $totalIn) / $avgMonthlyIn)
+            : null;
 
         return response()->json([
             'year'                    => $year,
@@ -154,6 +179,12 @@ class AccountMutationController extends Controller
             'net_profit'              => $netProfit,
             'pph_final'               => $pphFinal,
             'pph_badan'               => $pphBadan,
+            'angsuran_pph25'          => $angsuranPph25,
+            'months_passed'           => $monthsPassed,
+            'avg_monthly_in'          => $avgMonthlyIn,
+            'projected_yearly_in'     => $projectedYearlyIn,
+            'months_to_limit'         => $monthsToLimit,
+            'monthly_breakdown'       => $monthlyBreakdown,
             'over_limit'              => $totalIn >= $limitPPh,
             'limit'                   => $limitPPh,
             'expense_categories'      => $expenseByCategory->sortByDesc('total')->values(),
@@ -164,6 +195,23 @@ class AccountMutationController extends Controller
                 ? round(($deductibleTotal + $variableCosts) * 0.22)
                 : 0,
         ]);
+    }
+
+    public function reclassifyCategory(Request $request)
+    {
+        $data = $request->validate([
+            'bank_account_id' => 'required|exists:bank_accounts,id',
+            'year'            => 'required|integer',
+            'old_category'    => 'required|string|max:100',
+            'new_category'    => 'required|string|max:100',
+        ]);
+
+        AccountMutation::where('bank_account_id', $data['bank_account_id'])
+            ->whereYear('date', $data['year'])
+            ->where('category', $data['old_category'])
+            ->update(['category' => $data['new_category']]);
+
+        return response()->json(['message' => 'Kategori diperbarui.']);
     }
 
     public function categories(Request $request)

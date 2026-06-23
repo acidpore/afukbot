@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->validateCsrfTokens(except: [
             'telegram/webhook',
+            'tax-consultant/chat',
         ]);
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
