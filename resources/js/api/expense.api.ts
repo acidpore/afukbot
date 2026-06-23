@@ -27,4 +27,11 @@ export const expenseApi = {
         });
     },
     deleteReceipt: (id: number) => api.delete<ApiResponse<Expense>>(`/expenses/${id}/receipt`),
+    scanReceipt: (image: File) => {
+        const form = new FormData();
+        form.append('image', image);
+        return api.post<ApiResponse<{ items: { description: string; amount: number }[]; total: number }>>(
+            '/expenses/scan-receipt', form, { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+    },
 };

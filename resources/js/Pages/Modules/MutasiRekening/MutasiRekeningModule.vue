@@ -210,6 +210,13 @@ watch(selectedAccount, loadCategories)
 // ── Filter kategori ─────────────────────────────────
 const filterCategory = ref('')
 
+const availableCategories = computed(() => {
+  const fromMutations = (data.value?.mutations ?? [])
+    .map((m: any) => m.category)
+    .filter(Boolean)
+  return [...new Set([...categories.value, ...fromMutations])] as string[]
+})
+
 // ── Sort ────────────────────────────────────────────
 type SortKey = 'date' | 'description' | 'category' | 'in' | 'out' | 'balance'
 const sortKey = ref<SortKey>('date')
@@ -669,13 +676,13 @@ onMounted(async () => {
           <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
         </select>
       </div>
-      <div v-if="categories.length" class="w-full sm:w-auto">
+      <div v-if="availableCategories.length" class="w-full sm:w-auto">
         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Kategori</label>
         <select v-model="filterCategory"
           class="w-full border rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white transition-colors"
           :class="filterCategory ? 'border-primary text-primary' : 'border-slate-200 text-primary'">
           <option value="">Semua</option>
-          <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
         </select>
       </div>
       <div v-if="selectedAccountInfo" class="flex items-center gap-2 px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
@@ -698,22 +705,25 @@ onMounted(async () => {
             <p class="text-xs text-amber-600">Nominal saldo sebelum periode pencatatan dimulai</p>
           </div>
         </div>
-        <div class="flex flex-wrap items-end gap-3">
-          <div class="flex-1 min-w-[180px]">
+        <div class="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
+          <div class="col-span-2 sm:flex-1 sm:min-w-[180px]">
             <label class="block text-xs font-semibold text-amber-700 mb-1.5">Saldo Awal (Rp)</label>
             <input :value="openingAmount" @input="formatOpeningInput" type="text" inputmode="numeric" placeholder="0"
               class="w-full border border-amber-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-300 bg-white" />
           </div>
-          <div>
+          <div class="col-span-2 sm:col-span-1">
             <label class="block text-xs font-semibold text-amber-700 mb-1.5">Per Tanggal</label>
             <input v-model="openingDate" type="date"
-              class="border border-amber-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-300 bg-white" />
+              class="w-full border border-amber-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-300 bg-white" />
           </div>
           <button @click="saveOpening" :disabled="savingOpening"
             class="h-[42px] px-5 bg-amber-500 text-white text-sm font-bold rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60">
             {{ savingOpening ? 'Menyimpan...' : 'Simpan' }}
           </button>
-          <button @click="showOpeningForm = false" class="h-[42px] px-4 text-sm text-slate-500 hover:text-slate-700 font-medium">Batal</button>
+          <button @click="showOpeningForm = false"
+            class="h-[42px] px-4 text-sm font-semibold text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+            Batal
+          </button>
         </div>
       </div>
     </Transition>
@@ -910,7 +920,7 @@ onMounted(async () => {
 
         <template v-else>
           <!-- Saldo awal periode -->
-          <div class="px-5 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+          <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between" style="background-color: var(--bg-subtle);">
             <span class="text-xs text-slate-400 font-medium">Saldo awal periode</span>
             <span class="text-xs font-bold text-slate-600">{{ fmt(data.balance_before) }}</span>
           </div>
@@ -979,7 +989,7 @@ onMounted(async () => {
           <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-sm border-collapse">
               <thead>
-                <tr class="bg-slate-50/50 border-b border-slate-100">
+                <tr class="border-b border-slate-100" style="background-color: var(--bg-subtle);">
                   <th @click="setSort('date')"
                     class="px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-left cursor-pointer select-none transition-colors hover:text-primary"
                     :class="sortKey === 'date' ? 'text-primary' : 'text-slate-400'">

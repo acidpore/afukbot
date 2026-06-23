@@ -292,6 +292,77 @@ async function deleteExpense(id: number) {
     });
 }
 
+// ── Scan Struk ─────────────────────────────────────────────
+const scanModal    = ref(false);
+const scanning     = ref(false);
+const scanItems    = ref<{ description: string; amount: number; category: string; customCategory: string }[]>([]);
+const scanTotal    = ref(0);
+const scanDate     = ref(new Date().toISOString().slice(0, 10));
+const scanSaving   = ref(false);
+
+async function onScanFileChange(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    scanning.value = true;
+    scanItems.value = [];
+    try {
+        const res = await expenseApi.scanReceipt(file);
+        const data = res.data.data;
+        scanTotal.value = data.total;
+        scanItems.value = data.items.map(item => ({
+            ...item,
+            category: guessCategory(item.description),
+            customCategory: '',
+        }));
+        scanModal.value = true;
+    } catch (e: any) {
+        showToast(e?.response?.data?.message || 'Gagal memindai struk.', 'error');
+    } finally {
+        scanning.value = false;
+        (e.target as HTMLInputElement).value = '';
+    }
+}
+
+function guessCategory(description: string): string {
+    const desc = description.toLowerCase();
+    if (/beras|telur|minyak|gula|garam|tepung|sayur|buah|daging|ikan|susu/.test(desc)) return 'Belanja';
+    if (/makan|mie|nasi|ayam|bakso|soto|kopi|teh|minuman|snack|kerupuk/.test(desc)) return 'Makan';
+    if (/mbg|go mbg/.test(desc)) return 'Go MBG';
+    return 'Lainnya';
+}
+
+async function submitScan() {
+    if (!scanItems.value.length) return;
+    scanSaving.value = true;
+    try {
+        for (const item of scanItems.value) {
+            const cat = item.category === 'Lainnya' && item.customCategory
+                ? item.customCategory
+                : item.category;
+            await expenseApi.create({
+                expense_date: scanDate.value,
+                category:     cat,
+                description:  item.description,
+                amount:       item.amount,
+            });
+        }
+        const expRes = await expenseApi.getAll();
+        expenses.value = expRes.data.data;
+        showToast(`${scanItems.value.length} item berhasil disimpan`);
+        closeScanModal();
+    } catch {
+        showToast('Gagal menyimpan sebagian item.', 'error');
+    } finally {
+        scanSaving.value = false;
+    }
+}
+
+function closeScanModal() {
+    scanModal.value  = false;
+    scanItems.value  = [];
+    scanTotal.value  = 0;
+}
+
 // ── Import CSV ─────────────────────────────────────────────
 const importModal    = ref(false);
 const importFile     = ref<File | null>(null);
@@ -626,6 +697,14 @@ onMounted(loadExpenses);
                     <i class="pi pi-file-pdf text-xs"></i>
                     <span class="hidden sm:inline">Export PDF</span>
                 </button>
+                <label
+                    class="flex items-center gap-1.5 border border-violet-300 text-violet-600 text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl hover:bg-violet-50 transition-colors cursor-pointer"
+                    :class="{ 'opacity-50 pointer-events-none': scanning }"
+                >
+                    <i class="pi text-xs" :class="scanning ? 'pi-spin pi-spinner' : 'pi-camera'"></i>
+                    <span class="hidden sm:inline">{{ scanning ? 'Memindai...' : 'Scan Struk' }}</span>
+                    <input type="file" accept="image/*" capture="environment" class="hidden" @change="onScanFileChange" :disabled="scanning" />
+                </label>
                 <button
                     @click="importModal = true"
                     class="flex items-center gap-1.5 border border-slate-300 text-slate-600 text-xs sm:text-sm font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl hover:bg-slate-100 transition-colors"
@@ -1042,6 +1121,92 @@ onMounted(loadExpenses);
                 </div>
             </div>
         </div>
+        <!-- Modal Scan Struk -->
+        <div v-if="scanModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+                <div class="flex items-center justify-between p-5 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800">Hasil Scan Struk</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Review item, atur kategori, lalu simpan</p>
+                    </div>
+                    <button @click="closeScanModal" class="text-slate-400 hover:text-slate-600 transition-colors">
+                        <i class="pi pi-times text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="overflow-y-auto p-5 flex flex-col gap-4">
+                    <!-- Tanggal struk -->
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs font-bold text-slate-600 w-24 shrink-0">Tanggal Struk</label>
+                        <input type="date" v-model="scanDate" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                    </div>
+
+                    <!-- List item -->
+                    <div class="flex flex-col gap-2">
+                        <div
+                            v-for="(item, i) in scanItems"
+                            :key="i"
+                            class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-start p-3 bg-slate-50 rounded-xl border border-slate-100"
+                        >
+                            <div class="flex flex-col gap-1">
+                                <input
+                                    v-model="item.description"
+                                    class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                                    placeholder="Nama item"
+                                />
+                                <div class="flex gap-2">
+                                    <select
+                                        v-model="item.category"
+                                        class="border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white flex-1"
+                                    >
+                                        <option v-for="cat in CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
+                                    </select>
+                                    <input
+                                        v-if="item.category === 'Lainnya'"
+                                        v-model="item.customCategory"
+                                        class="border border-violet-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white flex-1"
+                                        placeholder="Tulis kategori..."
+                                    />
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-xs text-slate-400">Rp</span>
+                                <input
+                                    type="number"
+                                    v-model.number="item.amount"
+                                    class="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                                />
+                            </div>
+                            <button @click="scanItems.splice(i, 1)" class="text-red-400 hover:text-red-600 p-1.5 self-start">
+                                <i class="pi pi-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Total -->
+                    <div class="flex justify-between items-center py-3 border-t border-slate-100">
+                        <span class="text-sm font-bold text-slate-600">Total Struk</span>
+                        <span class="text-sm font-bold text-slate-800">
+                            Rp {{ scanItems.reduce((s, i) => s + i.amount, 0).toLocaleString('id-ID') }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="p-5 border-t border-slate-100 flex justify-end gap-3">
+                    <button @click="closeScanModal" class="px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button
+                        @click="submitScan"
+                        :disabled="scanSaving || !scanItems.length"
+                        class="px-5 py-2.5 text-sm font-bold bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50"
+                    >
+                        {{ scanSaving ? 'Menyimpan...' : `Simpan ${scanItems.length} Item` }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Modal Import CSV -->
         <div v-if="importModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh]">

@@ -1,9 +1,11 @@
 <?php
 
 use App\Modules\Expense\ExpenseController;
+use App\Modules\Expense\ReceiptScanController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('expenses')->group(function () {
+    Route::post('/scan-receipt', [ReceiptScanController::class, 'scan']);
     Route::get('/',                      [ExpenseController::class, 'index']);
     Route::post('/',                     [ExpenseController::class, 'store']);
     Route::put('/{id}',                  [ExpenseController::class, 'update']);

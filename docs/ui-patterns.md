@@ -4,6 +4,34 @@ Panduan pola UI yang dipakai konsisten di seluruh project.
 
 ---
 
+## Dark Mode
+
+**Toggle:** Tombol bulan/matahari di topbar kanan (sebelah NotificationBell).
+
+**Implementasi:**
+- `resources/js/composables/useDarkMode.ts` — singleton, toggle class `dark` di `<html>`, simpan ke `localStorage('theme')`
+- `resources/views/app.blade.php` — inline script sebelum CSS load untuk apply dark class tanpa flash
+- `resources/css/app.css` — CSS variables (`--bg-base`, `--bg-card`, `--bg-subtle`, dll) swap di `.dark`, plus global overrides untuk Tailwind classes (`bg-white`, `text-slate-*`, `border-slate-*`, dll)
+
+**Menambah dark mode ke komponen baru:**
+- Untuk background utama: pakai `style="background-color: var(--bg-card);"` atau `var(--bg-subtle)`
+- Untuk text: `style="color: var(--text-base);"` atau `var(--text-muted)`
+- Untuk border: `style="border-color: var(--border);"`
+- Tailwind classes standar (`bg-white`, `bg-slate-50`, `text-slate-*`) sudah di-override otomatis via global CSS
+
+**CSS Variables tersedia:**
+| Variable | Light | Dark |
+|---|---|---|
+| `--bg-base` | #faf9f6 | #0d1117 |
+| `--bg-card` | #ffffff | #161f2e |
+| `--bg-subtle` | #f8fafc | #1e2d3d |
+| `--bg-input` | #ffffff | #1e2d3d |
+| `--text-base` | #0f172a | #e2e8f0 |
+| `--text-muted` | #64748b | #94a3b8 |
+| `--border` | #e2e8f0 | #2d3f55 |
+
+---
+
 ## Layout
 
 ### MainLayout.vue

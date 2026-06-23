@@ -250,6 +250,7 @@ Muncul di overview kalau `calibrationStatus.is_overdue === true`. Tombol langsun
 | GET | `/expenses` | Semua pengeluaran |
 | POST | `/expenses` | Tambah pengeluaran |
 | PUT | `/expenses/{id}` | Update pengeluaran |
+| POST | `/expenses/scan-receipt` | Scan struk via Gemini Vision AI |
 | DELETE | `/expenses/{id}` | Hapus pengeluaran |
 | GET | `/expenses/summary?month=` | Ringkasan per kategori |
 | POST | `/expenses/import` | Import CSV |
@@ -279,6 +280,19 @@ Pilih "Lainnya" → input custom kategori muncul.
 - Export laporan PDF: ringkasan + tabel detail + tanda tangan
 - Struk bisa diupload dan dilihat langsung dari list
 - Entri yang berasal dari RAB ditandai (via `expense_transaction_id`)
+
+### Scan Struk (AI)
+- Tombol **Scan Struk** di header (ungu, sebelah Import CSV)
+- Klik → file picker terbuka (kamera di mobile via `capture="environment"`)
+- Gambar dikirim ke `POST /expenses/scan-receipt`
+- Backend kirim ke **Gemini 1.5 Flash** (Google AI) → parse nama item + harga
+- Modal review muncul: tiap item bisa diedit nama, nominal, dan kategori
+- Kategori di-guess otomatis berdasarkan keyword nama item (beras/telur → Belanja, makan/kopi → Makan, dll)
+- Jika kategori "Lainnya" → muncul input custom kategori
+- Tanggal struk bisa diubah sebelum simpan
+- Klik Simpan → semua item masuk sekaligus sebagai expense entries terpisah
+- **Config:** `GEMINI_API_KEY` di `.env`, entry di `config/services.php` → `services.gemini.key`
+- **Backend:** `app/Modules/Expense/ReceiptScanController.php`
 
 ---
 

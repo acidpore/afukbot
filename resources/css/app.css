@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-display: "Playfair Display", serif;
   --font-sans: "Inter", sans-serif;
-  
+
   --color-primary: #064e3b;
   --color-primary-light: #065f46;
   --color-accent: #c9a84c;
   --color-gold: #c9a84c;
 }
 
-@utility glass {
-  background-color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+/* ── CSS Variables (light/dark) ────────────────────────────── */
+:root {
+  --bg-base:    #faf9f6;
+  --bg-surface: rgba(255,255,255,0.7);
+  --bg-card:    #ffffff;
+  --bg-subtle:  #f8fafc;
+  --bg-muted:   #f1f5f9;
+  --bg-input:   #ffffff;
+  --text-base:  #0f172a;
+  --text-muted: #64748b;
+  --text-soft:  #94a3b8;
+  --border:     #e2e8f0;
+  --border-soft:#f1f5f9;
+  --scrollbar:  rgba(201,168,76,0.3);
 }
 
-/* Prevent iOS Safari auto-zoom on input focus (triggered when font-size < 16px) */
-input, select, textarea {
-  font-size: 16px;
+.dark {
+  --bg-base:    #0d1117;
+  --bg-surface: rgba(22,32,46,0.85);
+  --bg-card:    #161f2e;
+  --bg-subtle:  #1e2d3d;
+  --bg-muted:   #1a2535;
+  --bg-input:   #1e2d3d;
+  --text-base:  #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-soft:  #64748b;
+  --border:     #2d3f55;
+  --border-soft:#1e2d3d;
+  --scrollbar:  rgba(201,168,76,0.4);
+  color-scheme: dark;
+}
+
+/* ── Utilities ─────────────────────────────────────────────── */
+@utility glass {
+  background-color: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
 @utility premium-card {
@@ -30,7 +60,7 @@ input, select, textarea {
   transition: all 0.3s;
   &:hover {
     transform: translateY(-0.25rem);
-    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.3);
   }
 }
 
@@ -42,21 +72,19 @@ input, select, textarea {
   padding-bottom: 0.625rem;
   border-radius: 0.75rem;
   font-weight: 600;
-  box-shadow: 0 10px 15px -3px rgba(6, 78, 59, 0.2);
+  box-shadow: 0 10px 15px -3px rgba(6,78,59,0.2);
   transition: all 0.2s;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  &:hover {
-    background-color: var(--color-primary-light);
-  }
-  &:active {
-    transform: scale(0.95);
-  }
+  &:hover { background-color: var(--color-primary-light); }
+  &:active { transform: scale(0.95); }
 }
 
 @utility btn-secondary {
-  @apply bg-white text-primary border border-primary/20;
+  background-color: var(--bg-card);
+  color: var(--color-primary);
+  border: 1px solid rgba(6,78,59,0.2);
   padding-left: 1.5rem;
   padding-right: 1.5rem;
   padding-top: 0.625rem;
@@ -67,54 +95,165 @@ input, select, textarea {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  &:hover {
-    background-color: var(--color-primary);
-    color: white;
-  }
-  &:active {
-    transform: scale(0.95);
-  }
+  &:hover { background-color: var(--color-primary); color: white; }
+  &:active { transform: scale(0.95); }
 }
 
+/* ── Base ──────────────────────────────────────────────────── */
 @layer base {
-  body, input, select, textarea, button {
-    @apply bg-[#faf9f6] text-slate-900 font-sans antialiased;
-    background-image: radial-gradient(at 0% 0%, rgba(201, 168, 76, 0.05) 0, transparent 50%),
-                      radial-gradient(at 50% 0%, rgba(6, 78, 59, 0.03) 0, transparent 50%);
+  html {
+    background-color: var(--bg-base);
   }
-  
-  /* Reset background for form elements */
+
+  body {
+    @apply font-sans antialiased;
+    background-color: var(--bg-base);
+    color: var(--text-base);
+    background-image: radial-gradient(at 0% 0%, rgba(201,168,76,0.05) 0, transparent 50%),
+                      radial-gradient(at 50% 0%, rgba(6,78,59,0.03) 0, transparent 50%);
+  }
+
   input, select, textarea {
+    font-size: 16px;
     background-image: none !important;
+    background-color: var(--bg-input);
+    color: var(--text-base);
+    border-color: var(--border);
   }
 }
 
+/* ── Global dark overrides (covers all modules without per-component edits) ── */
+.dark {
+  /* Primary color — lighten for readability on dark bg */
+  & .text-primary       { color: #4ade80 !important; }
+  & .border-primary     { border-color: #4ade80 !important; }
+  & .text-primary\/40   { color: rgba(74,222,128,0.4) !important; }
+
+  /* Hardcoded primary colors (#1D3557 navy, #457B9D mid-blue) — cover SalesModule, SuratJalan, Income */
+  & .text-\[\#1D3557\]                                    { color: #4ade80 !important; }
+  & .hover\:text-\[\#1D3557\]:hover                       { color: #4ade80 !important; }
+  & .hover\:text-\[\#162840\]:hover                       { color: #4ade80 !important; }
+  & .group-hover\:text-\[\#1D3557\]                       { color: #4ade80 !important; }
+  & .bg-\[\#1D3557\]                                      { background-color: #166534 !important; }
+  & .hover\:bg-\[\#162840\]:hover                         { background-color: #14532d !important; }
+  & .bg-\[\#1D3557\]\/8                                   { background-color: rgba(74,222,128,0.08) !important; }
+  & .bg-\[\#1D3557\]\/10                                  { background-color: rgba(74,222,128,0.10) !important; }
+  & .border-\[\#1D3557\]                                  { border-color: #4ade80 !important; }
+  & .hover\:border-\[\#1D3557\]\/20:hover                 { border-color: rgba(74,222,128,0.2) !important; }
+  & .border-\[\#1D3557\]\/20                              { border-color: rgba(74,222,128,0.2) !important; }
+  & .focus\:border-\[\#1D3557\]:focus                     { border-color: #4ade80 !important; }
+  & .focus-within\:border-\[\#1D3557\]:focus-within       { border-color: #4ade80 !important; }
+  & .focus\:ring-\[\#1D3557\]\/20:focus                   { --tw-ring-color: rgba(74,222,128,0.2) !important; }
+  & .focus-within\:ring-\[\#1D3557\]\/10:focus-within     { --tw-ring-color: rgba(74,222,128,0.1) !important; }
+  & .text-\[\#457B9D\]                                    { color: #7dd3fc !important; }
+  & .bg-\[\#457B9D\]                                      { background-color: #0369a1 !important; }
+  & .bg-\[\#457B9D\]\/30                                  { background-color: rgba(125,211,252,0.15) !important; }
+
+  /* BudgetModule premium-card — override scoped amber gradient */
+  & .premium-card {
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-subtle) 100%) !important;
+    border-color: var(--border) !important;
+  }
+
+  /* Semantic text colors — lighten dark shades for readability on dark bg */
+  & .text-green-600    { color: #4ade80 !important; }
+  & .text-green-700    { color: #4ade80 !important; }
+  & .text-blue-600     { color: #60a5fa !important; }
+  & .text-blue-700     { color: #93c5fd !important; }
+  & .text-amber-700    { color: #fcd34d !important; }
+  & .text-amber-800    { color: #fbbf24 !important; }
+  & .text-amber-900    { color: #f59e0b !important; }
+
+  /* Backgrounds */
+  & .bg-white           { background-color: var(--bg-card) !important; }
+  & .bg-slate-50        { background-color: var(--bg-subtle) !important; }
+  & .bg-slate-100       { background-color: var(--bg-muted) !important; }
+  & .bg-slate-200       { background-color: #2d3f55 !important; }
+  & .bg-gray-50         { background-color: var(--bg-subtle) !important; }
+  & .bg-gray-100        { background-color: var(--bg-muted) !important; }
+  & .bg-amber-50        { background-color: rgba(251,191,36,0.07) !important; }
+  & .border-amber-100   { border-color: rgba(251,191,36,0.15) !important; }
+
+  /* Text — semakin gelap di light = semakin terang di dark */
+  & .text-slate-900     { color: #f1f5f9 !important; }
+  & .text-slate-800     { color: #e2e8f0 !important; }
+  & .text-slate-700     { color: #cbd5e1 !important; }
+  & .text-slate-600     { color: #94a3b8 !important; }
+  & .text-slate-500     { color: #94a3b8 !important; }
+  & .text-slate-400     { color: #cbd5e1 !important; }
+  & .text-slate-300     { color: #e2e8f0 !important; }
+  & .text-gray-900      { color: #f1f5f9 !important; }
+  & .text-gray-800      { color: #e2e8f0 !important; }
+  & .text-gray-700      { color: #cbd5e1 !important; }
+  & .text-gray-600      { color: #94a3b8 !important; }
+  & .text-gray-500      { color: #94a3b8 !important; }
+  & .text-gray-400      { color: #cbd5e1 !important; }
+  & .text-gray-300      { color: #e2e8f0 !important; }
+
+  /* Borders */
+  & .border-slate-200   { border-color: var(--border) !important; }
+  & .border-slate-100   { border-color: var(--border-soft) !important; }
+  & .border-gray-300    { border-color: var(--border) !important; }
+  & .border-gray-200    { border-color: var(--border) !important; }
+  & .border-gray-100    { border-color: var(--border-soft) !important; }
+
+  /* Dividers */
+  & .divide-slate-200   > * + * { border-color: var(--border) !important; }
+  & .divide-gray-200    > * + * { border-color: var(--border) !important; }
+
+  /* Hover */
+  & .hover\:bg-slate-50:hover  { background-color: var(--bg-subtle) !important; }
+  & .hover\:bg-slate-100:hover { background-color: var(--bg-muted) !important; }
+  & .hover\:bg-gray-50:hover   { background-color: var(--bg-subtle) !important; }
+  & .hover\:bg-gray-100:hover  { background-color: var(--bg-muted) !important; }
+
+  /* Inputs */
+  & input:not([class*="bg-"]),
+  & select:not([class*="bg-"]),
+  & textarea:not([class*="bg-"]) {
+    background-color: var(--bg-input);
+    color: var(--text-base);
+    border-color: var(--border);
+  }
+
+  & input::placeholder,
+  & textarea::placeholder {
+    color: var(--text-soft);
+  }
+
+  /* Tables */
+  & table { color: var(--text-base); }
+  & thead { background-color: var(--bg-subtle); }
+  & tbody tr:hover { background-color: var(--bg-subtle) !important; }
+
+  /* Modal backdrops — darken further */
+  & .bg-white\/80 { background-color: rgba(22,32,46,0.85) !important; }
+
+  /* Shadows  */
+  & .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.4) !important; }
+  & .shadow    { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.4) !important; }
+}
+
+/* ── Utilities ─────────────────────────────────────────────── */
 @layer utilities {
   .islamic-pattern {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23c9a84c' fill-opacity='0.05'%3E%3Cpath d='M40 0l6.18 17.82L64.14 15.86 50 30l17.82 6.18-2 18.28L48.28 52 40 70l-8.28-18L14.14 54.46l-1.96-18.28L30 30 15.86 15.86l17.96 1.96z'/%3E%3C/g%3E%3C/svg%3E");
   }
-  
+
   .section-divider {
     @apply flex items-center justify-center gap-4 py-8;
   }
-  
   .section-divider::before, .section-divider::after {
     content: '';
     @apply h-[1px] w-24 bg-gradient-to-r from-transparent via-accent to-transparent;
   }
 }
 
+/* Prevent iOS Safari auto-zoom */
+input, select, textarea { font-size: 16px; }
+
 /* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(201, 168, 76, 0.3);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(201, 168, 76, 0.5);
-}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(201,168,76,0.5); }

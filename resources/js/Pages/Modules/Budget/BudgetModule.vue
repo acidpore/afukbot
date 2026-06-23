@@ -387,11 +387,11 @@
 
           <div class="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
             <button
-                @click="exportTransactionsAsCsv"
+                @click="exportTransactionsAsExcel"
                 :disabled="!transactions.length"
                 class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg hover:bg-emerald-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-                <i class="pi pi-download text-xs"></i> Export ke CSV Expenses
+                <i class="pi pi-file-excel text-xs"></i> Export Excel
             </button>
             <span class="text-sm font-semibold text-gray-700">
               Total: {{ fmt(transactions.reduce((s: number, t: any) => s + Number(t.amount), 0)) }}
@@ -1137,22 +1137,24 @@ async function doImport() {
   }
 }
 
-function exportTransactionsAsCsv() {
+function exportTransactionsAsExcel() {
     if (!transactions.value.length) return;
-    const header = 'tanggal,kategori,deskripsi,jumlah,dibayar_oleh,catatan';
-    const rows = transactions.value.map((tx: any) => {
-        const d = new Date(tx.transaction_date + 'T00:00:00');
-        const tanggal = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-        const kategori = tx.budget_item?.category?.name ?? 'RAB';
-        const deskripsi = tx.budget_item?.name ?? '';
-        const catatan = tx.note ?? '';
-        return `${tanggal},${kategori},${deskripsi},${tx.amount},,${catatan}`;
+    import('xlsx').then(({ utils, writeFile }) => {
+        const rows = transactions.value.map((tx: any) => {
+            const d = new Date(tx.transaction_date + 'T00:00:00');
+            return {
+                Tanggal:   `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`,
+                Kategori:  tx.budget_item?.category?.name ?? 'RAB',
+                Deskripsi: tx.budget_item?.name ?? '',
+                Jumlah:    Number(tx.amount),
+                Catatan:   tx.note ?? '',
+            };
+        });
+        const ws = utils.json_to_sheet(rows);
+        const wb = utils.book_new();
+        utils.book_append_sheet(wb, ws, 'Realisasi RAB');
+        writeFile(wb, 'realisasi_rab.xlsx');
     });
-    const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'realisasi_rab.csv';
-    a.click();
 }
 
 function downloadTemplate() {
@@ -1183,6 +1185,7 @@ onMounted(loadAll)
   background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
   border: 1px solid #fde68a;
 }
+
 
 .modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
