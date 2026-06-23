@@ -647,12 +647,19 @@ Card juga menampilkan: laba bersih, biaya variabel, estimasi PPh Final 0,5% atau
 
 ### Tab Konsultan Pajak
 - **Posisi pajak** — PPh Final (< 4,8 M) atau PPh Badan (≥ 4,8 M)
+- **Proyeksi akhir tahun** — rata-rata masuk/bulan, estimasi omzet akhir tahun, peringatan berapa bulan lagi kena batas Rp 4,8 M
+- **Angsuran PPh 25** — estimasi cicilan bulanan wajib (PPh Badan / 12), hanya muncul saat `over_limit`
+- **Alur pembayaran pajak** — step-by-step interaktif: PPh Final (4 langkah) atau PPh Badan (PPh 25 → SPT Tahunan → PPh 29/28)
 - **Rincian biaya variabel** — semua label biaya dirangkum dengan total tahunan
 - **Klasifikasi pengeluaran** — auto-tag kategori:
   - `deductible`: gaji, sewa, operasional, supplier, transport, dll
   - `non-deductible`: tarik tunai, pribadi, prive
   - `review`: belum terkategori / tidak dikenali
+  - Tombol **Klasifikasi** inline per baris `review` — rename kategori langsung dari tab pajak (bulk update semua transaksi kategori tsb)
 - **Rekomendasi kontekstual** — tips spesifik berdasarkan kondisi data aktual
+- **Timeline Omzet** — tabel masuk/keluar/akumulatif per bulan + badge Aman/Mendekati/Melampaui vs batas Rp 4,8 M. Mobile: card view per bulan
+- **Export PDF** — tombol di header tab, generate laporan 1 halaman: ringkasan keuangan + tabel klasifikasi pengeluaran
+- **AI Konsultan Pajak** — floating bubble `pi-sparkles` pojok kanan bawah (hanya muncul di tab pajak). Chat dengan LLM (Groq `llama-3.3-70b-versatile`) yang sudah diberi konteks data keuangan real. Support multi-turn, suggested questions, countdown rate limit
 
 ### Import Mutasi Bank (Mandiri)
 - Tombol **Import** di header → file picker
@@ -680,6 +687,8 @@ Card juga menampilkan: laba bersih, biaya variabel, estimasi PPh Final 0,5% atau
 | DELETE | `/account-mutations/{id}` | Hapus transaksi |
 | PUT | `/account-mutations/opening` | Set saldo awal |
 | GET | `/account-mutations/categories` | Kategori unik per rekening |
-| GET | `/account-mutations/tax-summary` | Analisis pajak tahunan |
+| GET | `/account-mutations/tax-summary` | Analisis pajak tahunan (+ `projected_yearly_in`, `avg_monthly_in`, `months_to_limit`, `angsuran_pph25`, `monthly_breakdown`) |
+| POST | `/account-mutations/reclassify` | Bulk update kategori pengeluaran per tahun |
 | POST | `/account-mutations/import-preview` | Parse CSV Mandiri → preview rows |
 | POST | `/account-mutations/import-commit` | Simpan hasil import ke DB |
+| POST | `/tax-consultant/chat` | Chat AI konsultan pajak via Groq (multi-turn, konteks data real) |

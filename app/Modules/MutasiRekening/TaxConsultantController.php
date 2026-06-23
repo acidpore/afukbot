@@ -111,7 +111,11 @@ class TaxConsultantController extends Controller
             ->values()
             ->toArray();
 
-        $monthsPassed = ($year === now()->year) ? max(1, now()->month) : 12;
+        $activeMonths = $yearly->pluck('date')
+            ->map(fn($d) => date('n', strtotime($d)))
+            ->unique()
+            ->count();
+        $monthsPassed = max(1, $activeMonths);
 
         return compact(
             'year', 'totalIn', 'totalOut', 'variableCosts', 'netProfit',

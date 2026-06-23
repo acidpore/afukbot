@@ -162,7 +162,12 @@ class AccountMutationController extends Controller
             return $row;
         });
 
-        $monthsPassed       = ($year === now()->year) ? max(1, now()->month) : 12;
+        $activeMonths       = $yearly->whereNotIn('type', ['opening'])
+            ->pluck('date')
+            ->map(fn($d) => date('n', strtotime($d)))
+            ->unique()
+            ->count();
+        $monthsPassed       = max(1, $activeMonths);
         $angsuranPph25      = $pphBadan > 0 ? round($pphBadan / 12) : 0;
         $avgMonthlyIn       = $monthsPassed > 0 ? round($totalIn / $monthsPassed) : 0;
         $projectedYearlyIn  = round($avgMonthlyIn * 12);
