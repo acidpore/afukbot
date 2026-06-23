@@ -573,6 +573,20 @@ const chatMessages  = ref<ChatMessage[]>([])
 const chatInput     = ref('')
 const chatLoading   = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
+const rateLimitSecs = ref(0)
+let rateLimitTimer: ReturnType<typeof setInterval> | null = null
+
+function startRateLimitCountdown(seconds: number) {
+  rateLimitSecs.value = seconds
+  if (rateLimitTimer) clearInterval(rateLimitTimer)
+  rateLimitTimer = setInterval(() => {
+    rateLimitSecs.value--
+    if (rateLimitSecs.value <= 0) {
+      clearInterval(rateLimitTimer!)
+      rateLimitTimer = null
+    }
+  }, 1000)
+}
 
 const SUGGESTED_QUESTIONS = [
   'Berapa pajak yang harus saya bayar bulan ini?',
@@ -600,8 +614,16 @@ async function sendChat() {
       year: year.value,
     })
     chatMessages.value.push({ role: 'assistant', text: res.data.reply })
-  } catch {
-    chatMessages.value.push({ role: 'assistant', text: 'Maaf, terjadi kesalahan. Coba lagi.' })
+  } catch (err: any) {
+    const status = err?.response?.status
+    if (status === 429) {
+      const secs = err.response.data?.retry_after ?? 60
+      const wait = err.response.data?.wait ?? `${secs} detik`
+      startRateLimitCountdown(secs)
+      chatMessages.value.push({ role: 'assistant', text: `Quota AI sedang penuh. Coba lagi dalam ${wait}.` })
+    } else {
+      chatMessages.value.push({ role: 'assistant', text: 'Maaf, terjadi kesalahan. Coba lagi.' })
+    }
   } finally {
     chatLoading.value = false
     await nextTick()
@@ -1915,12 +1937,18 @@ onMounted(async () => {
               </template>
             </div>
 
+            <!-- Rate limit banner -->
+            <div v-if="rateLimitSecs > 0" class="px-4 py-2 bg-amber-50 border-t border-amber-200 flex items-center gap-2 flex-shrink-0">
+              <i class="pi pi-clock text-amber-500 text-xs flex-shrink-0"></i>
+              <p class="text-[11px] text-amber-700 flex-1">Quota penuh — coba lagi dalam <strong>{{ rateLimitSecs }}s</strong></p>
+            </div>
+
             <!-- Input -->
             <div class="p-3 border-t border-slate-100 flex gap-2 flex-shrink-0 bg-white">
-              <input v-model="chatInput" @keyup.enter="sendChat" :disabled="chatLoading"
+              <input v-model="chatInput" @keyup.enter="sendChat" :disabled="chatLoading || rateLimitSecs > 0"
                 placeholder="Ketik pertanyaan..."
                 class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50" />
-              <button @click="sendChat" :disabled="chatLoading || !chatInput.trim()"
+              <button @click="sendChat" :disabled="chatLoading || !chatInput.trim() || rateLimitSecs > 0"
                 class="w-9 h-9 bg-primary rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 hover:bg-primary/90 transition-colors">
                 <i class="pi pi-send text-white text-xs"></i>
               </button>

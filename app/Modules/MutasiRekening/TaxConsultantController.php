@@ -51,6 +51,22 @@ class TaxConsultantController extends Controller
 
         if (!$response->successful()) {
             \Log::error('Groq chat failed', ['status' => $response->status(), 'body' => $response->body()]);
+
+            if ($response->status() === 429) {
+                $retryAfter = (int) ($response->header('retry-after')
+                    ?? $response->json('error.message') && preg_match('/(\d+(\.\d+)?)s/', $response->json('error.message', ''), $m) ? ceil((float)$m[1]) : 60);
+
+                $wait = $retryAfter >= 60
+                    ? round($retryAfter / 60) . ' menit'
+                    : $retryAfter . ' detik';
+
+                return response()->json([
+                    'message'     => 'Quota AI habis.',
+                    'retry_after' => $retryAfter,
+                    'wait'        => $wait,
+                ], 429);
+            }
+
             return response()->json(['message' => 'Gagal menghubungi AI. Coba lagi.'], 502);
         }
 
