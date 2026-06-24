@@ -45,7 +45,8 @@
       "mcp__plugin_ecc_chrome-devtools__fill",
       "mcp__plugin_ecc_chrome-devtools__take_snapshot",
       "mcp__plugin_ecc_chrome-devtools__evaluate_script",
-      "mcp__plugin_ecc_chrome-devtools__emulate"
+      "mcp__plugin_ecc_chrome-devtools__emulate",
+      "PowerShell(php artisan make:migration add_is_omzet_to_account_mutations_table --table=account_mutations)"
     ]
   }
 }

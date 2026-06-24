@@ -56,9 +56,9 @@ class AccountMutationController extends Controller
             ->whereYear('date', $year)
             ->get();
 
-        $yearlyTotalIn       = $yearlyRows->where('type', 'in')->sum('amount');
+        $yearlyTotalIn       = $yearlyRows->where('type', 'in')->where('is_omzet', true)->sum('amount');
         $yearlyTotalOut      = $yearlyRows->where('type', 'out')->sum('amount');
-        $yearlyVariableCosts = $yearlyRows->where('type', 'in')->sum(fn($m) =>
+        $yearlyVariableCosts = $yearlyRows->where('type', 'in')->where('is_omzet', true)->sum(fn($m) =>
             collect($m->costs ?? [])->sum('amount')
         );
 
@@ -104,9 +104,9 @@ class AccountMutationController extends Controller
             ->whereYear('date', $year)
             ->get();
 
-        $totalIn        = $yearly->where('type', 'in')->sum('amount');
+        $totalIn        = $yearly->where('type', 'in')->where('is_omzet', true)->sum('amount');
         $totalOut       = $yearly->where('type', 'out')->sum('amount');
-        $variableCosts  = $yearly->where('type', 'in')->sum(fn($m) => collect($m->costs ?? [])->sum('amount'));
+        $variableCosts  = $yearly->where('type', 'in')->where('is_omzet', true)->sum(fn($m) => collect($m->costs ?? [])->sum('amount'));
 
         // Klasifikasi pengeluaran berdasarkan kategori
         $deductibleKeywords    = ['gaji', 'sewa', 'listrik', 'air', 'internet', 'telepon', 'operasional', 'supplier',
@@ -243,7 +243,10 @@ class AccountMutationController extends Controller
             'costs'            => 'nullable|array',
             'costs.*.label'    => 'required|string|max:100',
             'costs.*.amount'   => 'required|integer|min:0',
+            'is_omzet'         => 'boolean',
         ]);
+
+        $data['is_omzet'] = $data['is_omzet'] ?? true;
 
         return response()->json(AccountMutation::create($data), 201);
     }
@@ -259,6 +262,7 @@ class AccountMutationController extends Controller
             'costs'            => 'nullable|array',
             'costs.*.label'    => 'required|string|max:100',
             'costs.*.amount'   => 'required|integer|min:0',
+            'is_omzet'         => 'boolean',
         ]);
 
         $mutation = AccountMutation::findOrFail($id);

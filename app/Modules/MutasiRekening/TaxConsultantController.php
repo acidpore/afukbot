@@ -82,9 +82,9 @@ class TaxConsultantController extends Controller
             ->whereYear('date', $year)
             ->get();
 
-        $totalIn       = $yearly->where('type', 'in')->sum('amount');
+        $totalIn       = $yearly->where('type', 'in')->where('is_omzet', true)->sum('amount');
         $totalOut      = $yearly->where('type', 'out')->sum('amount');
-        $variableCosts = $yearly->where('type', 'in')->sum(fn($m) => collect($m->costs ?? [])->sum('amount'));
+        $variableCosts = $yearly->where('type', 'in')->where('is_omzet', true)->sum(fn($m) => collect($m->costs ?? [])->sum('amount'));
         $netProfit     = $totalIn - $totalOut - $variableCosts;
         $limit         = 4_800_000_000;
         $overLimit     = $totalIn >= $limit;

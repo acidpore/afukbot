@@ -24,7 +24,7 @@ function showToast(message: string, type = 'success') {
 const showForm   = ref(false)
 const editingId  = ref<number | null>(null)
 const submitting = ref(false)
-const form = ref({ date: today(), type: 'in', amount: '', description: '', category: '', costs: [] as { label: string; amount: string }[] })
+const form = ref({ date: today(), type: 'in', amount: '', description: '', category: '', costs: [] as { label: string; amount: string }[], is_omzet: true })
 
 function today() { return new Date().toISOString().slice(0, 10) }
 
@@ -38,10 +38,11 @@ function openForm(mutation?: any) {
       description: mutation.description ?? '',
       category: mutation.category ?? '',
       costs: (mutation.costs ?? []).map((c: any) => ({ label: c.label, amount: c.amount.toLocaleString('id-ID') })),
+      is_omzet: mutation.is_omzet ?? true,
     }
   } else {
     editingId.value = null
-    form.value = { date: today(), type: 'in', amount: '', description: '', category: '', costs: [] }
+    form.value = { date: today(), type: 'in', amount: '', description: '', category: '', costs: [], is_omzet: true }
   }
   showForm.value = true
 }
@@ -1119,6 +1120,7 @@ onMounted(async () => {
                     <span class="text-xs text-slate-400">{{ fmtDate(m.date) }}</span>
                     <span class="text-[10px] text-slate-300">{{ fmtTime(m.created_at) }}</span>
                     <span v-if="m.category" class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">{{ m.category }}</span>
+                    <span v-if="m.type === 'in' && m.is_omzet === false" class="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-bold">Bukan Omzet</span>
                   </div>
                 </div>
                 <div class="text-right flex-shrink-0">
@@ -1215,6 +1217,7 @@ onMounted(async () => {
                   </td>
                   <td class="px-5 py-4 text-sm text-slate-700 max-w-[200px]">
                     <p class="truncate">{{ m.description || '—' }}</p>
+                    <span v-if="m.type === 'in' && m.is_omzet === false" class="inline-block mt-0.5 text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-bold">Bukan Omzet</span>
                     <div v-if="m.costs?.length" class="mt-1 space-y-0.5">
                       <p v-for="c in m.costs" :key="c.label" class="text-[10px] text-slate-400 truncate">
                         − {{ c.label }}: <span class="font-semibold text-red-400">{{ fmt(c.amount) }}</span>
@@ -1333,7 +1336,22 @@ onMounted(async () => {
                 class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
               <datalist id="kategori-list">
                 <option v-for="cat in categories" :key="cat" :value="cat" />
+
               </datalist>
+            </div>
+
+            <!-- Toggle omzet (hanya untuk transaksi masuk) -->
+            <div v-if="form.type === 'in'" class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p class="text-xs font-bold text-slate-700">Hitung sebagai Omzet</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Nonaktifkan untuk transfer sendiri, pinjaman, atau dana titipan</p>
+              </div>
+              <button type="button" @click="form.is_omzet = !form.is_omzet"
+                class="relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0"
+                :class="form.is_omzet ? 'bg-primary' : 'bg-slate-300'">
+                <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                  :class="form.is_omzet ? 'translate-x-5' : 'translate-x-0'"></span>
+              </button>
             </div>
 
             <!-- Biaya Variabel (hanya untuk transaksi masuk) -->
