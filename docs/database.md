@@ -189,46 +189,137 @@ Fitur yang dikontrol: `inventory`, `sales`, `expenses`, `incomes`, `rab`, `emplo
 
 ## RAB (Budget)
 
-### `budget_periods`
+> **RAB per periode (multi-periode).** Sumber kebenaran periode = `rab_periods`. Satu baris `is_active = true` adalah periode yang sedang diedit. "Buat RAB Baru" meng-clone seluruh kategori + item periode aktif ke periode baru lalu set aktif — sehingga RAB & realisasi periode lama tidak berubah saat periode aktif diedit. Periode lama bersifat read-only di UI.
+
+### `rab_periods` (master periode — BARU)
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | bigint PK | |
-| name | string | Nama periode |
+| name | string | Nama periode (mis. "Periode Juli 2026") |
 | start_date | date | |
 | end_date | date | |
+| is_active | boolean | Hanya satu yang true = periode aktif/editable |
 
-### `budget_period_settings`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| id | bigint PK | |
-| period_id | FK budget_periods | Periode aktif saat ini |
+### `budget_period_setting` (LEGACY)
+Single-row, sisa desain lama. **Tidak lagi dipakai** — rentang periode aktif sekarang dibaca/ditulis ke `rab_periods` (baris `is_active`). Endpoint `GET/PUT /budget/period-setting` kini mengoperasikan periode aktif di `rab_periods`.
 
 ### `budget_categories`
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | bigint PK | |
 | name | string | |
+| total_budget | bigint | Default 0 |
+| period_id | FK rab_periods nullable | Scope kategori ke satu periode (nullOnDelete) |
 
 ### `budget_items`
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | bigint PK | |
-| category_id | FK budget_categories | |
+| category_id | FK budget_categories (cascade) | |
 | name | string | |
-| unit_cost | decimal | |
+| unit_cost | bigint | |
 | rate | enum | `harian`, `mingguan`, `dua_mingguan`, `bulanan`, `custom` |
 | multiplier | integer | |
-| is_active | boolean | |
+| total_monthly_budget | bigint generated | `unit_cost * multiplier` (kolom storedAs) |
+| is_active | boolean | getCategories hanya menampilkan item `is_active = true` |
+| deleted_at | timestamp nullable | **Soft delete** — hapus item TIDAK menghapus realisasinya |
 
-### `expense_transactions`
+> Hapus item = soft delete, jadi FK cascade ke `expense_transactions` tidak ter-trigger (realisasi historis aman). Relasi `ExpenseTransaction::budgetItem()` pakai `withTrashed()` agar nama item tetap tampil di Realisasi setelah item di-soft-delete.
+
+### `expense_transactions` (Realisasi)
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | bigint PK | |
-| budget_item_id | FK budget_items | |
-| date | date | |
-| amount | decimal | |
-| notes | text nullable | |
+| budget_item_id | FK budget_items (onDelete cascade) | |
+| transaction_date | date | |
+| amount | bigint | |
+| note | string nullable | |
 | receipt_path | string nullable | |
+| deleted_at | timestamp nullable | Soft delete |
+
+> Tiap transaksi di-mirror ke tabel `expenses` (kolom `expense_transaction_id`) agar tampil di halaman Pengeluaran. Di halaman Pengeluaran ada badge "RAB" untuk baris yang `expense_transaction_id`-nya terisi.
+
+### `budget_periods` (snapshot bulanan)
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| month | string(7) | `YYYY-MM` |
+| category_id | FK budget_categories | |
+| planned_amount | bigint | |
+| actual_amount | bigint | |
+| variance | bigint generated | `planned_amount - actual_amount` |
+| status | enum | `on_track`, `warning`, `over_budget` |
+| | | unique(`month`, `category_id`) |
+
+### `budget_proposals` (Pengajuan — BARU)
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| period_id | FK rab_periods (cascade) | |
+| name | string | Barang yang mau dibeli (mis. "TV") |
+| brand | string nullable | Merk diusulkan |
+| price | bigint | Harga diusulkan |
+| note | text nullable | Alasan/keterangan |
+| analysis | json nullable | Array alternatif: `[{brand, price, note}]` |
+| status | enum | `pending`, `bought` |
+| bought_at | date nullable | Diisi saat ditandai terbeli |
+
+---
+
+## Invoice Eksternal (Invoicing) — MODUL BARU
+
+> Modul invoice multi-perusahaan **terpisah** dari modul Sales. Tujuan: bikin invoice "pembelian dari luar" untuk keperluan audit. Wajib PPN 11% dengan dua mode harga. Tabel customer sengaja dinamai `invoice_customers` agar tidak bentrok.
+
+### `companies` (penerbit invoice)
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| name / legal_name | string | |
+| logo_path / signature_path | string nullable | File di disk `public`; accessor `logo_url`/`signature_url` |
+| npwp, address, phone, email | string/text nullable | |
+| bank_name, bank_account, bank_holder | string nullable | |
+| brand_primary, brand_secondary | string(9) | Warna hex untuk styling layout |
+| font_family | string | Default `Inter` |
+| template_variant | enum | `modern`, `classic`, `minimal`, `bold` |
+| invoice_prefix | string | Prefix nomor (mis. `INV/HAOHAO`) |
+| invoice_counter | unsigned int | Sequence per-company, increment atomik |
+
+### `invoice_customers`
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| name | string | |
+| company_address, phone, email, npwp | nullable | Dibuat inline saat simpan invoice |
+
+### `invoices`
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| company_id | FK companies (cascade) | |
+| customer_id | FK invoice_customers nullable | |
+| invoice_number | string unique | `{prefix}/{tahun}/{urut 3 digit}` |
+| issue_date / due_date | date / nullable | |
+| status | enum | `draft`, `sent`, `paid`, `overdue` |
+| price_mode | enum | `exclusive` (PPN ditambah) / `inclusive` (harga sudah termasuk PPN) |
+| subtotal | bigint | DPP (dasar pengenaan pajak) |
+| discount | bigint | |
+| tax_percent | decimal(5,2) | Default 11 |
+| tax_amount | bigint | |
+| total | bigint | |
+| currency | string | Default `IDR` |
+| notes | text nullable | |
+
+### `invoice_items`
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| id | bigint PK | |
+| invoice_id | FK invoices (cascade) | |
+| description | string | |
+| qty | decimal(12,2) | |
+| unit_price | bigint | |
+| line_total | bigint | `qty * unit_price` |
+
+**Reverse-tax (`price_mode = inclusive`):** total = jumlah line item − diskon; `subtotal = round(total / (1 + tax%))`; `tax_amount = total − subtotal`. Contoh: 1 item 350.000.000 → DPP 315.315.315 + PPN 34.684.685 = total pas 350.000.000.
 
 ---
 

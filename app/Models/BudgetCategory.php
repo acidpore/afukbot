@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BudgetCategory extends Model
 {
-    protected $fillable = ['name', 'total_budget'];
+    protected $fillable = ['name', 'total_budget', 'period_id'];
 
     public function items(): HasMany
     {

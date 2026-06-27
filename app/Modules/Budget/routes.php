@@ -3,6 +3,17 @@
 use App\Modules\Budget\BudgetController;
 use Illuminate\Support\Facades\Route;
 
+// Periods (RAB per periode)
+Route::get('/budget/periods', [BudgetController::class, 'indexPeriods']);
+Route::post('/budget/periods', [BudgetController::class, 'storePeriod']);
+Route::delete('/budget/periods/{id}', [BudgetController::class, 'destroyPeriod']);
+
+// Proposals (Pengajuan)
+Route::get('/budget/proposals', [BudgetController::class, 'indexProposals']);
+Route::post('/budget/proposals', [BudgetController::class, 'storeProposal']);
+Route::put('/budget/proposals/{id}', [BudgetController::class, 'updateProposal']);
+Route::delete('/budget/proposals/{id}', [BudgetController::class, 'destroyProposal']);
+
 // Categories
 Route::get('/budget/categories', [BudgetController::class, 'indexCategories']);
 Route::post('/budget/categories', [BudgetController::class, 'storeCategory']);

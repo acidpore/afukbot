@@ -5,23 +5,149 @@ namespace App\Modules\Budget;
 use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\BudgetPeriod;
+use App\Models\BudgetProposal;
 use App\Models\Expense;
 use App\Models\ExpenseTransaction;
+use App\Models\RabPeriod;
 use Illuminate\Support\Facades\DB;
-use App\Models\BudgetPeriodSetting;
 use Illuminate\Support\Facades\Storage;
 
 class BudgetService
 {
+    // ── Periods (RAB per periode) ─────────────────────────────
+
+    public function listPeriods(): \Illuminate\Database\Eloquent\Collection
+    {
+        return RabPeriod::orderByDesc('start_date')->orderByDesc('id')->get();
+    }
+
+    private function activePeriod(): RabPeriod
+    {
+        return RabPeriod::where('is_active', true)->first()
+            ?? RabPeriod::create([
+                'name'       => 'Periode ' . now()->format('M Y'),
+                'start_date' => now()->startOfMonth()->toDateString(),
+                'end_date'   => now()->endOfMonth()->toDateString(),
+                'is_active'  => true,
+            ]);
+    }
+
+    private function resolvePeriod(?int $periodId): RabPeriod
+    {
+        return $periodId ? RabPeriod::findOrFail($periodId) : $this->activePeriod();
+    }
+
+    /** Buat RAB periode baru — clone kategori + item dari periode aktif, lalu jadikan aktif. */
+    public function createPeriod(array $data): RabPeriod
+    {
+        return DB::transaction(function () use ($data) {
+            $source = $this->activePeriod();
+            RabPeriod::query()->update(['is_active' => false]);
+
+            $new = RabPeriod::create([
+                'name'       => $data['name'],
+                'start_date' => $data['start_date'],
+                'end_date'   => $data['end_date'],
+                'is_active'  => true,
+            ]);
+
+            foreach (BudgetCategory::with('items')->where('period_id', $source->id)->get() as $cat) {
+                $newCat = BudgetCategory::create([
+                    'name'         => $cat->name,
+                    'total_budget' => $cat->total_budget,
+                    'period_id'    => $new->id,
+                ]);
+                foreach ($cat->items as $item) {
+                    BudgetItem::create([
+                        'category_id' => $newCat->id,
+                        'name'        => $item->name,
+                        'unit_cost'   => $item->unit_cost,
+                        'rate'        => $item->rate,
+                        'multiplier'  => $item->multiplier,
+                        'is_active'   => $item->is_active,
+                    ]); // total_monthly_budget kolom generated, jangan di-set
+                }
+            }
+
+            return $new;
+        });
+    }
+
+    public function deletePeriod(int $id): void
+    {
+        if (RabPeriod::count() <= 1) {
+            abort(422, 'Tidak bisa menghapus satu-satunya periode.');
+        }
+
+        DB::transaction(function () use ($id) {
+            $period = RabPeriod::findOrFail($id);
+
+            // Bersihkan mirror Expense sebelum cascade FK menghapus transaksi
+            $txIds = ExpenseTransaction::whereHas('budgetItem.category', fn($q) => $q->where('period_id', $id))->pluck('id');
+            if ($txIds->isNotEmpty()) {
+                Expense::whereIn('expense_transaction_id', $txIds)->delete();
+            }
+
+            // Hapus kategori → cascade ke items → cascade ke expense_transactions
+            BudgetCategory::where('period_id', $id)->get()->each->delete();
+
+            $wasActive = $period->is_active;
+            $period->delete();
+
+            if ($wasActive) {
+                RabPeriod::orderByDesc('start_date')->orderByDesc('id')->first()
+                    ?->update(['is_active' => true]);
+            }
+        });
+    }
+
+    // ── Proposals (Pengajuan) ─────────────────────────────────
+
+    public function listProposals(?int $periodId = null): \Illuminate\Database\Eloquent\Collection
+    {
+        $period = $this->resolvePeriod($periodId);
+        return BudgetProposal::where('period_id', $period->id)
+            ->orderByRaw("status = 'bought'") // pending dulu, terbeli di bawah
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function createProposal(array $data): BudgetProposal
+    {
+        $data['period_id'] = $this->activePeriod()->id;
+        return BudgetProposal::create($data);
+    }
+
+    public function updateProposal(int $id, array $data): BudgetProposal
+    {
+        $proposal = BudgetProposal::findOrFail($id);
+        if (($data['status'] ?? null) === 'bought') {
+            $data['bought_at'] = $proposal->bought_at?->toDateString() ?? now()->toDateString();
+        } elseif (($data['status'] ?? null) === 'pending') {
+            $data['bought_at'] = null;
+        }
+        $proposal->update($data);
+        return $proposal->fresh();
+    }
+
+    public function deleteProposal(int $id): void
+    {
+        BudgetProposal::findOrFail($id)->delete();
+    }
+
     // ── Categories ────────────────────────────────────────────
 
-    public function getCategories(): \Illuminate\Database\Eloquent\Collection
+    public function getCategories(?int $periodId = null): \Illuminate\Database\Eloquent\Collection
     {
-        return BudgetCategory::with(['items' => fn($q) => $q->where('is_active', true)->orderBy('name')])->get();
+        $period = $this->resolvePeriod($periodId);
+        return BudgetCategory::where('period_id', $period->id)
+            ->with(['items' => fn($q) => $q->where('is_active', true)->orderBy('name')])
+            ->get();
     }
 
     public function createCategory(array $data): BudgetCategory
     {
+        $data['period_id'] = $this->activePeriod()->id;
         return BudgetCategory::create($data);
     }
 
@@ -58,32 +184,33 @@ class BudgetService
 
     // ── Transactions ──────────────────────────────────────────
 
-    public function getPeriodSetting(): array
+    public function getPeriodSetting(?int $periodId = null): array
     {
-        $period = DB::table('budget_period_setting')->first();
+        $period = $this->resolvePeriod($periodId);
         return [
-            'start_date' => $period->start_date ?? now()->startOfMonth()->toDateString(),
-            'end_date'   => $period->end_date   ?? now()->endOfMonth()->toDateString(),
+            'id'         => $period->id,
+            'name'       => $period->name,
+            'start_date' => $period->start_date->toDateString(),
+            'end_date'   => $period->end_date->toDateString(),
         ];
     }
 
     public function setPeriodSetting(string $startDate, string $endDate): array
     {
-        DB::table('budget_period_setting')->updateOrInsert(
-            ['id' => 1],
-            ['start_date' => $startDate, 'end_date' => $endDate, 'updated_at' => now()]
-        );
-        return $this->getPeriodSetting();
+        $period = $this->activePeriod();
+        $period->update(['start_date' => $startDate, 'end_date' => $endDate]);
+        return $this->getPeriodSetting($period->id);
     }
 
-    public function getTransactions(?string $month = null, ?int $budgetItemId = null, ?string $date = null)
+    public function getTransactions(?string $month = null, ?int $budgetItemId = null, ?string $date = null, ?int $periodId = null)
     {
-        $period = $this->getPeriodSetting();
+        $period = $this->resolvePeriod($periodId);
 
         return ExpenseTransaction::with('budgetItem.category')
+            ->whereHas('budgetItem.category', fn($q) => $q->where('period_id', $period->id))
             ->when($date, fn($q) => $q->whereDate('transaction_date', $date))
             ->when(!$date && $month, fn($q) => $q->whereRaw("DATE_FORMAT(transaction_date, '%Y-%m') = ?", [$month]))
-            ->when(!$date && !$month, fn($q) => $q->whereBetween('transaction_date', [$period['start_date'], $period['end_date']]))
+            ->when(!$date && !$month, fn($q) => $q->whereBetween('transaction_date', [$period->start_date->toDateString(), $period->end_date->toDateString()]))
             ->when($budgetItemId, fn($q) => $q->where('budget_item_id', $budgetItemId))
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
@@ -160,13 +287,14 @@ class BudgetService
 
     // ── Summary / Dashboard ───────────────────────────────────
 
-    public function getSummary(): array
+    public function getSummary(?int $periodId = null): array
     {
-        $period     = $this->getPeriodSetting();
-        $startDate  = $period['start_date'];
-        $endDate    = $period['end_date'];
+        $period     = $this->resolvePeriod($periodId);
+        $startDate  = $period->start_date->toDateString();
+        $endDate    = $period->end_date->toDateString();
 
-        $categories = BudgetCategory::with(['items' => fn($q) => $q->where('is_active', true)])->get();
+        $categories = BudgetCategory::where('period_id', $period->id)
+            ->with(['items' => fn($q) => $q->where('is_active', true)])->get();
 
         $result = [];
         $totalPlanned = 0;

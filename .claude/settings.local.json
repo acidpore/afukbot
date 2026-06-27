@@ -46,7 +46,9 @@
       "mcp__plugin_ecc_chrome-devtools__take_snapshot",
       "mcp__plugin_ecc_chrome-devtools__evaluate_script",
       "mcp__plugin_ecc_chrome-devtools__emulate",
-      "PowerShell(php artisan make:migration add_is_omzet_to_account_mutations_table --table=account_mutations)"
+      "PowerShell(php artisan make:migration add_is_omzet_to_account_mutations_table --table=account_mutations)",
+      "Bash(git -C c:/laragon/www/absensi status --short)",
+      "Bash(git -C c:/laragon/www/absensi log --oneline -1)"
     ]
   }
 }

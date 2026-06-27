@@ -16,6 +16,6 @@ class ExpenseTransaction extends Model
 
     public function budgetItem(): BelongsTo
     {
-        return $this->belongsTo(BudgetItem::class, 'budget_item_id');
+        return $this->belongsTo(BudgetItem::class, 'budget_item_id')->withTrashed();
     }
 }

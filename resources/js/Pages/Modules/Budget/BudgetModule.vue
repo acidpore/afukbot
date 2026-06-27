@@ -8,6 +8,39 @@
       </div>
     </div>
 
+    <!-- Period pills -->
+    <div class="space-y-2">
+      <div class="flex gap-2 overflow-x-auto pb-1">
+        <button v-for="p in periods" :key="p.id" @click="switchPeriod(p.id)"
+          :class="['shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5',
+            p.id === viewPeriodId
+              ? 'bg-amber-500 border-amber-500 text-white'
+              : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300']">
+          {{ p.name }}
+          <span v-if="p.is_active"
+            :class="p.id === viewPeriodId ? 'bg-white/25 text-white' : 'bg-green-100 text-green-700'"
+            class="text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-wide">Aktif</span>
+        </button>
+      </div>
+      <div class="flex justify-end">
+        <button @click="openNewPeriod"
+          class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors inline-flex items-center gap-1.5">
+          <i class="pi pi-plus text-[10px]"></i> Buat RAB Baru
+        </button>
+      </div>
+    </div>
+
+    <!-- Read-only banner periode lama -->
+    <div v-if="!canEdit && viewPeriodId"
+      class="bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
+      <p class="text-xs text-slate-500 flex items-center gap-2">
+        <i class="pi pi-lock text-[10px]"></i>
+        Periode lama — hanya bisa dilihat. Edit hanya di periode aktif.
+      </p>
+      <button @click="confirmDeletePeriod"
+        class="text-xs font-bold text-red-500 hover:text-red-700 transition-colors">Hapus Periode</button>
+    </div>
+
     <!-- Sub-tabs -->
     <div class="border-b border-gray-200 overflow-x-auto">
       <nav class="flex gap-6 min-w-max">
@@ -32,7 +65,7 @@
             {{ period.end_date ? fmtDate(period.end_date) : '—' }}
           </p>
         </div>
-        <button @click="periodEdit = !periodEdit"
+        <button v-if="canEdit" @click="periodEdit = !periodEdit"
           class="text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors">
           {{ periodEdit ? 'Batal' : 'Ubah Periode' }}
         </button>
@@ -131,7 +164,7 @@
     <!-- Tab: Master RAB -->
     <div v-if="activeTab === 'master'" class="space-y-6">
       <!-- Toolbar -->
-      <div class="flex items-center justify-between gap-3 flex-wrap">
+      <div v-if="canEdit" class="flex items-center justify-between gap-3 flex-wrap">
         <div class="flex gap-2">
           <button @click="downloadTemplate"
             class="text-sm border border-gray-300 hover:border-amber-400 text-gray-600 hover:text-amber-600 px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
@@ -163,7 +196,7 @@
               Total rencana: {{ fmt(cat.items.reduce((s: number, i: any) => s + i.total_monthly_budget, 0)) }}/bulan
             </p>
           </div>
-          <div class="flex gap-2">
+          <div v-if="canEdit" class="flex gap-2">
             <button @click="openEditCategory(cat)"
               class="text-xs text-amber-600 hover:text-amber-800 px-2 py-1.5 transition-colors">Edit</button>
             <button @click="confirmDeleteCategory(cat.id)"
@@ -201,10 +234,11 @@
                   </span>
                 </td>
                 <td class="px-4 py-3 text-center">
-                  <div class="flex justify-center gap-2">
+                  <div v-if="canEdit" class="flex justify-center gap-2">
                     <button @click="openEditItem(item)" class="text-xs text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
                     <button @click="confirmDeleteItem(item.id)" class="text-xs text-red-500 hover:text-red-700 transition-colors">Hapus</button>
                   </div>
+                  <span v-else class="text-xs text-gray-300">—</span>
                 </td>
               </tr>
               <tr v-if="!cat.items.length">
@@ -229,7 +263,7 @@
                 </span>
               </div>
             </div>
-            <div class="flex gap-2 shrink-0">
+            <div v-if="canEdit" class="flex gap-2 shrink-0">
               <button @click="openEditItem(item)"
                 class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
                 <i class="pi pi-pencil text-xs"></i>
@@ -238,6 +272,78 @@
                 class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
                 <i class="pi pi-trash text-xs"></i>
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Pengajuan -->
+    <div v-if="activeTab === 'pengajuan'" class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <p class="text-sm text-gray-500">Rencana barang yang mau dibeli + analisa perbandingan.</p>
+        <button v-if="canEdit" @click="openAddProposal"
+          class="w-full sm:w-auto shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-4 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+          <i class="pi pi-plus text-[10px]"></i> Pengajuan
+        </button>
+      </div>
+
+      <div v-if="!proposals.length" class="bg-white rounded-2xl shadow p-12 text-center text-gray-400">
+        <i class="pi pi-shopping-cart text-4xl mb-3 block"></i>
+        <p class="text-sm">Belum ada pengajuan.</p>
+      </div>
+
+      <div v-for="p in proposals" :key="p.id"
+        class="bg-white rounded-2xl shadow p-5 space-y-3"
+        :class="p.status === 'bought' ? 'opacity-70' : ''">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="font-bold text-gray-800">{{ p.name }}</h3>
+              <span :class="p.status === 'bought' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
+                class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                {{ p.status === 'bought' ? 'Terbeli' : 'Pending' }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-600 mt-0.5">
+              <span v-if="p.brand" class="font-semibold">{{ p.brand }}</span>
+              <span v-if="p.brand"> — </span>{{ fmt(p.price) }}
+            </p>
+            <p v-if="p.note" class="text-xs text-gray-500 mt-1">{{ p.note }}</p>
+          </div>
+          <div v-if="canEdit" class="flex gap-2 shrink-0">
+            <button @click="toggleBought(p)"
+              :title="p.status === 'bought' ? 'Kembalikan ke pending' : 'Tandai terbeli'"
+              :class="p.status === 'bought' ? 'bg-gray-100 text-gray-500' : 'bg-green-50 text-green-600 hover:bg-green-100'"
+              class="w-8 h-8 flex items-center justify-center rounded-lg transition-colors">
+              <i :class="p.status === 'bought' ? 'pi pi-undo' : 'pi pi-check'" class="text-xs"></i>
+            </button>
+            <button @click="openEditProposal(p)"
+              class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+              <i class="pi pi-pencil text-xs"></i>
+            </button>
+            <button @click="confirmDeleteProposal(p.id)"
+              class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+              <i class="pi pi-trash text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Analisa -->
+        <div v-if="p.analysis && p.analysis.length" class="border-t border-gray-100 pt-3">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Analisa Perbandingan</p>
+          <div class="space-y-1.5">
+            <div v-for="(a, i) in p.analysis" :key="i"
+              class="flex items-start gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2">
+              <span class="text-xs font-bold text-gray-400 mt-0.5">{{ i + 1 }}.</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-gray-700">
+                  <span v-if="a.brand" class="font-semibold">{{ a.brand }}</span>
+                  <span v-if="a.brand && a.price"> — </span>
+                  <span v-if="a.price" class="text-gray-600">{{ fmt(a.price) }}</span>
+                </p>
+                <p v-if="a.note" class="text-xs text-gray-500">{{ a.note }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -284,7 +390,7 @@
             </div>
           </div>
         </div>
-        <button @click="openAddTransaction"
+        <button v-if="canEdit" @click="openAddTransaction"
           class="flex items-center justify-center gap-2 bg-primary hover:bg-primary-light text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors sm:self-start">
           <i class="pi pi-plus text-[10px]"></i>
           Transaksi
@@ -314,7 +420,7 @@
                   <p class="text-sm font-semibold text-gray-800">{{ tx.budget_item?.name }}</p>
                   <p v-if="tx.note" class="text-xs text-gray-400 mt-0.5 truncate">{{ tx.note }}</p>
                   <div class="flex items-center gap-3 mt-2">
-                    <label v-if="!tx.receipt_path" :for="'receipt-m-' + tx.id"
+                    <label v-if="!tx.receipt_path && canEdit" :for="'receipt-m-' + tx.id"
                       class="cursor-pointer text-xs text-amber-600 hover:text-amber-800 font-bold">
                       <i class="pi pi-upload text-[10px]"></i> Bukti
                     </label>
@@ -328,7 +434,7 @@
                 </div>
                 <div class="flex-shrink-0 text-right">
                   <p class="text-base font-bold text-gray-800">{{ fmt(tx.amount) }}</p>
-                  <div class="flex items-center justify-end gap-1.5 mt-2">
+                  <div v-if="canEdit" class="flex items-center justify-end gap-1.5 mt-2">
                     <button @click="openEditTransaction(tx)"
                       class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
                       <i class="pi pi-pencil text-[10px]"></i>
@@ -365,7 +471,7 @@
                   <td class="px-4 py-3 text-right font-semibold text-gray-800">{{ fmt(tx.amount) }}</td>
                   <td class="px-4 py-3 text-gray-500 text-xs max-w-[180px] truncate">{{ tx.note }}</td>
                   <td class="px-4 py-3 text-center">
-                    <label v-if="!tx.receipt_path" :for="'receipt-' + tx.id"
+                    <label v-if="!tx.receipt_path && canEdit" :for="'receipt-' + tx.id"
                       class="cursor-pointer text-xs text-amber-600 hover:text-amber-800">Upload</label>
                     <a v-else :href="'/storage/' + tx.receipt_path" target="_blank"
                       class="text-xs text-blue-600 hover:underline">Lihat</a>
@@ -373,7 +479,7 @@
                       @change="(e) => uploadReceipt(tx.id, e)" />
                   </td>
                   <td class="px-4 py-3 text-right">
-                    <div class="flex justify-end gap-2">
+                    <div v-if="canEdit" class="flex justify-end gap-2">
                       <button @click="openEditTransaction(tx)"
                         class="text-xs text-blue-600 hover:text-blue-800">Edit</button>
                       <button @click="confirmDeleteTransaction(tx.id)"
@@ -662,6 +768,138 @@
       </div>
     </Transition>
 
+    <!-- Add/Edit Proposal Modal -->
+    <Transition name="modal">
+      <div v-if="proposalModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="proposalModal.open = false" />
+        <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+          <div class="px-6 py-5 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-amber-100 flex items-center justify-between">
+            <h2 class="text-base font-bold text-amber-900">{{ proposalModal.id ? 'Edit Pengajuan' : 'Pengajuan Baru' }}</h2>
+            <button @click="proposalModal.open = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-amber-200/50 hover:bg-amber-200 text-amber-700 transition-colors">
+              <i class="pi pi-times text-xs"></i>
+            </button>
+          </div>
+
+          <div class="px-6 py-5 space-y-4 overflow-y-auto">
+            <div>
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Barang</label>
+              <input v-model="proposalForm.name" type="text" placeholder="e.g. TV"
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Merk Diusulkan</label>
+                <input v-model="proposalForm.brand" type="text" placeholder="e.g. Samsung"
+                  class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Harga</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium pointer-events-none">Rp</span>
+                  <input v-model="proposalForm.price" type="text" inputmode="numeric"
+                    @input="proposalForm.price = (($event.target as HTMLInputElement).value.replace(/\D/g,'') ? Number(($event.target as HTMLInputElement).value.replace(/\D/g,'')).toLocaleString('id-ID') : '0')"
+                    class="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Keterangan <span class="normal-case font-normal text-slate-400">(opsional)</span></label>
+              <textarea v-model="proposalForm.note" rows="2" placeholder="Alasan pengajuan..."
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all outline-none resize-none" />
+            </div>
+
+            <!-- Analisa -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Analisa Perbandingan</label>
+                <button @click="addAnalysisRow" class="text-xs font-bold text-amber-600 hover:text-amber-800 transition-colors">
+                  <i class="pi pi-plus text-[9px]"></i> Tambah
+                </button>
+              </div>
+              <div v-if="!proposalForm.analysis.length" class="text-xs text-slate-400 italic py-2">
+                Belum ada. Tambah alternatif (merk/tipe lain, harga, kelebihan/kekurangan).
+              </div>
+              <div v-for="(a, i) in proposalForm.analysis" :key="i"
+                class="border border-slate-200 rounded-xl p-3 mb-2 space-y-2 bg-slate-50/50">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Opsi {{ i + 1 }}</span>
+                  <button @click="removeAnalysisRow(i)" class="w-6 h-6 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                    <i class="pi pi-times text-[10px]"></i>
+                  </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input v-model="a.brand" type="text" placeholder="Merk / tipe"
+                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none" />
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">Rp</span>
+                    <input v-model="a.price" type="text" inputmode="numeric" placeholder="0"
+                      @input="a.price = (($event.target as HTMLInputElement).value.replace(/\D/g,'') ? Number(($event.target as HTMLInputElement).value.replace(/\D/g,'')).toLocaleString('id-ID') : '0')"
+                      class="w-full border border-slate-200 rounded-lg pl-8 pr-2 py-2 text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none" />
+                  </div>
+                </div>
+                <input v-model="a.note" type="text" placeholder="Catatan (kelebihan / kekurangan)"
+                  class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none" />
+              </div>
+            </div>
+
+            <label class="flex items-center gap-2.5 cursor-pointer select-none px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-200 transition-colors">
+              <input type="checkbox" :checked="proposalForm.status === 'bought'"
+                @change="proposalForm.status = ($event.target as HTMLInputElement).checked ? 'bought' : 'pending'"
+                class="w-4 h-4 rounded accent-green-500" />
+              <span class="text-sm font-medium text-slate-700">Sudah terbeli</span>
+            </label>
+          </div>
+
+          <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <button @click="proposalModal.open = false"
+              class="px-5 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">Batal</button>
+            <button @click="saveProposal" :disabled="saving"
+              class="px-6 py-2.5 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-lg shadow-amber-200 transition-all disabled:opacity-50">
+              {{ saving ? 'Menyimpan...' : 'Simpan' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- New Period Modal -->
+    <Transition name="modal">
+      <div v-if="newPeriodModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40" @click="newPeriodModal.open = false" />
+        <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+          <div>
+            <h2 class="text-lg font-bold text-gray-800">Buat RAB Periode Baru</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Kategori & item disalin dari periode aktif. Periode lama tetap tersimpan.</p>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Nama Periode</label>
+            <input v-model="newPeriodForm.name" type="text" placeholder="e.g. Periode Juli 2026"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">Mulai</label>
+              <input type="date" v-model="newPeriodForm.start_date"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">Sampai</label>
+              <input type="date" v-model="newPeriodForm.end_date"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400" />
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button @click="newPeriodModal.open = false"
+              class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">Batal</button>
+            <button @click="saveNewPeriod" :disabled="newPeriodModal.saving"
+              class="px-5 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50">
+              {{ newPeriodModal.saving ? 'Membuat...' : 'Buat & Salin' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Confirm Modal -->
     <Transition name="modal">
       <div v-if="confirmModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -700,6 +938,7 @@ const tabs = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'master',    label: 'Master RAB' },
   { id: 'realisasi', label: 'Realisasi' },
+  { id: 'pengajuan', label: 'Pengajuan' },
 ]
 const activeTab = ref('dashboard')
 
@@ -714,6 +953,14 @@ const saving       = ref(false)
 const period        = ref({ start_date: '', end_date: '' })
 const periodForm    = ref({ start_date: '', end_date: '' })
 const periodEdit    = ref(false)
+
+// Periode RAB (multi-periode)
+const periods        = ref<any[]>([])
+const viewPeriodId   = ref<number | null>(null)
+const activePeriodId = computed(() => periods.value.find(p => p.is_active)?.id ?? null)
+const canEdit        = computed(() => viewPeriodId.value !== null && viewPeriodId.value === activePeriodId.value)
+const newPeriodModal = ref({ open: false, saving: false })
+const newPeriodForm  = ref({ name: '', start_date: '', end_date: '' })
 const txMonth       = ref('')
 const txDate        = ref('')
 const txCatId       = ref<number | null>(null)
@@ -738,6 +985,14 @@ const txReceiptFile = ref<File | null>(null)
 const txModalItems = computed(() => {
   if (!txModalCatId.value) return []
   return categories.value.find(c => c.id === txModalCatId.value)?.items ?? []
+})
+
+// Pengajuan
+const proposals     = ref<any[]>([])
+const proposalModal = ref({ open: false, id: null as number | null })
+const proposalForm  = ref({
+  name: '', brand: '', price: '0', note: '', status: 'pending',
+  analysis: [] as { brand: string; price: string; note: string }[],
 })
 
 const confirmModal = ref({ open: false, message: '', action: () => {} })
@@ -797,34 +1052,54 @@ function onAmountInput(e: Event) {
 // ── Load ───────────────────────────────────────────────────────
 
 async function loadAll() {
-  await loadPeriodSetting()
+  await loadPeriods()
   await loadCategories()
   await loadSummary()
   await loadTrend()
   await loadTransactions()
+  await loadProposals()
+}
+
+async function loadPeriods() {
+  const res = await budgetApi.getPeriods()
+  periods.value = res.data
+  // Default lihat periode aktif, jika belum ada pilihan
+  if (viewPeriodId.value === null || !periods.value.some(p => p.id === viewPeriodId.value)) {
+    viewPeriodId.value = activePeriodId.value
+  }
+  syncPeriodLabel()
+}
+
+function syncPeriodLabel() {
+  const p = periods.value.find(p => p.id === viewPeriodId.value)
+  if (p) {
+    period.value     = { start_date: p.start_date, end_date: p.end_date }
+    periodForm.value = { start_date: p.start_date, end_date: p.end_date }
+  }
+}
+
+async function switchPeriod(id: number) {
+  viewPeriodId.value = id
+  periodEdit.value = false
+  syncPeriodLabel()
+  await Promise.all([loadCategories(), loadSummary(), loadTransactions(), loadProposals()])
 }
 
 async function loadCategories() {
-  const res = await budgetApi.getCategories()
+  const res = await budgetApi.getCategories(viewPeriodId.value ?? undefined)
   categories.value = res.data
-}
-
-async function loadPeriodSetting() {
-  const res = await budgetApi.getPeriodSetting()
-  period.value     = res.data
-  periodForm.value = { ...res.data }
 }
 
 async function savePeriodSetting() {
   await budgetApi.setPeriodSetting(periodForm.value)
   period.value  = { ...periodForm.value }
   periodEdit.value = false
-  await Promise.all([loadSummary(), loadTransactions()])
+  await Promise.all([loadPeriods(), loadSummary(), loadTransactions()])
   showToast('Periode berhasil diubah')
 }
 
 async function loadSummary() {
-  const res = await budgetApi.getSummary()
+  const res = await budgetApi.getSummary(viewPeriodId.value ?? undefined)
   summary.value = res.data
 }
 
@@ -838,8 +1113,152 @@ async function loadTransactions() {
     date:           txDate.value || undefined,
     month:          txDate.value ? undefined : (txMonth.value || undefined),
     budget_item_id: txItemId.value ?? undefined,
+    period_id:      viewPeriodId.value ?? undefined,
   })
   transactions.value = res.data
+}
+
+// ── Period CRUD ────────────────────────────────────────────────
+
+function openNewPeriod() {
+  const d = new Date()
+  newPeriodForm.value = {
+    name: 'Periode ' + d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+    start_date: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10),
+    end_date:   new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10),
+  }
+  newPeriodModal.value = { open: true, saving: false }
+}
+
+async function saveNewPeriod() {
+  if (!newPeriodForm.value.name.trim()) return
+  newPeriodModal.value.saving = true
+  try {
+    const res = await budgetApi.createPeriod(newPeriodForm.value)
+    newPeriodModal.value.open = false
+    viewPeriodId.value = res.data.id
+    await loadAll()
+    showToast('RAB periode baru dibuat (disalin dari periode aktif)')
+  } catch (e: any) {
+    showToast(e?.response?.data?.message ?? 'Gagal membuat periode', 'error')
+  } finally {
+    newPeriodModal.value.saving = false
+  }
+}
+
+function confirmDeletePeriod() {
+  const p = periods.value.find(p => p.id === viewPeriodId.value)
+  confirmModal.value = {
+    open: true,
+    message: `Hapus periode "${p?.name}" beserta seluruh RAB & realisasinya? Tindakan ini tidak bisa dibatalkan.`,
+    action: () => deletePeriod(viewPeriodId.value as number),
+  }
+}
+
+async function deletePeriod(id: number) {
+  try {
+    await budgetApi.deletePeriod(id)
+    viewPeriodId.value = null
+    await loadAll()
+    showToast('Periode dihapus')
+  } catch (e: any) {
+    showToast(e?.response?.data?.message ?? 'Gagal menghapus periode', 'error')
+  }
+}
+
+// ── Pengajuan CRUD ─────────────────────────────────────────────
+
+async function loadProposals() {
+  const res = await budgetApi.getProposals(viewPeriodId.value ?? undefined)
+  proposals.value = res.data
+}
+
+function rawNum(v: string | number) {
+  return Number(String(v).replace(/[^\d]/g, '')) || 0
+}
+
+function openAddProposal() {
+  proposalModal.value = { open: true, id: null }
+  proposalForm.value  = { name: '', brand: '', price: '0', note: '', status: 'pending', analysis: [] }
+}
+
+function openEditProposal(p: any) {
+  proposalModal.value = { open: true, id: p.id }
+  proposalForm.value  = {
+    name: p.name,
+    brand: p.brand ?? '',
+    price: Number(p.price).toLocaleString('id-ID'),
+    note: p.note ?? '',
+    status: p.status,
+    analysis: (p.analysis ?? []).map((a: any) => ({
+      brand: a.brand ?? '', price: Number(a.price ?? 0).toLocaleString('id-ID'), note: a.note ?? '',
+    })),
+  }
+}
+
+function addAnalysisRow() {
+  proposalForm.value.analysis.push({ brand: '', price: '0', note: '' })
+}
+
+function removeAnalysisRow(i: number) {
+  proposalForm.value.analysis.splice(i, 1)
+}
+
+async function saveProposal() {
+  if (!proposalForm.value.name.trim()) return
+  saving.value = true
+  try {
+    const payload = {
+      name: proposalForm.value.name,
+      brand: proposalForm.value.brand || null,
+      price: rawNum(proposalForm.value.price),
+      note: proposalForm.value.note || null,
+      status: proposalForm.value.status,
+      analysis: proposalForm.value.analysis
+        .filter(a => a.brand.trim() || rawNum(a.price) || a.note.trim())
+        .map(a => ({ brand: a.brand || null, price: rawNum(a.price), note: a.note || null })),
+    }
+    if (proposalModal.value.id) {
+      await budgetApi.updateProposal(proposalModal.value.id, payload)
+    } else {
+      await budgetApi.createProposal(payload)
+    }
+    proposalModal.value.open = false
+    await loadProposals()
+    showToast('Pengajuan disimpan')
+  } catch (e: any) {
+    showToast(e?.response?.data?.message ?? 'Gagal menyimpan pengajuan', 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function toggleBought(p: any) {
+  try {
+    await budgetApi.updateProposal(p.id, { status: p.status === 'bought' ? 'pending' : 'bought' })
+    await loadProposals()
+    showToast(p.status === 'bought' ? 'Dikembalikan ke pending' : 'Ditandai terbeli')
+  } catch {
+    showToast('Gagal mengubah status', 'error')
+  }
+}
+
+function confirmDeleteProposal(id: number) {
+  confirmModal.value = {
+    open: true,
+    message: 'Hapus pengajuan ini?',
+    action: () => deleteProposal(id),
+  }
+}
+
+async function deleteProposal(id: number) {
+  try {
+    await budgetApi.deleteProposal(id)
+    await loadProposals()
+    showToast('Pengajuan dihapus')
+  } catch {
+    showToast('Gagal menghapus pengajuan', 'error')
+  }
 }
 
 // ── Category CRUD ─────────────────────────────────────────

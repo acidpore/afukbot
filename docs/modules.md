@@ -342,6 +342,26 @@ Pilih "Lainnya" → input custom kategori muncul.
 | Dashboard | Summary cards, status per kategori, trend 6 bulan |
 | Master RAB | Kelola kategori & item anggaran |
 | Realisasi | Catat & kelola transaksi aktual |
+| Pengajuan | Rencana barang yang mau dibeli + analisa perbandingan |
+
+### RAB Multi-Periode
+- Baris chip periode di atas modul (urut terbaru → lama, dari `rab_periods`). Tombol **Buat RAB Baru** = clone kategori+item periode aktif ke periode baru, set aktif.
+- Periode aktif = `is_active` di `rab_periods` → satu-satunya yang editable. Periode lama **read-only** (tombol edit/hapus disembunyikan via `canEdit`).
+- Semua query (`getCategories`, `getSummary`, `getTransactions`, `getProposals`) menerima `?period_id=`; default = periode aktif.
+- **Hapus item = soft delete** → realisasi periode tidak hilang. Hapus periode = wipe RAB+realisasi periode itu (dengan konfirmasi; periode terakhir tidak bisa dihapus).
+
+### Tab Pengajuan
+- CRUD `budget_proposals` (scope per periode). Tiap pengajuan: nama barang, merk + harga diusulkan, catatan, dan list **analisa** alternatif (`analysis` JSON: merk/harga/catatan).
+- Status Pending / Terbeli (toggle, tidak auto-bikin realisasi). Pending tampil di atas, terbeli di bawah.
+
+### Endpoint tambahan (periode & pengajuan)
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET | `/budget/periods` | List periode (terbaru dulu) |
+| POST | `/budget/periods` | Buat periode baru (clone dari aktif) |
+| DELETE | `/budget/periods/{id}` | Hapus periode |
+| GET/POST | `/budget/proposals` | List / buat pengajuan |
+| PUT/DELETE | `/budget/proposals/{id}` | Update / hapus pengajuan |
 
 ### API Endpoints
 | Method | Endpoint | Keterangan |
@@ -692,3 +712,48 @@ Card juga menampilkan: laba bersih, biaya variabel, estimasi PPh Final 0,5% atau
 | POST | `/account-mutations/import-preview` | Parse CSV Mandiri → preview rows |
 | POST | `/account-mutations/import-commit` | Simpan hasil import ke DB |
 | POST | `/tax-consultant/chat` | Chat AI konsultan pajak via Groq (multi-turn, konteks data real) |
+
+---
+
+## 15. Invoice Eksternal (Invoicing)
+
+**File:** `resources/js/Pages/Modules/Invoicing/InvoicingModule.vue`
+**Backend:** `app/Modules/Invoicing/`
+**Models:** `App\Models\{Company, InvoiceCustomer, Invoice, InvoiceItem}`
+**Tab ID:** `invoice-eksternal` (di bawah grup menu "Penjualan")
+
+Modul **terpisah** dari Sales. Untuk membuat invoice pembelian dari luar (audit) dengan PPN 11%, dukungan banyak perusahaan penerbit dengan styling berbeda.
+
+### Konsep
+- **Layout vs branding dipisah:** 4 layout Blade (`modern`, `classic`, `minimal`, `bold`) di `resources/views/invoices/layouts/`, branding (logo, warna, bank, NPWP, prefix nomor) disimpan per `companies`. Layout pakai warna hex dari company.
+- **PDF: `barryvdh/laravel-dompdf`** (sudah terinstall, tanpa Chromium). Layout dibuat **table-based** (bukan flexbox) agar render benar di dompdf & browser. Logo/ttd di-embed base64 agar muncul di PDF & preview.
+- **Nomor invoice:** sequence per-company atomik (`Company::lockForUpdate`), format `{invoice_prefix}/{tahun}/{urut 3 digit}`.
+- Hapus company = cascade hapus semua invoice-nya (ada konfirmasi).
+
+### Mode PPN (penting)
+- `exclusive`: harga item belum termasuk PPN → PPN ditambah di atas subtotal.
+- `inclusive` (**reverse-tax**): total = jumlah item; DPP & PPN dihitung mundur (`DPP = total / 1,11`). Untuk kasus "mau total pas 350jt".
+- Total **selalu dihitung di backend** (`InvoiceService::computeTotals`), frontend cuma mirror untuk live preview.
+
+### Fitur UI
+- List invoice (filter perusahaan/status), aksi icon-only: PDF, Preview, Edit, Hapus.
+- Form: pilih perusahaan, customer inline, item dinamis, mode harga, PPN%, diskon, catatan, live total. **Preview** (draft, sebelum simpan) + edit **nomor invoice** manual saat edit.
+- **Kelola Perusahaan:** CRUD company + upload logo & tanda tangan, pilih 2 warna brand & layout.
+- Layout `modern` sudah "full": kop ber-aksen, kartu bill-to, tabel item bernomor + zebra, **terbilang** (ejaan rupiah), kotak pembayaran, tanda tangan 2 kolom (kiri penerbit, kanan penerima).
+
+### API Endpoints
+| Method | Endpoint | Keterangan |
+|---|---|---|
+| GET/POST | `/companies` | List / buat perusahaan |
+| PUT/DELETE | `/companies/{id}` | Update (multipart, `_method=PUT` untuk file) / hapus |
+| GET | `/invoices` | List (filter `company_id`, `status`) |
+| POST | `/invoices` | Buat invoice |
+| POST | `/invoices/preview` | Render HTML dari data belum disimpan (live preview) |
+| GET | `/invoices/{id}` | Detail |
+| PUT | `/invoices/{id}` | Update (boleh ubah `invoice_number`) |
+| DELETE | `/invoices/{id}` | Hapus |
+| GET | `/invoices/{id}/preview` | HTML preview invoice tersimpan |
+| GET | `/invoices/{id}/pdf` | Download PDF (dompdf) |
+
+### Seeder
+`database/seeders/CompanySeeder.php` → 10 perusahaan dummy (termasuk Hao Hao), rotasi layout & warna. Jalankan: `php artisan db:seed --class=CompanySeeder`.

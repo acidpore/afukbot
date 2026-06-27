@@ -9,11 +9,77 @@ class BudgetController extends Controller
 {
     public function __construct(private BudgetService $service) {}
 
+    // ── Periods ────────────────────────────────────────────────
+
+    public function indexPeriods()
+    {
+        return response()->json($this->service->listPeriods());
+    }
+
+    public function storePeriod(Request $request)
+    {
+        $data = $request->validate([
+            'name'       => 'required|string|max:100',
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+        return response()->json($this->service->createPeriod($data), 201);
+    }
+
+    public function destroyPeriod(int $id)
+    {
+        $this->service->deletePeriod($id);
+        return response()->json(null, 204);
+    }
+
+    // ── Proposals (Pengajuan) ──────────────────────────────────
+
+    private function proposalRules(bool $partial = false): array
+    {
+        $req = $partial ? 'sometimes' : 'required';
+        return [
+            'name'            => "$req|string|max:150",
+            'brand'           => 'nullable|string|max:150',
+            'price'           => "$req|numeric|min:0",
+            'note'            => 'nullable|string|max:1000',
+            'analysis'        => 'nullable|array',
+            'analysis.*.brand' => 'nullable|string|max:150',
+            'analysis.*.price' => 'nullable|numeric|min:0',
+            'analysis.*.note'  => 'nullable|string|max:500',
+            'status'          => 'nullable|in:pending,bought',
+        ];
+    }
+
+    public function indexProposals(Request $request)
+    {
+        $periodId = $request->query('period_id') ? (int) $request->query('period_id') : null;
+        return response()->json($this->service->listProposals($periodId));
+    }
+
+    public function storeProposal(Request $request)
+    {
+        $data = $request->validate($this->proposalRules());
+        return response()->json($this->service->createProposal($data), 201);
+    }
+
+    public function updateProposal(Request $request, int $id)
+    {
+        $data = $request->validate($this->proposalRules(true));
+        return response()->json($this->service->updateProposal($id, $data));
+    }
+
+    public function destroyProposal(int $id)
+    {
+        $this->service->deleteProposal($id);
+        return response()->json(null, 204);
+    }
+
     // ── Categories ─────────────────────────────────────────────
 
-    public function indexCategories()
+    public function indexCategories(Request $request)
     {
-        return response()->json($this->service->getCategories());
+        $periodId = $request->query('period_id') ? (int) $request->query('period_id') : null;
+        return response()->json($this->service->getCategories($periodId));
     }
 
     public function storeCategory(Request $request)
@@ -97,7 +163,8 @@ class BudgetController extends Controller
         $data = $this->service->getTransactions(
             $request->query('month'),
             $request->query('budget_item_id') ? (int) $request->query('budget_item_id') : null,
-            $request->query('date')
+            $request->query('date'),
+            $request->query('period_id') ? (int) $request->query('period_id') : null
         );
         return response()->json($data);
     }
@@ -140,12 +207,14 @@ class BudgetController extends Controller
 
     public function summary(Request $request)
     {
-        return response()->json($this->service->getSummary());
+        $periodId = $request->query('period_id') ? (int) $request->query('period_id') : null;
+        return response()->json($this->service->getSummary($periodId));
     }
 
-    public function getPeriodSetting()
+    public function getPeriodSetting(Request $request)
     {
-        return response()->json($this->service->getPeriodSetting());
+        $periodId = $request->query('period_id') ? (int) $request->query('period_id') : null;
+        return response()->json($this->service->getPeriodSetting($periodId));
     }
 
     public function setPeriodSetting(Request $request)

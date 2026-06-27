@@ -17,6 +17,7 @@ import MbgModule from './Modules/MbgApi/MbgModule.vue';
 import SuratJalanModule from './Modules/SuratJalan/SuratJalanModule.vue'
 import CalibrationModule from './Modules/Inventory/CalibrationModule.vue'
 import MutasiRekeningModule from './Modules/MutasiRekening/MutasiRekeningModule.vue'
+import InvoicingModule from './Modules/Invoicing/InvoicingModule.vue'
 import { calibrationApi } from '@/api/calibration.api';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -120,8 +121,9 @@ const menuItems = [
     name: 'Penjualan',
     icon: 'pi pi-receipt',
     children: [
-      { id: 'sales',       name: 'Invoice',     icon: 'pi pi-file-edit' },
-      { id: 'surat-jalan', name: 'Surat Jalan', icon: 'pi pi-truck'     },
+      { id: 'sales',             name: 'Invoice',           icon: 'pi pi-file-edit' },
+      { id: 'surat-jalan',       name: 'Surat Jalan',       icon: 'pi pi-truck'     },
+      { id: 'invoice-eksternal', name: 'Invoice Eksternal', icon: 'pi pi-file-pdf'  },
     ],
   },
   {
@@ -148,7 +150,7 @@ const keuanganExpanded = computed(() =>
 );
 
 const penjualanExpanded = computed(() =>
-  activeTab.value === 'penjualan' || activeTab.value === 'sales' || activeTab.value === 'surat-jalan'
+  activeTab.value === 'penjualan' || activeTab.value === 'sales' || activeTab.value === 'surat-jalan' || activeTab.value === 'invoice-eksternal'
 );
 
 function isExpanded(id: string): boolean {
@@ -646,6 +648,11 @@ onUnmounted(() => {
       <!-- Module: RAB Budget -->
       <div v-else-if="activeTab === 'rab'">
         <BudgetModule />
+      </div>
+
+      <!-- Module: Invoice Eksternal -->
+      <div v-else-if="activeTab === 'invoice-eksternal'">
+        <InvoicingModule />
       </div>
 
       <!-- Module: MBG Admin -->

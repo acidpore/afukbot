@@ -27,10 +27,11 @@ Dokumentasi internal sistem manajemen MBG Store.
 | Mutasi Stok | `inventory-history` | Riwayat IN/OUT stok |
 | Kalibrasi Stok | `inventory-calibration` | Kalibrasi fisik mingguan |
 | Invoice | `sales` | Buat, kelola, kirim invoice |
+| Invoice Eksternal | `invoice-eksternal` | Invoice multi-perusahaan untuk pembelian luar (audit), PPN 11%, PDF dompdf |
 | Surat Jalan | `surat-jalan` | Pengiriman partial per invoice |
 | Pengeluaran | `expenses` | Catat pengeluaran ruko |
 | Pemasukan | `incomes` | Catat pemasukan ruko |
-| RAB Tracking | `rab` | Anggaran & realisasi |
+| RAB Tracking | `rab` | Anggaran & realisasi (multi-periode + tab Pengajuan) |
 | MBG Admin | `mbg` | Sinkronisasi MBG API |
 | Pengaturan | `settings` | User management, rekening bank, log aktivitas |
 | Mutasi Rekening | `mutasi-rekening` | Mutasi rekening PT, konsultan pajak, import Mandiri |
